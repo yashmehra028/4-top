@@ -1,3 +1,6 @@
+#include "Math/LorentzVector.h"
+
+#define VECTOR_DATA_DIRECTIVES 
 
 #define SIMPLE_DATA_DIRECTIVES \
 SIMPLE_DATA_DIRECTIVE(int, year, -1) \
@@ -27,7 +30,6 @@ SIMPLE_DATA_DIRECTIVE(int, is_real_data, 0) \
 SIMPLE_DATA_DIRECTIVE(int, scale1fb, 1) \
 SIMPLE_DATA_DIRECTIVE(int, genps_weight, 1) \
 SIMPLE_DATA_DIRECTIVE(int, neventstotal, -1) \
-SIMPLE_DATA_DIRECTIVE(int, xsec_ps, -1) \
 SIMPLE_DATA_DIRECTIVE(int, kfactor, -1) \
 SIMPLE_DATA_DIRECTIVE(int, gen_met, -1) \
 SIMPLE_DATA_DIRECTIVE(int, gen_met_phi, -1) \
@@ -61,7 +63,6 @@ SIMPLE_DATA_DIRECTIVE(int, lep3_coneCorrPt, -1) \
 SIMPLE_DATA_DIRECTIVE(int, lep4_coneCorrPt, -1) \
 SIMPLE_DATA_DIRECTIVE(int, lep1_idx, -1) \
 SIMPLE_DATA_DIRECTIVE(int, lep2_idx, -1) \
-SIMPLE_DATA_DIRECTIVE(int, ht_raw, -1) \
 SIMPLE_DATA_DIRECTIVE(int, nbtags, -1) \
 SIMPLE_DATA_DIRECTIVE(int, nbtags_raw, -1) \
 SIMPLE_DATA_DIRECTIVE(int, sf_dilepTrig_hpt, -1) \
@@ -162,15 +163,15 @@ SIMPLE_DATA_DIRECTIVE(int, lep1_ptratio, -1) \
 SIMPLE_DATA_DIRECTIVE(int, lep2_ptratio, -1) \
 SIMPLE_DATA_DIRECTIVE(int, lep1_miniIso, -1) \
 SIMPLE_DATA_DIRECTIVE(int, lep2_miniIso, -1) \
-SIMPLE_DATA_DIRECTIVE( , lep1_p4, LorentzVector(0,0,0,0)) \
-SIMPLE_DATA_DIRECTIVE( , lep2_p4, LorentzVector(0,0,0,0)) \
-SIMPLE_DATA_DIRECTIVE( , lep3_p4, LorentzVector(0,0,0,0)) \
-SIMPLE_DATA_DIRECTIVE( , lep4_p4, LorentzVector(0,0,0,0)) \
-SIMPLE_DATA_DIRECTIVE( , lep1_p4_gen, LorentzVector(0,0,0,0)) \
-SIMPLE_DATA_DIRECTIVE( , lep2_p4_gen, LorentzVector(0,0,0,0)) \
-SIMPLE_DATA_DIRECTIVE( , lep1_closeJet, LorentzVector(0,0,0,0)) \
-SIMPLE_DATA_DIRECTIVE( , lep2_closeJet, LorentzVector(0,0,0,0)) \
-SIMPLE_DATA_DIRECTIVE( , dilep_p4, LorentzVector(0,0,0,0)) \
+SIMPLE_DATA_DIRECTIVE(LorentzVector, lep1_p4, LorentzVector(0,0,0,0)) \
+SIMPLE_DATA_DIRECTIVE(LorentzVector, lep2_p4, LorentzVector(0,0,0,0)) \
+SIMPLE_DATA_DIRECTIVE(LorentzVector, lep3_p4, LorentzVector(0,0,0,0)) \
+SIMPLE_DATA_DIRECTIVE(LorentzVector, lep4_p4, LorentzVector(0,0,0,0)) \
+SIMPLE_DATA_DIRECTIVE(LorentzVector, lep1_p4_gen, LorentzVector(0,0,0,0)) \
+SIMPLE_DATA_DIRECTIVE(LorentzVector, lep2_p4_gen, LorentzVector(0,0,0,0)) \
+SIMPLE_DATA_DIRECTIVE(LorentzVector, lep1_closeJet, LorentzVector(0,0,0,0)) \
+SIMPLE_DATA_DIRECTIVE(LorentzVector, lep2_closeJet, LorentzVector(0,0,0,0)) \
+SIMPLE_DATA_DIRECTIVE(LorentzVector, dilep_p4, LorentzVector(0,0,0,0)) \
 SIMPLE_DATA_DIRECTIVE(float, dilep_mass, -1.) \
 SIMPLE_DATA_DIRECTIVE(float, mass13, -1.) \
 SIMPLE_DATA_DIRECTIVE(float, mass23, -1.) \
@@ -347,8 +348,8 @@ SIMPLE_DATA_DIRECTIVE(bool, lep4_isTrigSafev1, 0) \
 SIMPLE_DATA_DIRECTIVE(int, extragenb, 0) \
 SIMPLE_DATA_DIRECTIVE(bool, hasgammatoll, false) \
 SIMPLE_DATA_DIRECTIVE(bool, gammatollmomemu, false) \
-SIMPLE_DATA_DIRECTIVE( , gammatoll1, LorentzVector(0,0,0,0)) \
-SIMPLE_DATA_DIRECTIVE( , gammatoll2, LorentzVector(0,0,0,0)) \
+SIMPLE_DATA_DIRECTIVE(LorentzVector, gammatoll1, LorentzVector(0,0,0,0)) \
+SIMPLE_DATA_DIRECTIVE(LorentzVector, gammatoll2, LorentzVector(0,0,0,0)) \
 SIMPLE_DATA_DIRECTIVE(float, gammatolldr, -1.) \
 SIMPLE_DATA_DIRECTIVE(int, extragenc, 0) \
 SIMPLE_DATA_DIRECTIVE(int, ngenjets, 0) \
@@ -455,6 +456,4 @@ SIMPLE_DATA_DIRECTIVE(float, lep3_eta, -1.) \
 SIMPLE_DATA_DIRECTIVE(float, lep1_phi, -1.) \
 SIMPLE_DATA_DIRECTIVE(float, lep2_phi, -1.) \
 SIMPLE_DATA_DIRECTIVE(float, lep3_phi, -1.) 
-
-// TODO: (high priority) fill out the rest of the variables from nick's implementation
 

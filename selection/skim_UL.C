@@ -17,7 +17,7 @@
 #include "../NanoTools/NanoCORE/Nano.cc"
 #include "../NanoTools/NanoCORE/tqdm.h"
 
-#include "analysis_types.h"
+//#include "analysis_types.h"
 #include "tree_tools.h"
 
 #include <string>
@@ -42,7 +42,7 @@ struct debugger { template<typename T> debugger& operator , (const T& v) { cerr<
 using namespace std;
 
 int ScanChain( TChain *ch, string proc, string str_year, string tag, float scale_factor = 1 ) {
-	int year;
+	declare_variables();
 	if ( str_year == "2016_APV") year = 2016;
 	else { year = stoi(str_year); }
 	
