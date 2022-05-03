@@ -1,6 +1,8 @@
+#ifndef ANALYSIS_TYPES_H
+#define ANALYSIS_TYPES_H
+
 #include "Math/LorentzVector.h"
 
-#define VECTOR_DATA_DIRECTIVES 
 
 #define SIMPLE_DATA_DIRECTIVES \
 SIMPLE_DATA_DIRECTIVE(int, year, -1) \
@@ -195,7 +197,7 @@ SIMPLE_DATA_DIRECTIVE(bool, fired_trigger, 0) \
 SIMPLE_DATA_DIRECTIVE(bool, fired_trigger_ss, 0) \
 SIMPLE_DATA_DIRECTIVE(unsigned int, triggers, 0) \
 SIMPLE_DATA_DIRECTIVE(bool, passes_met_filters, 0) \
-simple_data_directive(bool, passes_chargedcand_filter, 0) \
+SIMPLE_DATA_DIRECTIVE(bool, passes_chargedcand_filter, 0) \
 SIMPLE_DATA_DIRECTIVE(float, evt_egclean_pfmet, -1.0) \
 SIMPLE_DATA_DIRECTIVE(float, evt_muegclean_pfmet, -1.0) \
 SIMPLE_DATA_DIRECTIVE(float, evt_muegcleanfix_pfmet, -1.0) \
@@ -457,3 +459,8 @@ SIMPLE_DATA_DIRECTIVE(float, lep1_phi, -1.) \
 SIMPLE_DATA_DIRECTIVE(float, lep2_phi, -1.) \
 SIMPLE_DATA_DIRECTIVE(float, lep3_phi, -1.) 
 
+
+#define VECTOR_DATA_DIRECTIVES 
+
+
+#endif
