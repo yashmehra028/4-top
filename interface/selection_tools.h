@@ -2,7 +2,6 @@
 #include <NanoTools/NanoCORE/Nano.h> // to use namespace tas
 #include <NanoTools/NanoCORE/IsolationTools.h> // to use coneCorrPt
 #include <tree_tools.h> // for global variable definitions
-#include <NanoTools/NanoCORE/ElectronSelections.h> // for electronID with SS::IDLevel 
 
 bool passes_baseline_ft(int njets, int nbtags, float met, float ht, int id1, int id2, float lep1_pt, float lep2_pt) {
     if (lep1_pt < 25.) return 0;
@@ -14,21 +13,26 @@ bool passes_baseline_ft(int njets, int nbtags, float met, float ht, int id1, int
     else return 1;
 }
 
-bool isFakableElectron(unsigned int elidx){
-// TODO: update this function to use nanotools stuff. 
-// remaining: SS_fo_looseMVA*, need to use electronID with year
-// see NanoTools/NanoCORE/ElectronSelections.h for usage of electronID 
-    if (gconf.year == 2016) {
-        if (tas::els_p4().at(elidx).pt() < 10.) return false;
-        if (!electronID(elidx, SS_fo_looseMVA_v5)) return false;
-    } else if (gconf.year == 2017) {
-        if (tas::els_p4().at(elidx).pt() < 10.) return false;
-        if (!electronID(elidx, SS_fo_looseMVA_v6)) return false;
-    } else if (gconf.year == 2018) {
-        if (tas::els_p4().at(elidx).pt() < 10.) return false;
-        if (!electronID(elidx, SS_fo_looseMVA_v7)) return false;
-    }
-    return true;
+bool electronID(unsigned int elidx, unsigned int working_point){
+// TODO: figure out if we actually need this now
+//
+// then we can:
+// TODO: define what a fakeable electron is and implement using 2018 cuts
+// then apply all the same cuts for other years
+// note that the BDT output in nanoAOD is squashed, per AN_2018_062_v17 lines 298
+// use the values from Electron_mvaFall17V2noIso and unsquash
+// then use the cut from the AN 
+  auto const& sq = tas::Electron.mvaFall17V2noIso().at(elidx);
+  float const raw = 1./2. * std::log(( 1. + sq )/( 1. - sq ));
+
+  switch(working_point){
+    case 0: // loose nonIso - 0
+      break;
+    case 1: // loose Iso - 1
+      break;
+    case 2: // tight - 2
+      break;
+  }
 }
 
 std::vector <bool> cleanJets(std::vector <Jet> result_jets){
@@ -218,6 +222,8 @@ void jets_calculator(){
 }
 
 void leptons_calculator(){
+// the hyp_ll_p4 and other hyp* functions are mysterious CMS3 stuff, we need to figure out what it is in CMS4
+// TODO: fix this calculator
   lep1_id = (tas::hyp_ll_p4().at(best_hyp).pt() > tas::hyp_lt_p4().at(best_hyp).pt()) ? tas::hyp_ll_id().at(best_hyp) : tas::hyp_lt_id().at(best_hyp);
   lep2_id = (tas::hyp_ll_p4().at(best_hyp).pt() <= tas::hyp_lt_p4().at(best_hyp).pt()) ? tas::hyp_ll_id().at(best_hyp) : tas::hyp_lt_id().at(best_hyp);
   lep1_idx = (tas::hyp_ll_p4().at(best_hyp).pt() > tas::hyp_lt_p4().at(best_hyp).pt()) ? tas::hyp_ll_index().at(best_hyp) : tas::hyp_lt_index().at(best_hyp);
