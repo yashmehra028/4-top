@@ -2,6 +2,7 @@
 #include <NanoTools/NanoCORE/Nano.h> // to use namespace tas
 #include <NanoTools/NanoCORE/IsolationTools.h> // to use coneCorrPt
 #include <tree_tools.h> // for global variable definitions
+#include <NanoTools/NanoCORE/ElectronSelections.h> // for electronID with SS::IDLevel 
 
 bool passes_baseline_ft(int njets, int nbtags, float met, float ht, int id1, int id2, float lep1_pt, float lep2_pt) {
     if (lep1_pt < 25.) return 0;
@@ -13,6 +14,73 @@ bool passes_baseline_ft(int njets, int nbtags, float met, float ht, int id1, int
     else return 1;
 }
 
+bool isFakableElectron(unsigned int elidx){
+// TODO: update this function to use nanotools stuff. 
+// remaining: SS_fo_looseMVA*, need to use electronID with year
+// see NanoTools/NanoCORE/ElectronSelections.h for usage of electronID 
+    if (gconf.year == 2016) {
+        if (tas::els_p4().at(elidx).pt() < 10.) return false;
+        if (!electronID(elidx, SS_fo_looseMVA_v5)) return false;
+    } else if (gconf.year == 2017) {
+        if (tas::els_p4().at(elidx).pt() < 10.) return false;
+        if (!electronID(elidx, SS_fo_looseMVA_v6)) return false;
+    } else if (gconf.year == 2018) {
+        if (tas::els_p4().at(elidx).pt() < 10.) return false;
+        if (!electronID(elidx, SS_fo_looseMVA_v7)) return false;
+    }
+    return true;
+}
+
+std::vector <bool> cleanJets(std::vector <Jet> result_jets){
+  std::vector <bool> result;
+  for (unsigned int i = 0; i < result_jets.size(); i++){ 
+    result.push_back(1); 
+  }
+  //Jet cleaning -- electrons
+   int removeJet = -1; 
+  for (unsigned int eidx = 0; eidx < tas::els_p4().size(); eidx++){
+    ROOT::Math::LorentzVector electron = tas::els_p4().at(eidx);
+    if (electron.pt() < 10) continue;
+    if (!isFakableElectron(eidx)) continue;
+    //Clean jets
+    float dRmin = 0.4;
+    for (unsigned int iJet = 0; iJet < result_jets.size(); iJet++){
+      if (result.size() > 0 && result.at(iJet) == 0) continue;
+      Jet jet = result_jets.at(iJet); 
+      if (jet.idx() < 0) continue; 
+      float dR = ROOT::Math::VectorUtil::DeltaR(jet.p4(), electron);
+      if (dR < dRmin){
+        dRmin = dR; 
+        removeJet = iJet;
+      }
+    }
+    if (removeJet >= 0) result[removeJet] = false; 
+  }
+  //Jet cleaning -- muons
+  for (unsigned int muidx = 0; muidx < tas::mus_p4().size(); muidx++){
+    ROOT::Math::LorentzVector muon = tas::mus_p4().at(muidx);
+    if (muon.pt() < 10) continue;
+    if (!isFakableMuon(muidx)) continue;
+    //Clean jets
+    float dRmin = 0.4;
+    removeJet = -1; 
+    for (unsigned int iJet = 0; iJet < result_jets.size(); iJet++){
+      if (result.size() > 0 && result.at(iJet) == 0) continue;
+      Jet jet = result_jets.at(iJet); 
+      if (jet.idx() < 0) continue; 
+      float dR = ROOT::Math::VectorUtil::DeltaR(jet.p4(), muon);
+      if (dR < dRmin){
+        dRmin = dR; 
+        removeJet = iJet;
+      }
+    }
+    if (removeJet >= 0) result[removeJet] = false; 
+  }
+
+  //Now we're done
+  return result; 
+}
+
 //doCorr: 0-built-in, 1-corrected, 2-raw
 std::pair <std::vector <Jet>, std::vector <Jet> > SSJetsCalculator(FactorizedJetCorrector* jetCorr, int doCorr, bool isFastsim, bool saveAllPt){
   std::vector <Jet> result_jets;
@@ -21,7 +89,7 @@ std::pair <std::vector <Jet>, std::vector <Jet> > SSJetsCalculator(FactorizedJet
   std::vector <float> result_corrpt;
 
   for (unsigned int i = 0; i < tas::pfjets_p4().size(); i++){
-    LorentzVector jet = tas::pfjets_p4().at(i);
+    ROOT::Math::LorentzVector jet = tas::pfjets_p4().at(i);
 
     //Jet Corr
     jetCorr->setJetEta(jet.eta()); 
@@ -87,8 +155,8 @@ std::pair <std::vector <Jet>, std::vector <Jet> > SSJetsCalculator(FactorizedJet
 void jets_calculator(){
 //Determine and save jet and b-tag variables, raw
   std::pair <std::vector <Jet>, std::vector <Jet> > jet_results = SSJetsCalculator(jetCorr, 2, isFastsim);
-  std::vector <LorentzVector> jets_raw;
-  std::vector <LorentzVector> btags_raw;
+  std::vector <ROOT::Math::LorentzVector> jets_raw;
+  std::vector <ROOT::Math::LorentzVector> btags_raw;
   std::vector <float> jets_undoJEC_raw;
   for (unsigned int i = 0; i < jet_results.first.size(); i++)  jets_raw.push_back(jet_results.first.at(i).p4());
   for (unsigned int i = 0; i < jet_results.second.size(); i++) btags_raw.push_back(jet_results.second.at(i).p4());
