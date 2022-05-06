@@ -1,5 +1,3 @@
-//#pragma GCC diagnostic ignored "-Wsign-compare"
-
 #include "TFile.h"
 #include "TH1F.h"
 #include "TH2F.h"
@@ -12,8 +10,6 @@
 #include "TCanvas.h"
 #include "TObjString.h"
 #include "TTreeCache.h"
-#include "TTreeCacheUnzip.h"
-#include "TTreePerfStats.h"
 
 #include <NanoTools/NanoCORE/Nano.h>
 #include <NanoTools/NanoCORE/tqdm.h>

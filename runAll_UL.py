@@ -7,8 +7,6 @@ import ROOT as r
 from tqdm import tqdm
 from ROOT import gROOT
 
-r.gSystem.Load('selection/skim_UL_C.so')
-
 lumi = { "2016" : 16.51, "2016_APV" : 19.39, "2017" : 41.5, "2018" : 59.8 }
 years = ['2016', '2016_APV', '2017', '2018']
 samples = {}

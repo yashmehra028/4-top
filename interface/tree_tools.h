@@ -1,3 +1,7 @@
+#ifndef TREE_TOOLS_H
+#define TREE_TOOLS_H
+
+
 #include "analysis_types.h"
 
 
@@ -19,3 +23,6 @@ void clear_branches(){
 #undef SIMPLE_DATA_DIRECTIVE
 #undef VECTOR_DATA_DIRECTIVE
 }
+
+
+#endif
