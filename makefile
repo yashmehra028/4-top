@@ -35,10 +35,17 @@ NANOINCDIR           = $(NANODIR)
 NANOCXXFLAGS =  -I$(NANOINCDIR)/ -L$(NANOLIBDIR)
 NANOLIBS =  -lNANO_CORE
 
+# IvyFramework essentials
+IVYCOREDIR              = $(BASEINCLUDE)IvyFramework/IvyDataTools/
+IVYCORELIBDIR           = $(IVYCOREDIR)lib/
+IVYCOREINCDIR           = $(IVYCOREDIR)interface/
+IVYCORECXXFLAGS =  -I$(IVYCOREINCDIR)/ -L$(IVYCORELIBDIR)
+IVYCORELIBS =  -lIvyFrameworkIvyDataTools
+
 
 # Here begins compilation...
-EXTCXXFLAGS   = $(NANOCXXFLAGS)
-EXTLIBS       = $(NANOLIBS)
+EXTCXXFLAGS   = $(NANOCXXFLAGS) $(IVYCORECXXFLAGS)
+EXTLIBS       = $(NANOLIBS) $(IVYCORELIBS)
 
 ROOTCFLAGS    = $(shell root-config --cflags) -Lrootlib
 ROOTLIBS     = $(shell root-config --libs) -lMathMore -lGenVector -Lrootlib
@@ -47,7 +54,7 @@ ARCH         := $(shell root-config --arch)
 
 CXX           = g++
 CXXINC        = -I$(ROOFITSYS)/include/ -I$(BASEINCLUDE) -I$(INCLUDEDIR)
-CXXDEFINES    = 
+CXXDEFINES    = -D_COMPILE_STANDALONE_
 CXXFLAGS      = -fPIC -g -O2 $(ROOTCFLAGS) $(CXXDEFINES) -I$(CXXINC) $(EXTCXXFLAGS)
 LINKERFLAGS   = -Wl,-rpath=$(LIBDIR),-soname,$(LIB)
 
