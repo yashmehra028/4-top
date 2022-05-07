@@ -20,6 +20,7 @@
 **/*.eps
 test/*.root
 test/*.txt
+test/*.json
 obj
 lib
 executables
