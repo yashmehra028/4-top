@@ -8,6 +8,7 @@ import argparse
 
 from metis.Sample import DBSSample, DirectorySample
 from metis.CMSSWTask import CMSSWTask
+from metis.CondorTask import CondorTask
 from metis.StatsParser import StatsParser
 from metis.Utils import send_email, interruptible_sleep
 from metis.Optimizer import Optimizer
@@ -139,7 +140,8 @@ def get_tasks(args):
          taskArgs["max_jobs"] = 2 # 2 condor jobs per sample... FIXME delete this after testing
          taskArgs["max_nevents_per_job"] = 200 # 200 events per job... FIXME delete this after testing
 
-      task = CMSSWTask(**taskArgs)
+      TaskClass = CMSSWTask if doXsecRun else CondorTask
+      task = TaskClass(**taskArgs)
       tasks.append(task)
 
    return tasks
