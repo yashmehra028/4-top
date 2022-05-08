@@ -16,6 +16,7 @@
 
 #include "analysis_types.h"
 #include "tree_tools.h"
+#include "selection_tools.h"
 
 #include <string>
 #include <iostream>
@@ -47,10 +48,10 @@ int ScanChain(TChain* ch, string proc, string str_year, string tag, float scale_
   TFile* foutput = TFile::Open("outputs_UL/" + file_name + ".root", "RECREATE");
   TTree* tout	=	new TTree("Events", "output tree");
 
-#define SIMPLE_DATA_DIRECTIVE(type, name, default_value) \
-	tout->Branch(#name, &name);
-  SIMPLE_DATA_DIRECTIVES
-#undef SIMPLE_DATA_DIRECTIVE
+  #define SIMPLE_DATA_DIRECTIVE(type, name, default_value) \
+  	tout->Branch(#name, &name);
+    SIMPLE_DATA_DIRECTIVES
+  #undef SIMPLE_DATA_DIRECTIVE
 
   int nEventsTotal = 0;
   int nEventsChain = ch->GetEntries();
@@ -75,8 +76,22 @@ int ScanChain(TChain* ch, string proc, string str_year, string tag, float scale_
       nEventsTotal++;
       bar.progress(nEventsTotal, nEventsChain);
 
-      // baseline AN selection goes here
+      ////////////////////////////////////////////////////////////////////////////////////
+      // initialize variables used in selection
+      ////////////////////////////////////////////////////////////////////////////////////
+      
+      // init njets, nbtags, met, ht, lep1_id, lep2_id, lep1_coneCorrPt, lep2_coneCorrPt
+      jets_calculator();
+      leptons_calculator();
 
+      ////////////////////////////////////////////////////////////////////////////////////
+      // selection
+      ////////////////////////////////////////////////////////////////////////////////////
+
+      // baseline AN selection goes here
+      pass_baseline_requirements = passes_baseline_ft(njets, nbtags, met, ht, lep1_id, lep2_id, lep1_coneCorrPt, lep2_coneCorrPt);
+      if (!pass_baseline_requirements) continue;
+        
       tout->Fill();
     }
     file->Close();
