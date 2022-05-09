@@ -1,3 +1,5 @@
+#include "TSystem.h"
+#include "TDirectory.h"
 #include "TFile.h"
 #include "TH1F.h"
 #include "TH2F.h"
@@ -13,6 +15,8 @@
 
 #include <NanoTools/NanoCORE/Nano.h>
 #include <NanoTools/NanoCORE/tqdm.h>
+#include <IvyFramework/IvyDataTools/interface/HelperFunctions.h>
+#include <IvyFramework/IvyDataTools/interface/IvyStreamHelpers.hh>
 
 #include "analysis_types.h"
 #include "tree_tools.h"
@@ -37,16 +41,31 @@ struct debugger { template<typename T> debugger& operator , (const T& v) { cerr<
     #define debug(args...)
 #endif
 
-using namespace std;
 
-int ScanChain(TChain* ch, string proc, string str_year, string tag, float scale_factor = 1) {
+using namespace std;
+using namespace HelperFunctions;
+using namespace IvyStreamHelpers;
+
+
+int ScanChain(std::vector<std::string> const& inputfnames, string output_fname, string proc, string str_year, float scale_factor = 1){
+  TDirectory* curdir = gDirectory;
+
+  {
+    std::size_t tmp_pos = output_fname.find_last_of('/');
+    if (tmp_pos!=std::string::npos){
+      std::string output_dir(output_fname, 0, tmp_pos);
+      gSystem->mkdir(output_dir.data(), true);
+    }
+  }
+
+  TChain* ch = new TChain("Events");
+  for (auto const& fname:inputfnames) ch->Add(fname.data());
+
   if (str_year == "2016_APV") year = 2016;
   else year = stoi(str_year);
 
-  TString file_name = proc + "_" + tag + "_" + str_year;
-
-  TFile* foutput = TFile::Open("outputs_UL/" + file_name + ".root", "RECREATE");
-  TTree* tout	=	new TTree("Events", "output tree");
+  TFile* foutput = TFile::Open(output_fname.data(), "recreate");
+  TTree* tout	=	new TTree("Events", "");
 
   #define SIMPLE_DATA_DIRECTIVE(type, name, default_value) \
   	tout->Branch(#name, &name);
@@ -102,9 +121,65 @@ int ScanChain(TChain* ch, string proc, string str_year, string tag, float scale_
   delete tout;
   foutput->Close();
 
+  curdir->cd();
+  delete ch;
+
   return 0;
 }
 
 int main(int argc, char** argv){
+  constexpr int iarg_offset=1; // argv[0]==[Executable name]
 
+  bool print_help=false, has_help=false;
+  std::vector<std::string> inputs;
+  std::string str_proc;
+  std::string str_year;
+  std::string str_output;
+  for (int iarg=iarg_offset; iarg<argc; iarg++){
+    std::string strarg = argv[iarg];
+    std::string wish, value;
+    splitOption(strarg, wish, value, '=');
+
+    if (wish.empty()){
+      if (value=="help"){ print_help=has_help=true; }
+      else{
+        IVYerr << "ERROR: Unknown argument " << value << endl;
+        print_help=true;
+      }
+    }
+    else if (wish=="inputs"){
+      splitOptionRecursive(value, inputs, ',', true);
+    }
+    else if (wish=="short_name") str_proc = value;
+    else if (wish=="period") str_year = value;
+    else if (wish=="output") str_output = value;
+    else{
+      IVYerr << "ERROR: Unknown argument " << wish << " = " << value << endl;
+      print_help=true;
+    }
+  }
+
+  if (!print_help && (inputs.empty() || str_proc=="" || str_year=="" || str_output=="")){
+    IVYerr << "ERROR: Not all mandatory inputs are present." << endl;
+    print_help=true;
+  }
+
+  if (print_help){
+    IVYout << "skim_UL options:\n\n";
+    IVYout << "- help: Prints this help message.\n";
+    IVYout << "- inputs: Comma-separated list of input files. Mandatory.\n";
+    IVYout << "- short_name: Process. Mandatory.\n";
+    IVYout << "- period: Data period. Mandatory.\n";
+    IVYout << "- output: Name of the output file. Could be nested in a directory. Mandatory.\n";
+
+    IVYout << endl;
+    return (has_help ? 0 : 1);
+  }
+
+  // Here begins the execution.
+  for (auto& fname:inputs){
+    if (fname.find("/store")==0) fname = std::string("root://xcache-redirector.t2.ucsd.edu:2042/")+fname;
+  }
+
+  return ScanChain(inputs, str_output, str_proc, str_year, 1);
 }

@@ -40,6 +40,16 @@ printenv() {
     eval $(${CMSSW_BASE}/src/IvyFramework/IvyDataTools/setup.sh ${envopts})
   fi
 
+  libappend="${CMSSW_BASE}/src/NanoTools/NanoCORE"
+  end=""
+  if [[ ! -z "${LD_LIBRARY_PATH+x}" ]]; then
+    end=":${LD_LIBRARY_PATH}"
+  fi
+  if [[ "${end}" != *"$libappend"* ]]; then
+    echo "export LD_LIBRARY_PATH=${libappend}${end}"
+    export LD_LIBRARY_PATH=${libappend}${end}
+  fi
+
   libappend="${PKGDIR}/lib"
   end=""
   if [[ ! -z "${LD_LIBRARY_PATH+x}" ]]; then
@@ -47,6 +57,7 @@ printenv() {
   fi
   if [[ "${end}" != *"$libappend"* ]]; then
     echo "export LD_LIBRARY_PATH=${libappend}${end}"
+    export LD_LIBRARY_PATH=${libappend}${end}
   fi
 
   pathappend="${PKGDIR}/executables"
@@ -56,12 +67,22 @@ printenv() {
   fi
   if [[ "${end}" != *"$pathappend"* ]]; then
     echo "export PATH=${pathappend}${end}"
+    export PATH=${pathappend}${end}
   fi
 }
 doenv() {
   if [[ -d ${CMSSW_BASE}/src/IvyFramework/IvyDataTools ]]; then
     envopts="env standalone"
     eval $(${CMSSW_BASE}/src/IvyFramework/IvyDataTools/setup.sh ${envopts})
+  fi
+
+  libappend="${CMSSW_BASE}/src/NanoTools/NanoCORE"
+  end=""
+  if [[ ! -z "${LD_LIBRARY_PATH+x}" ]]; then
+    end=":${LD_LIBRARY_PATH}"
+  fi
+  if [[ "${end}" != *"$libappend"* ]]; then
+    export LD_LIBRARY_PATH=${libappend}${end}
   fi
 }
 printenvinstr () {
@@ -103,7 +124,7 @@ elif [[ "$nSetupArgs" -ge 1 ]] && [[ "$nSetupArgs" -le 2 ]] && [[ "${setupArgs[0
 else
     echo "Unknown arguments:"
     echo "  ${setupArgs[@]}"
-    echo "Should be nothing, env, envinstr, or clean"
+    echo "Should be nothing, env, envinstr, runnanotests, clean, or -j [Ncores]"
     exit 1
 fi
 

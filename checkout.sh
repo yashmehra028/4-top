@@ -1,9 +1,41 @@
 #!/bin/bash
 
 
-CMSSW_release=CMSSW_10_6_26
-SCRAM_ARCH_name=slc7_amd64_gcc820
-CMSSW_release_name="$1"    # Could leave this blank if you don't know what it is. It's just a directory name in case you have multiple identical directories.
+CMSSW_release=CMSSW_10_6_26 # CMSSW version to be used
+SCRAM_ARCH_name=slc7_amd64_gcc820 # SCRAM_ARCH that goes along with the CMSSW version
+CMSSW_release_name="${CMSSW_release}" # Possibly a different directory name in case you have multiple identical directories
+
+declare -i printhelp=0
+for fargo in "$@"; do
+  fcnargname=""
+  farg="${fargo//\"}"
+  fargl="$(echo $farg | awk '{print tolower($0)}')"
+  if [[ "${fargl}" == "dirname="* ]]; then
+    fcnargname="$farg"
+    fcnargname="${fcnargname#*=}"
+    CMSSW_release_name="$fcnargname"
+  elif [[ "$fargl" == "cmssw="* ]]; then
+    fcnargname="$farg"
+    fcnargname="${fcnargname#*=}"
+    CMSSW_release="$fcnargname"
+  elif [[ "$fargl" == "scram_arch="* ]]; then
+    fcnargname="$farg"
+    fcnargname="${fcnargname#*=}"
+    SCRAM_ARCH_name="$fcnargname"
+  elif [[ "$fargl" == "help" ]]; then
+    let printhelp=1
+  fi
+done
+
+if [[ $printhelp -eq 1 ]] || [[ -z "${CMSSW_release}" ]] || [[ -z "${SCRAM_ARCH_name}" ]]; then
+  echo "$0 usage:"
+  echo '(Options are case-insensitive, but arguments are.)'
+  echo " - help: Print this help"
+  echo " - cmssw: CMSSW version to be used"
+  echo " - scram_arch: SCRAM_ARCH that goes along with the CMSSW version"
+  echo " - dirname: Possibly a different directory name in case you have multiple identical directories"
+  exit 0
+fi
 
 
 (
@@ -34,14 +66,25 @@ set -euo pipefail
 if [[ "${CMSSW_release_name}" == "" ]]; then
   CMSSW_release_name=${CMSSW_release}
 fi
-scramv1 p -n ${CMSSW_release_name} CMSSW ${CMSSW_release}
+if [[ ! -d ${CMSSW_release_name} ]]; then
+  scramv1 p -n ${CMSSW_release_name} CMSSW ${CMSSW_release}
+fi
 cd ${CMSSW_release_name}/src
 eval $(scramv1 runtime -sh)
 
 cd ${CMSSW_BASE}/src
 
-git clone git@github.com:IvyFramework/IvyDataTools.git IvyFramework/IvyDataTools
-git clone git@github.com:cmstas/NanoTools.git
-git clone git@github.com:joseph-crowley/tttt.git
+if [[ ! -d IvyFramework/IvyDataTools ]]; then
+  git clone git@github.com:IvyFramework/IvyDataTools.git IvyFramework/IvyDataTools
+fi
+if [[ ! -d NanoTools ]]; then
+  git clone git@github.com:cmstas/NanoTools.git
+fi
+if [[ ! -d tttt ]]; then
+  git clone git@github.com:joseph-crowley/tttt.git
+fi
+if [[ ! -d ProjectMetis ]]; then
+  git clone git@github.com:usarica/ProjectMetis.git
+fi
 
 )
