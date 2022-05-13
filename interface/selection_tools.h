@@ -13,6 +13,10 @@ bool passes_baseline_ft(int njets, int nbtags, float met, float ht, int id1, int
     else return 1;
 }
 
+float raw_mvaFall17V2noIso(float squashed){
+  float const raw = 1./2. * std::log(( 1. + squashed )/( 1. - squashed ));
+}
+
 bool electronID(unsigned int elidx, unsigned int working_point){
 // TODO: figure out if we actually need this now
 //
@@ -23,7 +27,7 @@ bool electronID(unsigned int elidx, unsigned int working_point){
 // use the values from Electron_mvaFall17V2noIso and unsquash
 // then use the cut from the AN 
   auto const& sq = tas::Electron.mvaFall17V2noIso().at(elidx);
-  float const raw = 1./2. * std::log(( 1. + sq )/( 1. - sq ));
+  float const raw = raw_mvaFall17V2noIso(sq);
 
   switch(working_point){
     case 0: // loose nonIso - 0
