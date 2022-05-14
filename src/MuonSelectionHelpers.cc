@@ -1,26 +1,30 @@
 #include <cassert>
 #include <cmath>
 
-#include "ElectronSelectionHelpers.h"
+#include "MuonSelectionHelpers.h"
 #include "IvyFramework/IvyDataTools/interface/HelperFunctions.h"
 
 #include "selection_tools.h" // for raw_mvaFall17V2noIso
 
 // These are functions hidden from the user
-namespace ElectronSelectionHelpers{
+namespace MuonSelectionHelpers{
 
-  bool testLooseIdNoIsoTrig(ElectronObject const& part);
-  bool testLooseIdIsoTrig(ElectronObject const& part);
-  bool testLooseIso(ElectronObject const& part);
-  bool testLooseKin(ElectronObject const& part);
+  bool testLooseIdNoIsoTrig(MuonObject const& part);
+  bool testLooseIdIsoTrig(MuonObject const& part);
+  bool testLooseIso(MuonObject const& part);
+  bool testLooseKin(MuonObject const& part);
 
-  bool testTightId(ElectronObject const& part);
-  bool testTightIso(ElectronObject const& part);
-  bool testTightKin(ElectronObject const& part);
+  bool testMediumIso(MuonObject const& part);
 
-  bool testPreselectionLooseNoIsoTrig(ElectronObject const& part);
-  bool testPreselectionLooseIsoTrig(ElectronObject const& part);
-  bool testPreselectionTight(ElectronObject const& part);
+  bool testTightId(MuonObject const& part);
+  bool testTightIso(MuonObject const& part);
+  bool testTightKin(MuonObject const& part);
+
+  bool testPreselectionLooseNoIsoTrig(MuonObject const& part);
+  bool testPreselectionLooseIsoTrig(MuonObject const& part);
+  bool testPreselectionMediumNoIsoTrig(MuonObject const& part);
+  bool testPreselectionMediumIsoTrig(MuonObject const& part);
+  bool testPreselectionTight(MuonObject const& part);
 }
 
 
@@ -28,17 +32,19 @@ using namespace std;
 using namespace IvyStreamHelpers;
 
 
-float ElectronSelectionHelpers::getIsolationDRmax(ElectronObject const& part){
+float MuonSelectionHelpers::getIsolationDRmax(MuonObject const& part){
   return (10. / std::min(std::max(part.uncorrected_pt(), 50.), 200.));
 }
 
-float ElectronSelectionHelpers::relMiniIso(ElectronObject const& part){ return part.extras.miniPFRelIso_all; }
+// TODO: why do we need this?
+float MuonSelectionHelpers::relMiniIso(MuonObject const& part){ return part.extras.miniPFRelIso_all; }
 
-float ElectronSelectionHelpers::computeIso(ElectronObject const& part){
-	return ElectronSelectionHelpers::relMiniIso(part);
+// TODO: why do we need this?
+float MuonSelectionHelpers::computeIso(MuonObject const& part){
+	return MuonSelectionHelpers::relMiniIso(part);
 }
 
-bool ElectronSelectionHelpers::testLooseIdIsoTrig(ElectronObject const& part){
+bool MuonSelectionHelpers::testLooseIdIsoTrig(MuonObject const& part){
   double const part_pt = part.pt();
   double const part_eta = std::abs(part.eta());
 
@@ -71,7 +77,7 @@ bool ElectronSelectionHelpers::testLooseIdIsoTrig(ElectronObject const& part){
   return raw_mva >= wpcut;
 }
 
-bool ElectronSelectionHelpers::testLooseIdNoIsoTrig(ElectronObject const& part){
+bool MuonSelectionHelpers::testLooseIdNoIsoTrig(MuonObject const& part){
   double const part_pt = part.pt();
   double const part_eta = std::abs(part.eta());
 
@@ -105,7 +111,7 @@ bool ElectronSelectionHelpers::testLooseIdNoIsoTrig(ElectronObject const& part){
   return raw_mva >= wpcut;
 }
 
-bool ElectronSelectionHelpers::testTightId(ElectronObject const& part){
+bool MuonSelectionHelpers::testTightId(MuonObject const& part){
   double const part_pt = part.pt();
   double const part_eta = std::abs(part.eta());
 
@@ -136,37 +142,44 @@ bool ElectronSelectionHelpers::testTightId(ElectronObject const& part){
 }
 
 
-bool ElectronSelectionHelpers::testLooseIso(ElectronObject const& part){
-  return (part.extras.Electron_miniPFRelIso_all < isoThr_loose_I1) && ((part.extras.ptRatio > isoThr_loose_I2) || (part.extras.ptRel > isoThr_loose_I3)); 
+bool MuonSelectionHelpers::testLooseIso(MuonObject const& part){
+  return (part.extras.Muon_miniPFRelIso_all < isoThr_loose_I1) && ((part.extras.ptRatio > isoThr_loose_I2) || (part.extras.ptRel > isoThr_loose_I3)); 
 }
 
-bool ElectronSelectionHelpers::testTightIso(ElectronObject const& part){
-  return (part.extras.Electron_miniPFRelIso_all < isoThr_tight_I1) && ((part.extras.ptRatio > isoThr_tight_I2) || (part.extras.ptRel > isoThr_tight_I3)); 
-  
-
+bool MuonSelectionHelpers::testMediumIso(MuonObject const& part){
+  return (part.extras.Muon_miniPFRelIso_all < isoThr_medium_I1) && ((part.extras.ptRatio > isoThr_medium_I2) || (part.extras.ptRel > isoThr_medium_I3)); 
 }
 
-// TODO: rethink kinematic threshold
-bool ElectronSelectionHelpers::testLooseKin(ElectronObject const& part){
-  return (part.pt()>=ptThr_cat0 && std::abs(part.eta())<etaThr_skim_loose);
+bool MuonSelectionHelpers::testTightIso(MuonObject const& part){
+  return (part.extras.Muon_miniPFRelIso_all < isoThr_tight_I1) && ((part.extras.ptRatio > isoThr_tight_I2) || (part.extras.ptRel > isoThr_tight_I3)); 
 }
 
 // TODO: rethink kinematic threshold
-bool ElectronSelectionHelpers::testTightKin(ElectronObject const& part){
-  return (part.pt()>=ptThr_cat0 && std::abs(part.eta())<etaThr_skim_tight);
+bool MuonSelectionHelpers::testLooseKin(MuonObject const& part){
+  return (part.pt() >= ptThr_cat0 && std::abs(part.eta()) < etaThr_cat2);
 }
 
-bool ElectronSelectionHelpers::testPreselectionLooseIsoTrig(ElectronObject const& part){
+// TODO: rethink kinematic threshold
+bool MuonSelectionHelpers::testMediumKin(MuonObject const& part){
+  return (part.pt() >= ptThr_cat0 && std::abs(part.eta()) < etaThr_cat2);
+}
+
+// TODO: rethink kinematic threshold
+bool MuonSelectionHelpers::testTightKin(MuonObject const& part){
+  return (part.pt() >= ptThr_cat0 && std::abs(part.eta()) < etaThr_cat2);
+}
+
+bool MuonSelectionHelpers::testPreselectionLooseIsoTrig(MuonObject const& part){
   return (
     testLooseIdIsoTrig(part) 
     && 
-    testLooseIsoIsoTrig(part) 
+    testLooseIso(part) 
     &&
     testLooseKin(part) 
   )
 }
 
-bool ElectronSelectionHelpers::testPreselectionLooseNoIsoTrig(ElectronObject const& part){
+bool MuonSelectionHelpers::testPreselectionLooseNoIsoTrig(MuonObject const& part){
   return (
     testLooseIdNoIsoTrig(part) 
     && 
@@ -176,7 +189,27 @@ bool ElectronSelectionHelpers::testPreselectionLooseNoIsoTrig(ElectronObject con
   )
 }
 
-bool ElectronSelectionHelpers::testPreselectionTight(ElectronObject const& part){
+bool MuonSelectionHelpers::testPreselectionMediumNoIsoTrig(MuonObject const& part){
+  return (
+    testMediumIdNoIsoTrig(part) 
+    && 
+    testMediumIso(part) 
+    &&
+    testMediumKin(part) 
+  )
+}
+
+bool MuonSelectionHelpers::testPreselectionMediumIsoTrig(MuonObject const& part){
+  return (
+    testMediumIdIsoTrig(part) 
+    && 
+    testMediumIso(part) 
+    &&
+    testMediumKin(part) 
+  )
+}
+
+bool MuonSelectionHelpers::testPreselectionTight(MuonObject const& part){
   return (
     testTightID(part) 
     && 
@@ -186,10 +219,12 @@ bool ElectronSelectionHelpers::testPreselectionTight(ElectronObject const& part)
   )
 }
 
-void ElectronSelectionHelpers::setSelectionBits(ElectronObject& part){
+void MuonSelectionHelpers::setSelectionBits(MuonObject& part){
   static_assert(std::numeric_limits<ParticleObject::SelectionBitsType_t>::digits >= nSelectionBits);
 
   part.setSelectionBit(kPreselection_loose_NoIsoTrig, testPreselectionLooseNoIsoTrig(part));
   part.setSelectionBit(kPreselection_loose_IsoTrig, testPreselectionLooseIsoTrig(part));
+  part.setSelectionBit(kPreselection_medium_IsoTrig, testPreselectionMediumIsoTrig(part));
+  part.setSelectionBit(kPreselection_medium_NoIsoTrig, testPreselectionMediumNoIsoTrig(part));
   part.setSelectionBit(kPreselection_tight, testPreselectionTight(part));
 }

@@ -3,10 +3,17 @@
 
 #define ELECTRON_EXTRA_VARIABLES \ 
 ELECTRON_VARIABLE(float, mvaFall17V2noIso)\
-ELECTRON_VARIABLE(bool, mvaFall17V2noIso_WP80)\
-ELECTRON_VARIABLE(bool, mvaFall17V2noIso_WP90)\
-ELECTRON_VARIABLE(bool, mvaFall17V2noIso_WPL)\ 
-ELECTRON_VARIABLE(float, deltaEtaSC)
+ELECTRON_VARIABLE(float, Electron_miniPFRelIso_all)\
+ELECTRON_VARIABLE(float, deltaEtaSC)\ 
+
+// TODO: should these be electron extra variables?
+// or should they be implemented as functions in selection_tools.h?
+ELECTRON_VARIABLE(float, deltaEtaSC)\ 
+ELECTRON_VARIABLE(float, ptRel)\ 
+ELECTRON_VARIABLE(float, ptRatio) 
+
+
+
 
 class ElectronVariables{
 public:

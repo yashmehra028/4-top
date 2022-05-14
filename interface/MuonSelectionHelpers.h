@@ -1,11 +1,11 @@
-#ifndef ELECTRONSELECTIONHELPERS_H
-#define ELECTRONSELECTIONHELPERS_H
+#ifndef MUONSELECTIONHELPERS_H
+#define MUONSELECTIONHELPERS_H
 
 #include <vector>
-#include <CMS3/Dictionaries/interface/ElectronTriggerCutEnums.h>
-#include "ElectronObject.h"
+#include <CMS3/Dictionaries/interface/MuonTriggerCutEnums.h>
+#include "MuonObject.h"
 
-namespace ElectronSelectionHelpers{
+namespace MuonSelectionHelpers{
   enum SelectionBits{
     // both loose bits have ID but isolated or non-isolated trigger
     kPreselection_loose_IsoTrig,
@@ -25,7 +25,7 @@ namespace ElectronSelectionHelpers{
   // Gap region is between 1.4442 and 1.56, crossing is at 1.479. See ECALGeometrySpecifications.h.
   constexpr float etaThr_cat0 = 0.8; 
   constexpr float etaThr_cat1 = 1.479;
-  constexpr float etaThr_cat2 = 2.5;
+  constexpr float etaThr_cat2 = 2.4; // line 316 in the AN2018_062_v17
 
   // Isolation thresholds
   constexpr float isoThr_loose_I1 = 0.4; 
@@ -38,13 +38,13 @@ namespace ElectronSelectionHelpers{
   constexpr float isoThr_tight_I2 = 0.78; 
   constexpr float isoThr_tight_I3 = 8.0; 
 
-  float getIsolationDRmax(ElectronObject const& part);
+  float getIsolationDRmax(MuonObject const& part);
 
-  float relMiniIso(ElectronObject const& part);
+  float relMiniIso(MuonObject const& part);
 
-  float computeIso(ElectronObject const& part);
+  float computeIso(MuonObject const& part);
 
-  void setSelectionBits(ElectronObject& part);
+  void setSelectionBits(MuonObject& part);
 }
 
 
