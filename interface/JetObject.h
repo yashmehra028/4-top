@@ -2,8 +2,8 @@
 #define JETOBJECT_H
 
 #define JET_EXTRA_VARIABLES \ 
-JET_VARIABLE(float, Jet_btagDeepFlavB)\ 
-JET_VARIABLE(float, Jet_jetId)
+JET_VARIABLE(float, btagDeepFlavB)\ 
+JET_VARIABLE(float, jetId)
 
 class JetVariables{
 public:

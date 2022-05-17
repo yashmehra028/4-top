@@ -8,7 +8,6 @@ ELECTRON_VARIABLE(float, deltaEtaSC)\
 
 // TODO: should these be electron extra variables?
 // or should they be implemented as functions in selection_tools.h?
-ELECTRON_VARIABLE(float, deltaEtaSC)\ 
 ELECTRON_VARIABLE(float, ptRel)\ 
 ELECTRON_VARIABLE(float, ptRatio) 
 

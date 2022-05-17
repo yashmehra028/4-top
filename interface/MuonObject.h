@@ -10,7 +10,7 @@ MUON_VARIABLE(float, dz)\
 MUON_VARIABLE(float, sip3d)\
 MUON_VARIABLE(float, ptErr)\
 MUON_VARIABLE(float, looseId)\
-MUON_VARIABLE(float, mediumId)\
+MUON_VARIABLE(float, mediumId)
 
 
 class MuonVariables{
