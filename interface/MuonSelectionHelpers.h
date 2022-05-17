@@ -8,8 +8,8 @@
 namespace MuonSelectionHelpers{
   enum SelectionBits{
     // both loose bits have ID but isolated or non-isolated trigger
-    kPreselection_loose_IsoTrig,
-    kPreselection_loose_NoIsoTrig,
+    kPreselection_loose,
+    kPreselection_fakable,
     kPreselection_tight,
 
     nSelectionBits;
@@ -19,6 +19,7 @@ namespace MuonSelectionHelpers{
   constexpr float ptThr_cat0 = 5.; 
   constexpr float ptThr_cat1 = 10.;
   constexpr float ptThr_cat2 = 25.;
+  constexpr float track_reco_qualityThr = 0.2; // line 320 of AN2018_062_v17
 
   // Kinematic eta thresholds
   // Last ECAL crystal in barrel is at |eta|=1.4442
@@ -34,15 +35,11 @@ namespace MuonSelectionHelpers{
   constexpr float isoThr_medium_I1 = 0.11; 
   constexpr float isoThr_medium_I2 = 0.74; 
   constexpr float isoThr_medium_I3 = 6.8; 
-  constexpr float isoThr_tight_I1 = 0.07; 
-  constexpr float isoThr_tight_I2 = 0.78; 
-  constexpr float isoThr_tight_I3 = 8.0; 
 
-  float getIsolationDRmax(MuonObject const& part);
-
-  float relMiniIso(MuonObject const& part);
-
-  float computeIso(MuonObject const& part);
+  // Impact parameter thresholds
+  constexpr float dxyThr = 0.05; 
+  constexpr float dzThr = 0.1; 
+  constexpr float sip3dThr = 4.; 
 
   void setSelectionBits(MuonObject& part);
 }

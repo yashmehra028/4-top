@@ -3,7 +3,6 @@
 
 
 #define MUON_EXTRA_VARIABLES \ 
-MUON_VARIABLE(float, mvaFall17V2noIso)\
 MUON_VARIABLE(float, miniPFRelIso_all)\
 MUON_VARIABLE(float, dxy)\
 MUON_VARIABLE(float, dz)\
