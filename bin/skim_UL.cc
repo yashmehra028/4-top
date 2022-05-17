@@ -61,7 +61,8 @@ int ScanChain(std::vector<std::string> const& inputfnames, string output_fname, 
   TChain* ch = new TChain("Events");
   for (auto const& fname:inputfnames) ch->Add(fname.data());
 
-  if (str_year == "2016_APV") year = 2016;
+  dataPeriod = str_year;
+  if (str_year.find("2016") != std::string::npos) year = 2016;
   else year = stoi(str_year);
 
   TFile* foutput = TFile::Open(output_fname.data(), "recreate");
