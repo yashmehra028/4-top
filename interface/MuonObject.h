@@ -1,9 +1,17 @@
 #ifndef MUONOBJECT_H
 #define MUONOBJECT_H
 
+
 #define MUON_EXTRA_VARIABLES \ 
 MUON_VARIABLE(float, mvaFall17V2noIso)\
-MUON_VARIABLE(float, Muon_miniPFRelIso_all)\
+MUON_VARIABLE(float, miniPFRelIso_all)\
+MUON_VARIABLE(float, dxy)\
+MUON_VARIABLE(float, dz)\
+MUON_VARIABLE(float, sip3d)\
+MUON_VARIABLE(float, ptErr)\
+MUON_VARIABLE(float, looseId)\
+MUON_VARIABLE(float, mediumId)\
+
 
 class MuonVariables{
 public:

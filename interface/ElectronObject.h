@@ -3,7 +3,7 @@
 
 #define ELECTRON_EXTRA_VARIABLES \ 
 ELECTRON_VARIABLE(float, mvaFall17V2noIso)\
-ELECTRON_VARIABLE(float, Electron_miniPFRelIso_all)\
+ELECTRON_VARIABLE(float, miniPFRelIso_all)\
 ELECTRON_VARIABLE(float, deltaEtaSC)\ 
 
 // TODO: should these be electron extra variables?
