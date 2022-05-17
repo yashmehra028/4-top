@@ -4,6 +4,8 @@
 
 #include "Math/LorentzVector.h"
 
+#include <string> 
+std::string dataPeriod;
 
 #define SIMPLE_DATA_DIRECTIVES \
 SIMPLE_DATA_DIRECTIVE(int, year, -1) \
