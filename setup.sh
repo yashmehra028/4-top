@@ -87,7 +87,7 @@ doenv() {
 }
 printenvinstr () {
   echo
-  echo "remember to do"
+  echo "to use this repo, you must run:"
   echo
   echo 'eval $(./setup.sh env)'
   echo "or"

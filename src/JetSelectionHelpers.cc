@@ -62,14 +62,20 @@ bool JetSelectionHelpers::testKin(JetObject const& part){
 
 bool JetSelectionHelpers::testPreselectionTight(JetObject const& part){
   return (
-    // TODO:
-  )
+    testID(part)
+    &&
+    testKin(part)
+  );
 }
 
 bool JetSelectionHelpers::testPreselectionTightB(JetObject const& part){
   return (
-    // TODO:
-  )
+    testID(part)
+    &&
+    testKin(part)
+    &&
+    testB(part)
+  );
 }
 
 void JetSelectionHelpers::setSelectionBits(JetObject& part){

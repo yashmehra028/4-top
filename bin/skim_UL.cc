@@ -42,12 +42,11 @@ struct debugger { template<typename T> debugger& operator , (const T& v) { cerr<
 #endif
 
 
-using namespace std;
 using namespace HelperFunctions;
 using namespace IvyStreamHelpers;
 
 
-int ScanChain(std::vector<std::string> const& inputfnames, string output_fname, string proc, string str_year, float scale_factor = 1){
+int ScanChain(std::vector<std::string> const& inputfnames, std::string output_fname, std::string proc, std::string str_year, float scale_factor = 1){
   TDirectory* curdir = gDirectory;
 
   {
@@ -62,8 +61,9 @@ int ScanChain(std::vector<std::string> const& inputfnames, string output_fname, 
   for (auto const& fname:inputfnames) ch->Add(fname.data());
 
   dataPeriod = str_year;
+  // find() returns npos if 2016 is not in str_year
   if (str_year.find("2016") != std::string::npos) year = 2016;
-  else year = stoi(str_year);
+  else year = std::stoi(str_year);
 
   TFile* foutput = TFile::Open(output_fname.data(), "recreate");
   TTree* tout	=	new TTree("Events", "");
@@ -97,16 +97,64 @@ int ScanChain(std::vector<std::string> const& inputfnames, string output_fname, 
       bar.progress(nEventsTotal, nEventsChain);
 
       ////////////////////////////////////////////////////////////////////////////////////
-      // initialize variables used in selection
+      // SELECTION
       ////////////////////////////////////////////////////////////////////////////////////
       
-      // init njets, nbtags, met, ht, lep1_id, lep2_id, lep1_coneCorrPt, lep2_coneCorrPt
-      jets_calculator();
-      leptons_calculator();
+      // muons
+      std::vector<MuonObject*> muons = muonHandler.getProducts();
+      std::vector<MuonObject*> muons_tight;
+      muons_tight.resize(muons.size());
+      
+      // filter all the tight muons
+      for(MuonObject* mu : muons){
+        if (mu->testSelectionBit(kPreselection_tight)){
+          muons_tight.push_back(mu); 
+        }
+      }
+
+      // electrons
+      std::vector<ElectronObject*> electrons = electronHandler.getProducts();
+      std::vector<ElectronObject*> electrons_tight;
+      electrons_tight.resize(electrons.size());
+      
+      // filter all the tight muons
+      for(ElectronObject* el : electrons){
+        if (el->testSelectionBit(kPreselection_tight)){
+          electrons_tight.push_back(el); 
+        }
+      }
+      
+      // all tight leptons
+      std::vector<ParticleObject*> leptons_tight;
+      leptons_tight.resize(electrons_tight.size() + muons_tight.size());
+
+      // fill tight leptons with tight electrons and tight muons
+      for(ElectronObject* el : electrons){ leptons_tight.push_back(el); }
+      for(MuonObject* mu : muons){ leptons_tight.push_back(mu); }
 
       ////////////////////////////////////////////////////////////////////////////////////
-      // selection
+      // BEGIN PRESELECTION
       ////////////////////////////////////////////////////////////////////////////////////
+
+
+      // keep track of any failed selections
+      bool passed_all_selections = true;
+      // TODO: implement bitstring with bits for each selection step to replace passed_all_selections
+
+      // Z mass veto for lepton pairs
+      for(ParticleObject* part1 : leptons_tight){
+        for(ParticleObject* part2 : leptons_tight){
+         // check pdg ids are opposite (antiparticles)
+         if (part1->pdgId() + part2->pdgId() == 0){
+           // check the invariant mass is outside Z veto (15 GeV from m_z = 91.2 GeV)
+           // from line 417 of AN2016_062_v17
+           double mll = (part1->p4() + part2->p4()).M();
+	   if (std::abs( mll - 91.2 ) < 15 || mll < 12) {
+             passed_all_selections = 
+           }
+         }
+        }
+      }
 
       // baseline AN selection goes here
       pass_baseline_requirements = passes_baseline_ft(njets, nbtags, met, ht, lep1_id, lep2_id, lep1_coneCorrPt, lep2_coneCorrPt);
