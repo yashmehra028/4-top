@@ -2,17 +2,19 @@
 #define ELECTRONSELECTIONHELPERS_H
 
 #include <vector>
-#include <CMS3/Dictionaries/interface/ElectronTriggerCutEnums.h>
 #include "ElectronObject.h"
+
 
 namespace ElectronSelectionHelpers{
   enum SelectionBits{
     // both loose bits have ID but isolated or non-isolated trigger
-    kPreselection_loose_IsoTrig,
-    kPreselection_loose_NoIsoTrig,
-    kPreselection_tight,
+    kPreselectionLoose_IsoTrig,
+    kPreselectionLoose_NoIsoTrig,
+    kPreselectionLoose,
+    kPreselectionFakeable,
+    kPreselectionTight,
 
-    nSelectionBits;
+    nSelectionBits
   };
 
   // Kinematic pT thresholds

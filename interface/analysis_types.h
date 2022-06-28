@@ -4,7 +4,7 @@
 
 #include "Math/LorentzVector.h"
 
-#include <string> 
+#include <string>
 std::string dataPeriod;
 
 #define SIMPLE_DATA_DIRECTIVES \
@@ -465,6 +465,5 @@ SIMPLE_DATA_DIRECTIVE(float, lep3_phi, -1.)
 
 #define VECTOR_DATA_DIRECTIVES 
 
-// TODO: define VECTOR_DATA_DIRECTIVES
 
 #endif

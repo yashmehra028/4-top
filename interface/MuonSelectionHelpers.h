@@ -2,17 +2,17 @@
 #define MUONSELECTIONHELPERS_H
 
 #include <vector>
-#include <CMS3/Dictionaries/interface/MuonTriggerCutEnums.h>
 #include "MuonObject.h"
+
 
 namespace MuonSelectionHelpers{
   enum SelectionBits{
     // both loose bits have ID but isolated or non-isolated trigger
-    kPreselection_loose,
-    kPreselection_fakable,
-    kPreselection_tight,
+    kPreselectionLoose,
+    kPreselectionFakeable,
+    kPreselectionTight,
 
-    nSelectionBits;
+    nSelectionBits
   };
 
   // Kinematic pT thresholds

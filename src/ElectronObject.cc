@@ -1,23 +1,21 @@
+#include <algorithm>
+#include <utility>
 #include "ElectronObject.h"
 
-#include <algorithm> // used for swap
-#include <utility> // used for swap
-
-//#include "IvyFramework/IvyDataTools/interface/HelperFunctions.h"  may not need this
 
 ElectronVariables::ElectronVariables(){
 #define ELECTRON_VARIABLE(TYPE, NAME) this->NAME=0;
-  ELECTRON_VARIABLES;
+  ELECTRON_EXTRA_VARIABLES;
 #undef ELECTRON_VARIABLE
 }
 ElectronVariables::ElectronVariables(ElectronVariables const& other){
 #define ELECTRON_VARIABLE(TYPE, NAME) this->NAME=other.NAME;
-  ELECTRON_VARIABLES;
+  ELECTRON_EXTRA_VARIABLES;
 #undef ELECTRON_VARIABLE
 }
 void ElectronVariables::swap(ElectronVariables& other){
 #define ELECTRON_VARIABLE(TYPE, NAME) std::swap(this->NAME, other.NAME);
-  ELECTRON_VARIABLES;
+  ELECTRON_EXTRA_VARIABLES;
 #undef ELECTRON_VARIABLE
 }
 ElectronVariables& ElectronVariables::operator=(const ElectronVariables& other){

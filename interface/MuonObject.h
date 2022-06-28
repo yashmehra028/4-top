@@ -1,22 +1,24 @@
 #ifndef MUONOBJECT_H
 #define MUONOBJECT_H
 
+#include "ParticleObject.h"
 
-#define MUON_EXTRA_VARIABLES \ 
-MUON_VARIABLE(float, miniPFRelIso_all)\
-MUON_VARIABLE(float, dxy)\
-MUON_VARIABLE(float, dz)\
-MUON_VARIABLE(float, sip3d)\
-MUON_VARIABLE(float, ptErr)\
-MUON_VARIABLE(float, looseId)\
+
+#define MUON_EXTRA_VARIABLES \
+MUON_VARIABLE(float, miniPFRelIso_all) \
+MUON_VARIABLE(float, dxy) \
+MUON_VARIABLE(float, dz) \
+MUON_VARIABLE(float, sip3d) \
+MUON_VARIABLE(float, ptErr) \
+MUON_VARIABLE(float, looseId) \
 MUON_VARIABLE(float, mediumId)
 
 
 class MuonVariables{
 public:
-  #define MUON_VARIABLE(TYPE, NAME, DEFVAL) TYPE NAME;
-    MUON_VARIABLES;
-  #undef MUON_VARIABLE
+#define MUON_VARIABLE(TYPE, NAME) TYPE NAME;
+  MUON_EXTRA_VARIABLES;
+#undef MUON_VARIABLE
 
   MuonVariables();
   MuonVariables(MuonVariables const& other);

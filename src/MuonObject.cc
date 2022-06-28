@@ -7,17 +7,17 @@
 
 MuonVariables::MuonVariables(){
 #define MUON_VARIABLE(TYPE, NAME) this->NAME=0;
-  MUON_VARIABLES;
+  MUON_EXTRA_VARIABLES;
 #undef MUON_VARIABLE
 }
 MuonVariables::MuonVariables(MuonVariables const& other){
 #define MUON_VARIABLE(TYPE, NAME) this->NAME=other.NAME;
-  MUON_VARIABLES;
+  MUON_EXTRA_VARIABLES;
 #undef MUON_VARIABLE
 }
 void MuonVariables::swap(MuonVariables& other){
 #define MUON_VARIABLE(TYPE, NAME) std::swap(this->NAME, other.NAME);
-  MUON_VARIABLES;
+  MUON_EXTRA_VARIABLES;
 #undef MUON_VARIABLE
 }
 MuonVariables& MuonVariables::operator=(const MuonVariables& other){
