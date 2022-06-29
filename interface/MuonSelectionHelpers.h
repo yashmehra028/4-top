@@ -41,6 +41,9 @@ namespace MuonSelectionHelpers{
   constexpr float dzThr = 0.1; 
   constexpr float sip3dThr = 4.; 
 
+
+  float getIsolationDRmax(MuonObject const& part);
+
   void setSelectionBits(MuonObject& part);
 }
 

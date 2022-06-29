@@ -27,6 +27,11 @@ namespace MuonSelectionHelpers{
 using namespace std;
 using namespace IvyStreamHelpers;
 
+
+float MuonSelectionHelpers::getIsolationDRmax(MuonObject const& part){
+  return (10. / std::min(std::max(part.uncorrected_pt(), 50.), 200.));
+}
+
 bool MuonSelectionHelpers::testLooseId(MuonObject const& part){
   return part.extras.looseId && part.extras.dxy<dxyThr && part.extras.dz<dzThr;
 }

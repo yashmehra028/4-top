@@ -37,7 +37,6 @@ float ElectronSelectionHelpers::convert_BDTscore_raw(float const& mva){
   return 0.5 * std::log((1. + mva)/(1. - mva)); // Unsquashed MVA value
 }
 
-
 float ElectronSelectionHelpers::getIsolationDRmax(ElectronObject const& part){
   return (10. / std::min(std::max(part.uncorrected_pt(), 50.), 200.));
 }

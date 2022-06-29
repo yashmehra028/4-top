@@ -18,6 +18,8 @@
 **/*.pdf
 **/*.png
 **/*.eps
+**/*dummy*
+**/*TEST*
 test/*.root
 test/*.txt
 test/*.json
