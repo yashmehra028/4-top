@@ -8,9 +8,9 @@
 AK4JET_VARIABLE(int, hadronFlavour)
 
 #define AK4JET_COMMON_VARIABLES \
+AK4JET_VARIABLE(int, jetId) \
 AK4JET_VARIABLE(float, rawFactor) \
-AK4JET_VARIABLE(float, btagDeepFlavB) \
-AK4JET_VARIABLE(float, jetId)
+AK4JET_VARIABLE(float, btagDeepFlavB)
 
 #define AK4JET_EXTRA_VARIABLES \
 AK4JET_GENINFO_VARIABLES \

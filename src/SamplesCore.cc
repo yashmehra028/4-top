@@ -146,7 +146,13 @@ TString SampleHelpers::getDataPeriodFromRunNumber(unsigned int run){
 std::vector< std::pair<unsigned int, unsigned int> > SampleHelpers::getRunRangesFromDataPeriod(TString const& period){
   std::vector< std::pair<unsigned int, unsigned int> > res;
   for (auto const& rrlist_dp:runRangeList_dataPeriod_pair_list){
-    if (rrlist_dp.second.Contains(period)) HelperFunctions::appendVector(res, rrlist_dp.first);
+    bool doAccept = false;
+    if (period=="2016_APV" || period=="2016_NonAPV"){
+      bool isAPVaffected = isAPV2016Affected(rrlist_dp.second);
+      doAccept=((period=="2016_APV" && isAPVaffected) || (period=="2016_NonAPV" && !isAPVaffected));
+    }
+    else doAccept=rrlist_dp.second.Contains(period);
+    if (doAccept) HelperFunctions::appendVector(res, rrlist_dp.first);
   }
   if (res.empty()){
     IVYerr << "SampleHelpers::getRunRangesFromDataPeriod: Period " << period << " is not defined for any range. Please check the implementation of SampleHelpers::define_runRangeList_dataPeriod_pair_list!" << endl;

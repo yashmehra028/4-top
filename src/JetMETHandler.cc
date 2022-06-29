@@ -37,9 +37,14 @@ JetMETHandler::JetMETHandler() :
 #define AK4JET_VARIABLE(TYPE, NAME) this->addConsumed<TYPE* const>(JetMETHandler::colName_ak4jets + "_" + #NAME);
   VECTOR_ITERATOR_HANDLER_DIRECTIVES_AK4JETS;
 #undef AK4JET_VARIABLE
+
 #define MET_VARIABLE(TYPE, NAME) this->addConsumed<TYPE>(JetMETHandler::colName_pfmet + "_" + #NAME);
   MET_EXTRA_VARIABLES;
 #undef MET_VARIABLE
+
+#define JETMET_METXY_VERTEX_VARIABLE(TYPE, NAME) this->addConsumed<TYPE>(GlobalCollectionNames::colName_pv + "_" + #NAME);
+  JETMET_METXY_VERTEX_VARIABLES;
+#undef JETMET_METXY_VERTEX_VARIABLE
 }
 
 void JetMETHandler::clear(){

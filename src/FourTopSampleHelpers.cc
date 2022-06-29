@@ -29,7 +29,7 @@ void SampleHelpers::configure(TString period, TString stag, HostHelpers::Hosts i
   }
   if (strInputDir.BeginsWith("/store")) strInputDir = HostHelpers::GetStandardHostPathToStore(strInputDir, input_host);
 
-  TriggerHelpers::configureHLTmap();
-
   runConfigure = true;
+
+  TriggerHelpers::configureHLTmap();
 }

@@ -5,13 +5,13 @@
 
 
 #define MUON_EXTRA_VARIABLES \
+MUON_VARIABLE(bool, looseId) \
+MUON_VARIABLE(bool, mediumId) \
 MUON_VARIABLE(float, miniPFRelIso_all) \
 MUON_VARIABLE(float, dxy) \
 MUON_VARIABLE(float, dz) \
 MUON_VARIABLE(float, sip3d) \
-MUON_VARIABLE(float, ptErr) \
-MUON_VARIABLE(float, looseId) \
-MUON_VARIABLE(float, mediumId)
+MUON_VARIABLE(float, ptErr)
 
 
 class MuonVariables{
