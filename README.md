@@ -5,14 +5,11 @@ bringing back motown one missing hit at a time
 https://github.com/cmstas/FTAnalysis
 
 # Setup
-clone this repo
-clone NanoTools at the same level as this repo
 ```
-cd /cvmfs/cms.cern.ch/slc6_amd64_gcc700/cms/cmssw/CMSSW_10_2_9/ ; cmsenv ; cd -
-```
-
-# How to compile
-Just run
-```
-make -j [Ncores]
+git clone git@github.com:joseph-crowley/tttt.git
+git clone git@github.com:usarica/ProjectMetis.git
+git clone git@github.com:IvyFramework/IvyDataTools.git IvyFramework/IvyDataTools
+cd tttt
+./setup.sh -j [Ncores]
+# To clean: ./setup.sh clean
 ```
