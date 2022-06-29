@@ -52,7 +52,7 @@ bool MuonHandler::constructMuonObjects(){
 
   // Beyond this point starts checks and selection
   bool allVariablesPresent = this->getConsumedValue(Form("n%s", MuonHandler::colName.data()), nProducts);
-#define MUON_VARIABLE(TYPE, NAME) allVariablesPresent &= this->getConsumed(MuonHandler::colName + "_" + #NAME, arr_##NAME);
+#define MUON_VARIABLE(TYPE, NAME) allVariablesPresent &= this->getConsumed<TYPE* const>(MuonHandler::colName + "_" + #NAME, arr_##NAME);
   MUON_MOMENTUM_VARIABLES;
   MUON_EXTRA_VARIABLES;
 #undef MUON_VARIABLE
@@ -109,6 +109,7 @@ bool MuonHandler::constructMuonObjects(){
 void MuonHandler::bookBranches(BaseTree* tree){
   if (!tree) return;
 
+  tree->bookBranch<GlobalCollectionNames::collsize_t>(Form("n%s", MuonHandler::colName.data()), 0);
 #define MUON_VARIABLE(TYPE, NAME) tree->bookArrayBranch<TYPE>(MuonHandler::colName + "_" + #NAME, 0, GlobalCollectionNames::colMaxSize_muons);
   MUON_MOMENTUM_VARIABLES;
   MUON_EXTRA_VARIABLES;

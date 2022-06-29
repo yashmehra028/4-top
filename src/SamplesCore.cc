@@ -10,6 +10,7 @@
 
 
 namespace SampleHelpers{
+  bool runConfigure=false; // This will need to be set before any exscution happens.
   int theDataYear=2018;
   TString theDataPeriod="2018"; // Initialize the extern here to 2018
   TString theInputDirectory=""; // Initialize the extern here to empty string
@@ -163,6 +164,9 @@ std::vector< std::pair<unsigned int, double> > const& SampleHelpers::getRunNumbe
 }
 
 bool SampleHelpers::isAPV2016Affected(unsigned int run){ return ((run>=272007 && run<278769) || run==278770 || run==278807); } // The last two runs are not actually affected, but there was a mistake at reco., so we include them here as well.
+bool SampleHelpers::isAPV2016Affected(TString const& period){
+  return period.Contains("_APV") || period=="2016B" || period=="2016C" || period=="2016D" || period=="2016E";
+}
 bool SampleHelpers::isHEM2018Affected(unsigned int run){ return (run>=319077 && run<=325175); }
 double SampleHelpers::getIntegratedLuminosity(TString const& period){
   std::unordered_map<TString, double>::const_iterator it;

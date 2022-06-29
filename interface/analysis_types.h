@@ -4,27 +4,9 @@
 
 #include "Math/LorentzVector.h"
 
-#include <string>
-std::string dataPeriod;
-
 #define SIMPLE_DATA_DIRECTIVES \
-SIMPLE_DATA_DIRECTIVE(int, year, -1) \
-SIMPLE_DATA_DIRECTIVE(int, run, -1) \
-SIMPLE_DATA_DIRECTIVE(int, lumiBlock, -1) \
-SIMPLE_DATA_DIRECTIVE(int, event, -1) \
-SIMPLE_DATA_DIRECTIVE(int, is_fastsim, 0) \
-SIMPLE_DATA_DIRECTIVE(int, rawmet, -1) \
-SIMPLE_DATA_DIRECTIVE(int, rawmetPhi, -1) \
-SIMPLE_DATA_DIRECTIVE(int, calomet, -1) \
-SIMPLE_DATA_DIRECTIVE(int, calometPhi, -1) \
 SIMPLE_DATA_DIRECTIVE(int, met, -1) \
 SIMPLE_DATA_DIRECTIVE(int, metPhi, -1) \
-SIMPLE_DATA_DIRECTIVE(int, lumi, -1) \
-SIMPLE_DATA_DIRECTIVE(int, filt_csc, 0) \
-SIMPLE_DATA_DIRECTIVE(int, filt_hbhe, 0) \
-SIMPLE_DATA_DIRECTIVE(int, filt_hcallaser, 0) \
-SIMPLE_DATA_DIRECTIVE(int, filt_ecaltp, 0) \
-SIMPLE_DATA_DIRECTIVE(int, filt_trkfail, 0) \
 SIMPLE_DATA_DIRECTIVE(int, lep1_isPrompt, 0) \
 SIMPLE_DATA_DIRECTIVE(int, lep1_isDirectPrompt, 0) \
 SIMPLE_DATA_DIRECTIVE(int, lep1_isStat3, 0) \

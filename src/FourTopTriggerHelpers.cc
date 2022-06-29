@@ -142,9 +142,9 @@ void TriggerHelpers::configureHLTmap(){
   case 2016:
     HLT_type_proplist_map[kDoubleMu] = std::vector<HLTTriggerPathProperties>{
       { "HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_v*",{ { HLTObjectProperties::kMuon },{ HLTObjectProperties::kMuon } } },
-      { "HLT_Mu17_TrkIsoVVL_TkMu8_TrkIsoVVL_DZ_v*",{ { HLTObjectProperties::kMuon },{ HLTObjectProperties::kMuon } } },
-      { "HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_v*",{ { HLTObjectProperties::kMuon },{ HLTObjectProperties::kMuon } } }, // Prescale=0 in 2016H
-      { "HLT_Mu17_TrkIsoVVL_TkMu8_TrkIsoVVL_v*",{ { HLTObjectProperties::kMuon },{ HLTObjectProperties::kMuon } } } // Prescale=0 in 2016H
+      //{ "HLT_Mu17_TrkIsoVVL_TkMu8_TrkIsoVVL_DZ_v*",{ { HLTObjectProperties::kMuon },{ HLTObjectProperties::kMuon } } }, // Commented out to avoid using TkMu per control trigger usage
+      { "HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_v*",{ { HLTObjectProperties::kMuon },{ HLTObjectProperties::kMuon } } }/*, // Prescale=0 in 2016H
+      { "HLT_Mu17_TrkIsoVVL_TkMu8_TrkIsoVVL_v*",{ { HLTObjectProperties::kMuon },{ HLTObjectProperties::kMuon } } }*/ // Prescale=0 in 2016H, commented out to avoid using TkMu per control trigger usage
     };
     HLT_type_proplist_map[kDoubleMu_Extra] = std::vector<HLTTriggerPathProperties>{
       { "HLT_Mu30_TkMu11_v*",{ { HLTObjectProperties::kMuon },{ HLTObjectProperties::kMuon } } },
@@ -153,9 +153,9 @@ void TriggerHelpers::configureHLTmap(){
     HLT_type_proplist_map[kDoubleMu_Prescaled] = std::vector<HLTTriggerPathProperties>();
     HLT_type_proplist_map[kDoubleEle] = std::vector<HLTTriggerPathProperties>{
       //{ "HLT_Ele17_Ele12_CaloIdL_TrackIdL_IsoVL_DZ_v*", { { HLTObjectProperties::kElectron }, { HLTObjectProperties::kElectron } } }, // If uncommented, needs to also uncomment its run range exclusion below.
-      { "HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL_DZ_v*",{ { HLTObjectProperties::kElectron },{ HLTObjectProperties::kElectron } } },
+      { "HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL_DZ_v*",{ { HLTObjectProperties::kElectron },{ HLTObjectProperties::kElectron } } }/*, // These are commented out to only keep CaloIdL_TrackIdL_IsoVL electrons
       { "HLT_DoubleEle33_CaloIdL_MW_v*",{ { HLTObjectProperties::kElectron },{ HLTObjectProperties::kElectron } } },
-      { "HLT_DoubleEle33_CaloIdL_GsfTrkIdVL_v*",{ { HLTObjectProperties::kElectron },{ HLTObjectProperties::kElectron } } }
+      { "HLT_DoubleEle33_CaloIdL_GsfTrkIdVL_v*",{ { HLTObjectProperties::kElectron },{ HLTObjectProperties::kElectron } } }*/
     };
     HLT_type_proplist_map[kDoubleEle_HighPt] = std::vector<HLTTriggerPathProperties>{
       { "HLT_DoublePhoton60_v*",{ { HLTObjectProperties::kElectron },{ HLTObjectProperties::kElectron } } }
@@ -291,15 +291,6 @@ void TriggerHelpers::configureHLTmap(){
     };
     HLT_type_proplist_map[kPFHT_PFMET_MHT_Control] = std::vector<HLTTriggerPathProperties>();
 
-    // Assign TO check exceptions to recover passing legs from the failed ones
-    assignTriggerObjectCheckException("HLT_Mu8_TrkIsoVVL_Ele23_CaloIdL_TrackIdL_IsoVL_v*", HLTTriggerPathProperties::toRecoverObjectsFromFailing);
-    assignTriggerObjectCheckException("HLT_Mu23_TrkIsoVVL_Ele8_CaloIdL_TrackIdL_IsoVL_v*", HLTTriggerPathProperties::toRecoverObjectsFromFailing);
-    assignTriggerObjectCheckException("HLT_Mu23_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL_v*", HLTTriggerPathProperties::toRecoverObjectsFromFailing);
-    assignTriggerObjectCheckException("HLT_Ele17_CaloIdM_TrackIdM_PFJet30_v*", HLTTriggerPathProperties::toRecoverObjectsFromFailing);
-    assignTriggerObjectCheckException("HLT_Ele17_CaloIdL_TrackIdL_IsoVL_PFJet30_v*", HLTTriggerPathProperties::toRecoverObjectsFromFailing);
-    assignTriggerObjectCheckException("HLT_Ele8_CaloIdM_TrackIdM_PFJet30_v*", HLTTriggerPathProperties::toRecoverObjectsFromFailing);
-    assignTriggerObjectCheckException("HLT_Ele8_CaloIdL_TrackIdL_IsoVL_PFJet30_v*", HLTTriggerPathProperties::toRecoverObjectsFromFailing);
-
     // Assign run range exclusions
     assignRunRangeExclusions(
       "HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_v*", {
@@ -403,8 +394,9 @@ void TriggerHelpers::configureHLTmap(){
       { "HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 17.f*1.1f } } },{ HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 8.f*1.1f } } } } }
     };
     HLT_type_proplist_map[kDoubleEle] = std::vector<HLTTriggerPathProperties>{
-      { "HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL_v*",{ { HLTObjectProperties::kElectron },{ HLTObjectProperties::kElectron } } },
-      { "HLT_DoubleEle33_CaloIdL_MW_v*",{ { HLTObjectProperties::kElectron },{ HLTObjectProperties::kElectron } } }
+      // Only keep CaloIdL_TrackIdL_IsoVL electrons by deign
+      { "HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL_v*",{ { HLTObjectProperties::kElectron },{ HLTObjectProperties::kElectron } } }/*,
+      { "HLT_DoubleEle33_CaloIdL_MW_v*",{ { HLTObjectProperties::kElectron },{ HLTObjectProperties::kElectron } } }*/
     };
     HLT_type_proplist_map[kDoubleEle_HighPt] = std::vector<HLTTriggerPathProperties>{
       { "HLT_DoublePhoton70_v*",{ { HLTObjectProperties::kElectron },{ HLTObjectProperties::kElectron } } }
@@ -531,12 +523,6 @@ void TriggerHelpers::configureHLTmap(){
       { "HLT_PFHT800_PFMET85_PFMHT85_IDTight_v*",{ { HLTObjectProperties::kHT,{ { HLTObjectProperties::kPt, 800.f },{ HLTObjectProperties::kMass, 85.f } } },{ HLTObjectProperties::kMET,{ { HLTObjectProperties::kPt, 85.f } } } } }
     };
 
-    assignTriggerObjectCheckException("HLT_Mu23_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL_v*", HLTTriggerPathProperties::toRecoverObjectsFromFailing);
-    assignTriggerObjectCheckException("HLT_Ele17_CaloIdM_TrackIdM_PFJet30_v*", HLTTriggerPathProperties::toRecoverObjectsFromFailing);
-    assignTriggerObjectCheckException("HLT_Ele12_CaloIdL_TrackIdL_IsoVL_PFJet30_v*", HLTTriggerPathProperties::toRecoverObjectsFromFailing);
-    assignTriggerObjectCheckException("HLT_Ele8_CaloIdM_TrackIdM_PFJet30_v*", HLTTriggerPathProperties::toRecoverObjectsFromFailing);
-    assignTriggerObjectCheckException("HLT_Ele8_CaloIdL_TrackIdL_IsoVL_PFJet30_v*", HLTTriggerPathProperties::toRecoverObjectsFromFailing);
-
     assignRunRangeExclusions(
       "HLT_Ele16_Ele12_Ele8_CaloIdL_TrackIdL_v*", {
         { 303824/*303832*/, -1/*306462*//*306456*/ } // The actual boundary read off is 303832-306456, which is a large subset of 2017E+F. We exclude entire 2017E+F.
@@ -641,9 +627,9 @@ void TriggerHelpers::configureHLTmap(){
       { "HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 17.f*1.1f } } },{ HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 8.f*1.1f } } } } }
     };
     HLT_type_proplist_map[kDoubleEle] = std::vector<HLTTriggerPathProperties>{
-      { "HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL_v*",{ { HLTObjectProperties::kElectron },{ HLTObjectProperties::kElectron } } },
+      { "HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL_v*",{ { HLTObjectProperties::kElectron },{ HLTObjectProperties::kElectron } } }/*,
       //{ "HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL_DZ_v*", { { HLTObjectProperties::kElectron }, { HLTObjectProperties::kElectron } } },
-      { "HLT_DoubleEle25_CaloIdL_MW_v*",{ { HLTObjectProperties::kElectron },{ HLTObjectProperties::kElectron } } }
+      { "HLT_DoubleEle25_CaloIdL_MW_v*",{ { HLTObjectProperties::kElectron },{ HLTObjectProperties::kElectron } } }*/
     };
     HLT_type_proplist_map[kDoubleEle_HighPt] = std::vector<HLTTriggerPathProperties>{
       { "HLT_DoublePhoton70_v*",{ { HLTObjectProperties::kElectron },{ HLTObjectProperties::kElectron } } }
@@ -757,12 +743,6 @@ void TriggerHelpers::configureHLTmap(){
       { "HLT_PFHT800_PFMET75_PFMHT75_IDTight_v*",{ { HLTObjectProperties::kHT,{ { HLTObjectProperties::kPt, 800.f },{ HLTObjectProperties::kMass, 75.f } } },{ HLTObjectProperties::kMET,{ { HLTObjectProperties::kPt, 75.f } } } } },
       { "HLT_PFHT800_PFMET85_PFMHT85_IDTight_v*",{ { HLTObjectProperties::kHT,{ { HLTObjectProperties::kPt, 800.f },{ HLTObjectProperties::kMass, 85.f } } },{ HLTObjectProperties::kMET,{ { HLTObjectProperties::kPt, 85.f } } } } }
     };
-
-    assignTriggerObjectCheckException("HLT_Mu23_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL_v*", HLTTriggerPathProperties::toRecoverObjectsFromFailing);
-    assignTriggerObjectCheckException("HLT_Ele17_CaloIdM_TrackIdM_PFJet30_v*", HLTTriggerPathProperties::toRecoverObjectsFromFailing);
-    assignTriggerObjectCheckException("HLT_Ele12_CaloIdL_TrackIdL_IsoVL_PFJet30_v*", HLTTriggerPathProperties::toRecoverObjectsFromFailing);
-    assignTriggerObjectCheckException("HLT_Ele8_CaloIdM_TrackIdM_PFJet30_v*", HLTTriggerPathProperties::toRecoverObjectsFromFailing);
-    assignTriggerObjectCheckException("HLT_Ele8_CaloIdL_TrackIdL_IsoVL_PFJet30_v*", HLTTriggerPathProperties::toRecoverObjectsFromFailing);
 
     // Prescale=0 for a small portion of 2018A
     assignRunRangeExclusions(

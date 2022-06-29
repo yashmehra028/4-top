@@ -4,9 +4,6 @@
 #include <string>
 
 
-namespace GlobalCollectionNames{
-  typedef unsigned int collsize_t;
-
 #define COLLECTIONNAME_DIRECTIVES \
 COLLECTIONNAME_DIRECTIVE(muons, Muon, 90) \
 COLLECTIONNAME_DIRECTIVE(electrons, Electron, 90) \
@@ -27,13 +24,15 @@ COLLECTIONNAME_DIRECTIVE(genak8jets, GenJetAK8, 90) \
 COLLECTIONNAME_DIRECTIVE(genparticles, GenPart, 90) \
 COLLECTIONNAME_DIRECTIVE(lheparticles, LHEPart, 50)
 
+
+namespace GlobalCollectionNames{
+  typedef unsigned int collsize_t;
+
 #define COLLECTIONNAME_DIRECTIVE(NAME, LABEL, MAXSIZE) \
 const std::string colName_##NAME(#LABEL); \
 constexpr collsize_t colMaxSize_##NAME = MAXSIZE;
   COLLECTIONNAME_DIRECTIVES;
 #undef COLLECTIONNAME_DIRECTIVE
-
-#undef COLLECTIONNAME_DIRECTIVES
 }
 
 

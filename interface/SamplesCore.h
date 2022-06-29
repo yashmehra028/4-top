@@ -1,5 +1,5 @@
-#ifndef SAMPLES_CORE_H
-#define SAMPLES_CORE_H
+#ifndef SAMPLESCORE_H
+#define SAMPLESCORE_H
 
 #include <string>
 #include <vector>
@@ -24,7 +24,7 @@ namespace SampleHelpers{
   void setDataPeriod(TString s);
   void setInputDirectory(TString s);
 
-  void configure(TString period);
+  void configure(TString period, TString stag, HostHelpers::Hosts input_host = HostHelpers::kUCSDT2); // Run this before doing anything else!
 
   int const& getDataYear();
   TString const& getDataPeriod();
@@ -36,6 +36,7 @@ namespace SampleHelpers{
   TString getDataPeriodFromRunNumber(unsigned int run);
   std::vector< std::pair<unsigned int, unsigned int> > getRunRangesFromDataPeriod(TString const& period);
   std::vector< std::pair<unsigned int, double> > const& getRunNumberLumiPairsForDataPeriod(TString const& period);
+  bool isAPV2016Affected(TString const& period);
   bool isAPV2016Affected(unsigned int run);
   bool isHEM2018Affected(unsigned int run);
   std::vector<TString> getValidDataPeriods();

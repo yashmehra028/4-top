@@ -51,7 +51,7 @@ bool PhotonHandler::constructPhotonObjects(){
 
   // Beyond this point starts checks and selection
   bool allVariablesPresent = this->getConsumedValue(Form("n%s", PhotonHandler::colName.data()), nProducts);
-#define PHOTON_VARIABLE(TYPE, NAME) allVariablesPresent &= this->getConsumed(PhotonHandler::colName + "_" + #NAME, arr_##NAME);
+#define PHOTON_VARIABLE(TYPE, NAME) allVariablesPresent &= this->getConsumed<TYPE* const>(PhotonHandler::colName + "_" + #NAME, arr_##NAME);
   PHOTON_MOMENTUM_VARIABLES;
   PHOTON_EXTRA_VARIABLES;
 #undef PHOTON_VARIABLE
@@ -108,6 +108,7 @@ bool PhotonHandler::constructPhotonObjects(){
 void PhotonHandler::bookBranches(BaseTree* tree){
   if (!tree) return;
 
+  tree->bookBranch<GlobalCollectionNames::collsize_t>(Form("n%s", PhotonHandler::colName.data()), 0);
 #define PHOTON_VARIABLE(TYPE, NAME) tree->bookArrayBranch<TYPE>(PhotonHandler::colName + "_" + #NAME, 0, GlobalCollectionNames::colMaxSize_photons);
   PHOTON_MOMENTUM_VARIABLES;
   PHOTON_EXTRA_VARIABLES;

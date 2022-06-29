@@ -52,7 +52,7 @@ bool ElectronHandler::constructElectronObjects(){
 
   // Beyond this point starts checks and selection
   bool allVariablesPresent = this->getConsumedValue(Form("n%s", ElectronHandler::colName.data()), nProducts);
-#define ELECTRON_VARIABLE(TYPE, NAME) allVariablesPresent &= this->getConsumed(ElectronHandler::colName + "_" + #NAME, arr_##NAME);
+#define ELECTRON_VARIABLE(TYPE, NAME) allVariablesPresent &= this->getConsumed<TYPE* const>(ElectronHandler::colName + "_" + #NAME, arr_##NAME);
   ELECTRON_MOMENTUM_VARIABLES;
   ELECTRON_EXTRA_VARIABLES;
 #undef ELECTRON_VARIABLE
@@ -109,6 +109,7 @@ bool ElectronHandler::constructElectronObjects(){
 void ElectronHandler::bookBranches(BaseTree* tree){
   if (!tree) return;
 
+  tree->bookBranch<GlobalCollectionNames::collsize_t>(Form("n%s", ElectronHandler::colName.data()), 0);
 #define ELECTRON_VARIABLE(TYPE, NAME) tree->bookArrayBranch<TYPE>(ElectronHandler::colName + "_" + #NAME, 0, GlobalCollectionNames::colMaxSize_electrons);
   ELECTRON_MOMENTUM_VARIABLES;
   ELECTRON_EXTRA_VARIABLES;

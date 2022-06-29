@@ -18,8 +18,7 @@ class HLTTriggerPathObject{
 protected:
   bool flag_valid;
   ivy_listIndex_short_t uniqueIdentifier;
-  std::vector<TriggerObject const*> passedTriggerObjects;
-  std::vector<TriggerObject const*> failedTriggerObjects;
+  std::vector<TriggerObject const*> triggerObjects;
 
 public:
 #define HLTTRIGGERPATH_VARIABLE(TYPE, NAME, DEFVAL) TYPE NAME;
@@ -37,17 +36,12 @@ public:
   ivy_listIndex_short_t const& getUniqueIdentifier() const{ return uniqueIdentifier; }
   ivy_listIndex_short_t& getUniqueIdentifier(){ return uniqueIdentifier; }
 
-  void setTriggerObjects(std::vector<TriggerObject*> const& triggerObjects);
+  void setTriggerObjects(std::vector<TriggerObject*> const& triggerObjects_);
 
   bool const& isValid() const{ return flag_valid; }
 
-  std::vector<TriggerObject const*>& getPassedTriggerObjects(){ return this->passedTriggerObjects; }
-  std::vector<TriggerObject const*> const& getPassedTriggerObjects() const{ return this->passedTriggerObjects; }
-
-  std::vector<TriggerObject const*>& getFailedTriggerObjects(){ return this->failedTriggerObjects; }
-  std::vector<TriggerObject const*> const& getFailedTriggerObjects() const{ return this->failedTriggerObjects; }
-
-  std::vector<TriggerObject const*> getAssociatedTriggerObjects() const;
+  std::vector<TriggerObject const*>& getTriggerObjects(){ return this->triggerObjects; }
+  std::vector<TriggerObject const*> const& getTriggerObjects() const{ return this->triggerObjects; }
 
 };
 

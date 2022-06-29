@@ -35,9 +35,7 @@ public:
   // Destructors
   ~JetMETHandler(){ clear(); }
 
-  bool constructJetMET(
-    SimEventHandler const* simEventHandler
-  );
+  bool constructJetMET(SimEventHandler const* simEventHandler);
 
   std::vector<AK4JetObject*> const& getAK4Jets() const{ return ak4jets; }
   std::vector<AK4JetObject*> const& getMaskedAK4Jets() const{ return ak4jets_masked; }

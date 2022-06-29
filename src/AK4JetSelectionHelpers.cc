@@ -32,8 +32,7 @@ bool AK4JetSelectionHelpers::testB(AK4JetObject const& part){
   auto const& dp = SampleHelpers::getDataPeriod();
   auto const& dy = SampleHelpers::getDataYear();
   float deepFlavThr = 1e9;
-  if (dp=="2016_APV") deepFlavThr = deepFlavThr_2016_APV;
-  else if (dp=="2016_NonAPV") deepFlavThr = deepFlavThr_2016_NonAPV;
+  if (dy==2016) deepFlavThr = (SampleHelpers::isAPV2016Affected(dp) ? deepFlavThr_2016_APV : deepFlavThr_2016_NonAPV);
   else if (dy==2017) deepFlavThr = deepFlavThr_2017;
   else if (dy==2018) deepFlavThr = deepFlavThr_2018;
   else{

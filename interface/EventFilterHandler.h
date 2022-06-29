@@ -18,13 +18,6 @@
 
 class EventFilterHandler : public IvyBase{
 public:
-  enum METFilterCutType{
-    kMETFilters_Standard = 0,
-    kMETFilters_Tight,
-    nMETFilterCutTypes
-  };
-
-  static const std::string colName_HLTpaths;
   static const std::string colName_triggerobjects;
   static const std::string colName_metfilters;
 
@@ -68,7 +61,6 @@ public:
     std::vector<ElectronObject*> const* electrons,
     std::vector<PhotonObject*> const* photons,
     std::vector<AK4JetObject*> const* ak4jets,
-    std::vector<AK8JetObject*> const* ak8jets,
     METObject const* pfmet,
     HLTTriggerPathObject const** firstPassingHLTPath = nullptr,
     std::vector<ParticleObject const*>* outparticles_TOmatched = nullptr
@@ -83,7 +75,7 @@ public:
     HLTTriggerPathObject const** firstPassingHLTPath = nullptr,
     std::vector<ParticleObject const*>* outparticles_TOmatched = nullptr
   ) const;
-  bool passMETFilters(EventFilterHandler::METFilterCutType const& cuttype) const;
+  bool passMETFilters() const;
 
   // Special event filters for various issues
   bool test2018HEMFilter(
@@ -92,13 +84,7 @@ public:
     std::vector<PhotonObject*> const* photons,
     std::vector<AK4JetObject*> const* ak4jets
   ) const;
-  // The behavior of this function is expected to change depending on the PU jet id application.
-  bool testNoisyJetFilter(
-    SimEventHandler const* simEventHandler,
-    std::vector<AK4JetObject*> const& ak4jets
-  ) const;
 
-  bool const& passCommonSkim() const{ return product_passCommonSkim; }
   // For data trees. MC is always true
   bool const& isUniqueDataEvent() const{ return product_uniqueEvent; }
 
@@ -113,7 +99,7 @@ public:
   std::unordered_map<std::string, bool> const& getMETFilters() const{ return this->product_metfilters; }
 
   void bookBranches(BaseTree* intree);
-  static std::vector<std::string> acquireMETFilterFlags(BaseTree* intree, EventFilterHandler::METFilterCutType const& cuttype);
+  static std::vector<std::string> acquireMETFilterFlags(BaseTree* intree);
 
 };
 

@@ -1,0 +1,102 @@
+#include <cassert>
+#include <algorithm>
+#include <utility>
+#include <cmath>
+#include "GenInfoObject.h"
+#include "HelperFunctions.h"
+#include "IvyFramework/IvyDataTools/interface/IvyStreamHelpers.hh"
+
+
+using namespace std;
+using namespace IvyStreamHelpers;
+
+
+GenInfoVariables::GenInfoVariables(){
+#define GENINFO_VARIABLE(TYPE, NAME, DEFVAL) this->NAME=DEFVAL;
+  GENINFO_EXTRA_VARIABLES;
+#undef GENINFO_VARIABLE
+}
+GenInfoVariables::GenInfoVariables(GenInfoVariables const& other){
+#define GENINFO_VARIABLE(TYPE, NAME, DEFVAL) this->NAME=other.NAME;
+  GENINFO_EXTRA_VARIABLES;
+#undef GENINFO_VARIABLE
+}
+void GenInfoVariables::swap(GenInfoVariables& other){
+#define GENINFO_VARIABLE(TYPE, NAME, DEFVAL) std::swap(this->NAME, other.NAME);
+  GENINFO_EXTRA_VARIABLES;
+#undef GENINFO_VARIABLE
+}
+GenInfoVariables& GenInfoVariables::operator=(const GenInfoVariables& other){
+  GenInfoVariables tmp(other);
+  swap(tmp);
+  return *this;
+}
+
+GenInfoObject::GenInfoObject() :
+  extras()
+{}
+GenInfoObject::GenInfoObject(const GenInfoObject& other) :
+  extras(other.extras)
+{}
+void GenInfoObject::swap(GenInfoObject& other){
+  extras.swap(other.extras);
+}
+GenInfoObject& GenInfoObject::operator=(const GenInfoObject& other){
+  GenInfoObject tmp(other);
+  swap(tmp);
+  return *this;
+}
+GenInfoObject::~GenInfoObject(){}
+
+float GenInfoObject::getGenWeight(SystematicsHelpers::SystematicVariationTypes const& syst) const{
+  using namespace SystematicsHelpers;
+  float wgt = extras.genHEPMCweight;
+  switch (syst){
+  case tPDFScaleDn:
+    wgt *= extras.LHEweight_QCDscale_muR1_muF0p5;
+    break;
+  case tPDFScaleUp:
+    wgt *= extras.LHEweight_QCDscale_muR1_muF2;
+    break;
+  case tQCDScaleDn:
+    wgt *= extras.LHEweight_QCDscale_muR0p5_muF1;
+    break;
+  case tQCDScaleUp:
+    wgt *= extras.LHEweight_QCDscale_muR2_muF1;
+    break;
+  case tAsMZDn:
+    wgt *= extras.LHEweight_AsMZ_Dn;
+    break;
+  case tAsMZUp:
+    wgt *= extras.LHEweight_AsMZ_Up;
+    break;
+  case tPDFReplicaDn:
+    wgt *= extras.LHEweight_PDFVariation_Dn;
+    break;
+  case tPDFReplicaUp:
+    wgt *= extras.LHEweight_PDFVariation_Up;
+    break;
+  case tPythiaScaleDn:
+    wgt *= extras.PythiaWeight_isr_muR0p5 * extras.PythiaWeight_fsr_muR0p5;
+    break;
+  case tPythiaScaleUp:
+    wgt *= extras.PythiaWeight_isr_muR2 * extras.PythiaWeight_fsr_muR2;
+    break;
+  default:
+    break;
+  }
+
+  if (!HelperFunctions::checkVarNanInf(wgt)){
+    IVYout << "GenInfoObject::getGenWeight(" << syst << "): Weight is " << wgt << "." << endl;
+    assert(0);
+  }
+
+  return wgt;
+}
+
+void GenInfoObject::acquireWeightsFromArray(float* const& wgts){
+  // FIXME: I don't know the conventions just yet, so for now, set all systematics to 1, and central weight to wgts[0]
+  extras.genHEPMCweight = wgts[0];
+  // Weight vairations are supposed to be ratios to genHEPMCweight!
+  // BE CAREFUL ABOUT HOW TO TAKE RATIOS!!!
+}

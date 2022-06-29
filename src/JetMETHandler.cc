@@ -81,7 +81,7 @@ bool JetMETHandler::constructAK4Jets(){
 
   // Beyond this point starts checks and selection
   bool allVariablesPresent = this->getConsumedValue(Form("n%s", JetMETHandler::colName_ak4jets.data()), nProducts);
-#define AK4JET_VARIABLE(TYPE, NAME) allVariablesPresent &= this->getConsumed(JetMETHandler::colName_ak4jets + "_" + #NAME, arr_##NAME);
+#define AK4JET_VARIABLE(TYPE, NAME) allVariablesPresent &= this->getConsumed<TYPE* const>(JetMETHandler::colName_ak4jets + "_" + #NAME, arr_##NAME);
   VECTOR_ITERATOR_HANDLER_DIRECTIVES_AK4JETS;
   if (!isData){
     AK4JET_GENINFO_VARIABLES;
@@ -308,6 +308,8 @@ bool JetMETHandler::wrapTree(BaseTree* tree){
 
 void JetMETHandler::bookBranches(BaseTree* tree){
   if (!tree) return;
+
+  tree->bookBranch<GlobalCollectionNames::collsize_t>(Form("n%s", JetMETHandler::colName_ak4jets.data()), 0);
 
   bool const isData = SampleHelpers::checkSampleIsData(tree->sampleIdentifier);
 #define AK4JET_VARIABLE(TYPE, NAME) \

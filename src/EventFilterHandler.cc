@@ -17,8 +17,8 @@ using namespace std;
 using namespace IvyStreamHelpers;
 
 
-//const std::string EventFilterHandler::colName_triggerobjects = GlobalCollectionNames::colName_triggerObjects;
-//const std::string EventFilterHandler::colName_metfilters = GlobalCollectionNames::colName_metfilter;
+const std::string EventFilterHandler::colName_triggerobjects = GlobalCollectionNames::colName_triggerObjects;
+const std::string EventFilterHandler::colName_metfilters = GlobalCollectionNames::colName_metfilter;
 
 EventFilterHandler::EventFilterHandler(std::vector<TriggerHelpers::TriggerType> const& requestedTriggers_) :
   IvyBase(),
@@ -140,7 +140,7 @@ float EventFilterHandler::getTriggerWeight(
 
   ParticleObject::LorentzVector_t pfmet_p4, pfmet_nomus_p4;
   if (pfmet){
-    pfmet_p4 = pfmet->p4(true, true, true, true);
+    pfmet_p4 = pfmet->p4();
     pfmet_nomus_p4 = pfmet_p4;
     for (auto const& part:muons_trigcheck) pfmet_nomus_p4 += part->p4();
   }
@@ -148,7 +148,7 @@ float EventFilterHandler::getTriggerWeight(
   float ht_pt=0, ht_nomus_pt=0;
   ParticleObject::LorentzVector_t ht_p4, ht_nomus_p4;
   for (auto const& jet:ak4jets_trigcheck){
-    auto jet_p4_nomus = jet->p4_nomus_basic();
+    auto jet_p4_nomus = jet->p4()/*jet->p4_nomus_basic()*/;
     auto const& jet_p4 = jet->p4();
 
     ht_pt += jet_p4.Pt();
@@ -171,30 +171,18 @@ float EventFilterHandler::getTriggerWeight(
 
         if (checkTriggerObjectsForHLTPaths){
           HLTTriggerPathProperties::TriggerObjectExceptionType const& TOexception = hltprop.getTOException();
-          auto const& passedTriggerObjects = prod->getPassedTriggerObjects();
-
-          if (this->verbosity>=MiscUtils::DEBUG){
-            IVYout << "EventFilterHandler::getTriggerWeight: Checking " << prod->name << " trigger objects:" << endl;
-            IVYout << "\t- Number of passed trigger objects: " << passedTriggerObjects.size() << endl;
-            IVYout << "\t\t- Trigger object types: ";
-            std::vector<trigger::TriggerObjectType> TOtypes;
-            for (auto const& TOobj:passedTriggerObjects) TOtypes.push_back(TOobj->getTriggerObjectType());
-            IVYout << TOtypes << endl;
-            IVYout << "\t- Number of muons: " << muons_trigcheck.size() << endl;
-            IVYout << "\t- Number of electrons: " << electrons_trigcheck.size() << endl;
-            IVYout << "\t- Number of photons: " << photons_trigcheck.size() << endl;
-          }
+          auto const& triggerObjects = prod->getTriggerObjects();
 
           TriggerObject::getMatchedPhysicsObjects(
-            passedTriggerObjects, { trigger::TriggerMuon }, 0.2,
+            triggerObjects, { TriggerMuon }, 0.2,
             muons_trigcheck, muons_trigcheck_TOmatched
           );
           TriggerObject::getMatchedPhysicsObjects(
-            passedTriggerObjects, { trigger::TriggerElectron, trigger::TriggerPhoton, trigger::TriggerCluster }, 0.2,
+            triggerObjects, { TriggerElectron }, 0.2,
             electrons_trigcheck, electrons_trigcheck_TOmatched
           );
           TriggerObject::getMatchedPhysicsObjects(
-            passedTriggerObjects, { trigger::TriggerPhoton, trigger::TriggerCluster }, 0.2,
+            triggerObjects, { TriggerPhoton }, 0.2,
             photons_trigcheck, photons_trigcheck_TOmatched
           );
 
@@ -240,9 +228,9 @@ float EventFilterHandler::getTriggerWeight(
   return 0;
 }
 
-bool EventFilterHandler::passMETFilters(EventFilterHandler::METFilterCutType const& cuttype) const{
+bool EventFilterHandler::passMETFilters() const{
   bool res = true;
-  auto strmetfilters = EventFilterHandler::acquireMETFilterFlags(currentTree, cuttype);
+  auto strmetfilters = EventFilterHandler::acquireMETFilterFlags(currentTree);
   for (auto const& it:product_metfilters){ if (HelperFunctions::checkListVariable(strmetfilters, it.first)) res &= it.second; }
   return res;
 }
@@ -272,7 +260,7 @@ bool EventFilterHandler::test2018HEMFilter(
   }
   else{
     bool allVariablesPresent = true;
-#define RUNLUMIEVENT_VARIABLE(TYPE, NAME) TYPE const* NAME = nullptr; allVariablesPresent &= this->getConsumed(#NAME, NAME);
+#define RUNLUMIEVENT_VARIABLE(TYPE, NAME, NANONAME) TYPE const* NAME = nullptr; allVariablesPresent &= this->getConsumed(#NANONAME, NAME);
     RUNLUMIEVENT_VARIABLES;
 #undef RUNLUMIEVENT_VARIABLE
     if (!allVariablesPresent){
@@ -321,57 +309,6 @@ bool EventFilterHandler::test2018HEMFilter(
   if (verbosity>=MiscUtils::DEBUG) IVYerr << "End EventFilterHandler::test2018HEMFilter successfully." << endl;
   return !doVeto;
 }
-bool EventFilterHandler::testNoisyJetFilter(
-  SimEventHandler const* simEventHandler,
-  std::vector<AK4JetObject*> const& ak4jets
-) const{
-  int const& year = SampleHelpers::getDataYear();
-  if (year != 2017 && year != 2018) return true;
-  if (verbosity>=MiscUtils::DEBUG) IVYerr << "Begin EventFilterHandler::testNoisyJetFilter..." << endl;
-
-  // Do not run clear because this is a special filter that does not modify the actual class
-  if (!currentTree){
-    if (verbosity>=MiscUtils::ERROR) IVYerr << "EventFilterHandler::testNoisyJetFilter: Current tree is null!" << endl;
-    return false;
-  }
-
-  // 2017 is partially noisy whereas 2018 is fully noisy. Get out of this function for good 2017 eras (B-D).
-  if (year == 2017){
-    TString effDataPeriod;
-    if (!SampleHelpers::checkSampleIsData(currentTree->sampleIdentifier)){
-      if (!simEventHandler){
-        if (verbosity>=MiscUtils::ERROR) IVYerr << "EventFilterHandler::testNoisyJetFilter: MC checks require a SimEventHandler!" << endl;
-        assert(0);
-        return false;
-      }
-      effDataPeriod = simEventHandler->getChosenDataPeriod();
-    }
-    else{
-      bool allVariablesPresent = true;
-#define RUNLUMIEVENT_VARIABLE(TYPE, NAME) TYPE const* NAME = nullptr; allVariablesPresent &= this->getConsumed(#NAME, NAME);
-      RUNLUMIEVENT_VARIABLES;
-#undef RUNLUMIEVENT_VARIABLE
-      if (!allVariablesPresent){
-        if (this->verbosity>=MiscUtils::ERROR) IVYerr << "EventFilterHandler::testNoisyJetFilter: Not all variables of the data case are consumed properly!" << endl;
-        assert(0);
-      }
-      effDataPeriod = SampleHelpers::getDataPeriodFromRunNumber(*RunNumber);
-    }
-    if (effDataPeriod != "2017E" && effDataPeriod != "2017F") return true;
-  }
-
-  // For affected runs, check noisy jet presence.
-  bool doVeto = false;
-  for (auto const& jet:ak4jets){
-    if (ParticleSelectionHelpers::isMaybeNoisyTightJet(jet)){
-      doVeto = true;
-      break;
-    }
-  }
-
-  if (verbosity>=MiscUtils::DEBUG) IVYerr << "End EventFilterHandler::testNoisyJetFilter successfully." << endl;
-  return !doVeto;
-}
 
 bool EventFilterHandler::constructHLTPaths(SimEventHandler const* simEventHandler){
   bool isData = SampleHelpers::checkSampleIsData(currentTree->sampleIdentifier);
@@ -382,23 +319,34 @@ bool EventFilterHandler::constructHLTPaths(SimEventHandler const* simEventHandle
     }
   }
 
-#define HLTTRIGGERPATH_VARIABLE(TYPE, NAME) std::vector<TYPE>::const_iterator itBegin_HLTpaths_##NAME, itEnd_HLTpaths_##NAME;
-  HLTTRIGGERPATH_VARIABLES;
-#undef HLTTRIGGERPATH_VARIABLE
-#define RUNLUMIEVENT_VARIABLE(TYPE, NAME) TYPE const* NAME = nullptr;
+  // Construct HLT paths
+  std::unordered_map<std::string, bool const*> trigger_flags;
+
+  // Run number etc.
+#define RUNLUMIEVENT_VARIABLE(TYPE, NAME, NANONAME) TYPE const* NAME = nullptr;
   RUNLUMIEVENT_VARIABLES;
 #undef RUNLUMIEVENT_VARIABLE
 
   // Beyond this point starts checks and selection
   bool allVariablesPresent = true;
-#define HLTTRIGGERPATH_VARIABLE(TYPE, NAME) allVariablesPresent &= this->getConsumedCIterators<std::vector<TYPE>>(EventFilterHandler::colName_HLTpaths + "_" + #NAME, &itBegin_HLTpaths_##NAME, &itEnd_HLTpaths_##NAME);
-  HLTTRIGGERPATH_VARIABLES;
-#undef HLTTRIGGERPATH_VARIABLE
-#define RUNLUMIEVENT_VARIABLE(TYPE, NAME) allVariablesPresent &= this->getConsumed(#NAME, NAME);
+#define RUNLUMIEVENT_VARIABLE(TYPE, NAME, NANONAME) allVariablesPresent &= this->getConsumed(#NANONAME, NAME);
   if (isData){
     RUNLUMIEVENT_VARIABLES;
   }
 #undef RUNLUMIEVENT_VARIABLE
+  for (auto const& trigtype:requestedTriggers){
+    auto hltnames = TriggerHelpers::getHLTMenus(trigtype);
+    for (auto const& hltname:hltnames){
+      auto hltnanoname = hltname;
+      auto ipos = hltnanoname.find_last_of("_v");
+      if (ipos!=std::string::npos){
+        hltnanoname = hltnanoname.substr(0, ipos-1);
+      }
+      bool const* flag_pass = nullptr;
+      allVariablesPresent &= this->getConsumed(hltnanoname, flag_pass);
+      trigger_flags[hltname] = flag_pass;
+    }
+  }
   if (!allVariablesPresent){
     if (this->verbosity>=MiscUtils::ERROR) IVYerr << "EventFilterHandler::constructHLTPaths: Not all variables are consumed properly!" << endl;
     assert(0);
@@ -406,28 +354,30 @@ bool EventFilterHandler::constructHLTPaths(SimEventHandler const* simEventHandle
 
   if (this->verbosity>=MiscUtils::DEBUG) IVYout << "EventFilterHandler::constructHLTPaths: All variables are set up!" << endl;
 
-  size_t n_HLTpaths = (itEnd_HLTpaths_name - itBegin_HLTpaths_name);
-  product_HLTpaths.reserve(n_HLTpaths);
-#define HLTTRIGGERPATH_VARIABLE(TYPE, NAME) auto it_HLTpaths_##NAME = itBegin_HLTpaths_##NAME;
-  HLTTRIGGERPATH_VARIABLES;
-#undef HLTTRIGGERPATH_VARIABLE
-  {
-    cms3_triggerIndex_t itrig=0;
-    unsigned int RunNumber_sim=0;
-    bool set_RunNumber_sim=false;
-    while (it_HLTpaths_name != itEnd_HLTpaths_name){
+  unsigned int itrig=0;
+  unsigned int RunNumber_sim=0;
+  bool set_RunNumber_sim=false;
+  for (auto const& trigtype:requestedTriggers){
+    auto hltnames = TriggerHelpers::getHLTMenus(trigtype);
+    for (auto const& hltname:hltnames){
       product_HLTpaths.push_back(new HLTTriggerPathObject());
       HLTTriggerPathObject*& obj = product_HLTpaths.back();
-
-#define HLTTRIGGERPATH_VARIABLE(TYPE, NAME) obj->NAME = *it_HLTpaths_##NAME;
-      HLTTRIGGERPATH_VARIABLES;
-#undef HLTTRIGGERPATH_VARIABLE
+      obj->name = hltname;
+      obj->passTrigger = *(trigger_flags.find(hltname)->second);
+      // FIXME: We do not have an implementation for L1 and HLT prescales.
+      // That is because our NanoAOD genuises are incapable of thinking to write floats (yes, has to be floats if you have multiple L1 prescales and therefore need to take their geometric average) instead of booleans.
+      // Most of the time, it would be compressed since a lot of them will be exactly 0 or 1, but our genius physicists cannot conceptualize that.
+      // We need to write a dedicate EDLooper over data to make a table.
+      // Pre-UL tables would not work since lumi. genuises independently decided to make a "better" golden JSON, so lumi blocks are not exactly the same anymore.
+      // Fun, right?
+      // (I hate incomplete frameworks that tout completeness.)
 
       // Set list index as its unique identifier
       obj->setUniqueIdentifier(itrig);
 
-      // Associate trigger objects
-      obj->setTriggerObjects(product_triggerobjects);
+      // No trigger objects at the moment
+      //// Associate trigger objects
+      //obj->setTriggerObjects(product_triggerobjects);
 
       bool isValid = true;
       HLTTriggerPathProperties const* hltprop = nullptr;
@@ -447,9 +397,6 @@ bool EventFilterHandler::constructHLTPaths(SimEventHandler const* simEventHandle
       obj->setValid(isValid);
 
       itrig++;
-#define HLTTRIGGERPATH_VARIABLE(TYPE, NAME) it_HLTpaths_##NAME++;
-      HLTTRIGGERPATH_VARIABLES;
-#undef HLTTRIGGERPATH_VARIABLE
     }
   }
 
@@ -457,13 +404,14 @@ bool EventFilterHandler::constructHLTPaths(SimEventHandler const* simEventHandle
 }
 
 bool EventFilterHandler::constructTriggerObjects(){
-#define TRIGGEROBJECT_VARIABLE(TYPE, NAME) std::vector<TYPE>::const_iterator itBegin_##NAME, itEnd_##NAME;
+  GlobalCollectionNames::collsize_t nProducts;
+#define TRIGGEROBJECT_VARIABLE(TYPE, NAME) TYPE* const* arr_##NAME;
   TRIGGEROBJECT_VARIABLES;
 #undef TRIGGEROBJECT_VARIABLE
 
   // Beyond this point starts checks and selection
-  bool allVariablesPresent = true;
-#define TRIGGEROBJECT_VARIABLE(TYPE, NAME) allVariablesPresent &= this->getConsumedCIterators<std::vector<TYPE>>(EventFilterHandler::colName_triggerobjects + "_" + #NAME, &itBegin_##NAME, &itEnd_##NAME);
+  bool allVariablesPresent = this->getConsumedValue(Form("n%s", EventFilterHandler::colName_triggerobjects.data()), nProducts);
+#define TRIGGEROBJECT_VARIABLE(TYPE, NAME) allVariablesPresent &= this->getConsumed<TYPE* const>(EventFilterHandler::colName_triggerobjects + "_" + #NAME, arr_##NAME);
   TRIGGEROBJECT_VARIABLES;
 #undef TRIGGEROBJECT_VARIABLE
   if (!allVariablesPresent){
@@ -473,19 +421,20 @@ bool EventFilterHandler::constructTriggerObjects(){
 
   if (this->verbosity>=MiscUtils::DEBUG) IVYout << "EventFilterHandler::constructTriggerObjects: All variables are set up!" << endl;
 
-  size_t n_products = (itEnd_type - itBegin_type);
-  product_triggerobjects.reserve(n_products);
-#define TRIGGEROBJECT_VARIABLE(TYPE, NAME) auto it_##NAME = itBegin_##NAME;
+  if (nProducts==0) return true; // Construction is successful, it is just that no muons exist.
+
+  product_triggerobjects.reserve(nProducts);
+#define TRIGGEROBJECT_VARIABLE(TYPE, NAME) TYPE* it_##NAME = &((*arr_##NAME)[0]);
   TRIGGEROBJECT_VARIABLES;
 #undef TRIGGEROBJECT_VARIABLE
   {
-    size_t ip=0;
-    while (it_type != itEnd_type){
+    GlobalCollectionNames::collsize_t ip=0;
+    while (ip != nProducts){
       if (this->verbosity>=MiscUtils::DEBUG) IVYout << "EventFilterHandler::constructTriggerObjects: Attempting trigger object " << ip << "..." << endl;
 
       ParticleObject::LorentzVector_t momentum;
       momentum = ParticleObject::PolarLorentzVector_t(*it_pt, *it_eta, *it_phi, *it_mass);
-      product_triggerobjects.push_back(new TriggerObject(*it_type, momentum));
+      product_triggerobjects.push_back(new TriggerObject(*it_id, momentum));
       TriggerObject* const& obj = product_triggerobjects.back();
 
 #define TRIGGEROBJECT_VARIABLE(TYPE, NAME) obj->extras.NAME = *it_##NAME;
@@ -511,7 +460,7 @@ bool EventFilterHandler::constructTriggerObjects(){
 }
 
 bool EventFilterHandler::constructMETFilters(){
-  auto strmetfilters = EventFilterHandler::acquireMETFilterFlags(currentTree, EventFilterHandler::nMETFilterCutTypes);
+  auto strmetfilters = EventFilterHandler::acquireMETFilterFlags(currentTree);
   product_metfilters.clear();
 
   bool allVariablesPresent = true;
@@ -536,7 +485,7 @@ bool EventFilterHandler::accumulateRunLumiEventBlock(){
   }
 
   bool allVariablesPresent = true;
-#define RUNLUMIEVENT_VARIABLE(TYPE, NAME) TYPE const* NAME = nullptr; allVariablesPresent &= this->getConsumed(#NAME, NAME);
+#define RUNLUMIEVENT_VARIABLE(TYPE, NAME, NANONAME) TYPE const* NAME = nullptr; allVariablesPresent &= this->getConsumed(#NANONAME, NAME);
   RUNLUMIEVENT_VARIABLES;
 #undef RUNLUMIEVENT_VARIABLE
   if (!allVariablesPresent){
@@ -582,7 +531,7 @@ bool EventFilterHandler::accumulateRunLumiEventBlock(){
   return true;
 }
 
-std::vector<std::string> EventFilterHandler::acquireMETFilterFlags(BaseTree* intree, EventFilterHandler::METFilterCutType const& cuttype){
+std::vector<std::string> EventFilterHandler::acquireMETFilterFlags(BaseTree* intree){
   std::vector<std::string> res;
 
   switch (SampleHelpers::theDataYear){
@@ -592,39 +541,19 @@ std::vector<std::string> EventFilterHandler::acquireMETFilterFlags(BaseTree* int
       "goodVertices",
       "HBHENoiseFilter",
       "HBHENoiseIsoFilter",
-      "EcalDeadCellTriggerPrimitiveFilter"
+      "EcalDeadCellTriggerPrimitiveFilter",
+      "BadPFMuonFilter",
+      "BadPFMuonDzFilter",
+      "eeBadScFilter"
     };
     if (!SampleHelpers::checkSampleIsFastSim(intree->sampleIdentifier)){ // For data or non-FS MC
-      if (cuttype>=EventFilterHandler::kMETFilters_Standard) res.push_back("globalSuperTightHalo2016Filter");
-      if (cuttype>=EventFilterHandler::kMETFilters_Tight) res.push_back("globalTightHalo2016Filter");
+      res.push_back("globalSuperTightHalo2016Filter");
     }
-    if (SampleHelpers::checkSampleIsData(intree->sampleIdentifier)) res.push_back("eeBadScFilter"); // Only for data
 
-    if (!SampleHelpers::checkSampleIs80X(intree->sampleIdentifier)){ // These MET filters are available in CMSSW_VERSION>=94X
-      res.push_back("BadPFMuonFilter");
-      //res.push_back("BadChargedCandidateFilter"); // Disabled per https://twiki.cern.ch/twiki/bin/viewauth/CMS/MissingETOptionalFiltersRun2#2016_data
-    }
     // Else need "Bad PF Muon Filter" and "Bad Charged Hadron Filter" to be calculated on the fly for data, MC and FastSim, see https://twiki.cern.ch/twiki/bin/viewauth/CMS/MissingETOptionalFiltersRun2#How_to_run_the_Bad_Charged_Hadro
     break;
   }
   case 2017:
-  {
-    res = std::vector<std::string>{
-      "goodVertices",
-      "HBHENoiseFilter",
-      "HBHENoiseIsoFilter",
-      "EcalDeadCellTriggerPrimitiveFilter",
-      "BadPFMuonFilter",
-      //"BadChargedCandidateFilter", // FIXME: To be updated following https://twiki.cern.ch/twiki/bin/viewauth/CMS/MissingETOptionalFiltersRun2#2017_data
-      "ecalBadCalibFilterUpdated"
-    };
-    if (!SampleHelpers::checkSampleIsFastSim(intree->sampleIdentifier)){ // For data or non-FS MC
-      if (cuttype>=EventFilterHandler::kMETFilters_Standard) res.push_back("globalSuperTightHalo2016Filter");
-      if (cuttype>=EventFilterHandler::kMETFilters_Tight) res.push_back("globalTightHalo2016Filter");
-    }
-    if (SampleHelpers::checkSampleIsData(intree->sampleIdentifier)) res.push_back("eeBadScFilter"); // Only for data
-    break;
-  }
   case 2018:
   {
     res = std::vector<std::string>{
@@ -633,14 +562,13 @@ std::vector<std::string> EventFilterHandler::acquireMETFilterFlags(BaseTree* int
       "HBHENoiseIsoFilter",
       "EcalDeadCellTriggerPrimitiveFilter",
       "BadPFMuonFilter",
-      //"BadChargedCandidateFilter", // FIXME: To be updated following https://twiki.cern.ch/twiki/bin/viewauth/CMS/MissingETOptionalFiltersRun2#2018_data
-      "ecalBadCalibFilterUpdated"
+      "BadPFMuonDzFilter",
+      "ecalBadCalibFilter",
+      "eeBadScFilter"
     };
     if (!SampleHelpers::checkSampleIsFastSim(intree->sampleIdentifier)){ // For data or non-FS MC
-      if (cuttype>=EventFilterHandler::kMETFilters_Standard) res.push_back("globalSuperTightHalo2016Filter");
-      if (cuttype>=EventFilterHandler::kMETFilters_Tight) res.push_back("globalTightHalo2016Filter");
+      res.push_back("globalSuperTightHalo2016Filter");
     }
-    if (SampleHelpers::checkSampleIsData(intree->sampleIdentifier)) res.push_back("eeBadScFilter"); // Only for data
     break;
   }
   default:
@@ -669,13 +597,17 @@ void EventFilterHandler::bookBranches(BaseTree* tree){
 
   // Trigger objects
   if (trackTriggerObjects){
-#define TRIGGEROBJECT_VARIABLE(TYPE, NAME) tree->bookBranch<std::vector<TYPE>*>(EventFilterHandler::colName_triggerobjects + "_" + #NAME, nullptr); this->addConsumed<std::vector<TYPE>*>(EventFilterHandler::colName_triggerobjects + "_" + #NAME);
+    tree->bookBranch<GlobalCollectionNames::collsize_t>(Form("n%s", EventFilterHandler::colName_triggerobjects.data()), 0);
+    this->addConsumed<GlobalCollectionNames::collsize_t>(Form("n%s", EventFilterHandler::colName_triggerobjects.data()));
+#define TRIGGEROBJECT_VARIABLE(TYPE, NAME) \
+    tree->bookArrayBranch<TYPE>(EventFilterHandler::colName_triggerobjects + "_" + #NAME, 0, GlobalCollectionNames::colMaxSize_triggerObjects); \
+    this->addConsumed<TYPE* const>(EventFilterHandler::colName_triggerobjects + "_" + #NAME);
     TRIGGEROBJECT_VARIABLES;
 #undef TRIGGEROBJECT_VARIABLE
   }
 
   // Book MET filters
-  auto strmetfilters = EventFilterHandler::acquireMETFilterFlags(tree, EventFilterHandler::nMETFilterCutTypes);
+  auto strmetfilters = EventFilterHandler::acquireMETFilterFlags(tree);
   for (auto const& strmetfilter:strmetfilters){
     tree->bookBranch<bool>(strmetfilter, true); // Default should be true to avoid non-existing branches
     this->addConsumed<bool>(strmetfilter);
@@ -684,7 +616,7 @@ void EventFilterHandler::bookBranches(BaseTree* tree){
 
   // Do these for data trees
   if (SampleHelpers::checkSampleIsData(tree->sampleIdentifier)){
-#define RUNLUMIEVENT_VARIABLE(TYPE, NAME) tree->bookBranch<TYPE>(#NAME, DEFVAL); this->addConsumed<TYPE>(#NAME); this->defineConsumedSloppy(#NAME);
+#define RUNLUMIEVENT_VARIABLE(TYPE, NAME, NANONAME) tree->bookBranch<TYPE>(#NANONAME, 0); this->addConsumed<TYPE>(#NANONAME); this->defineConsumedSloppy(#NANONAME);
     RUNLUMIEVENT_VARIABLES;
 #undef RUNLUMIEVENT_VARIABLE
   }
