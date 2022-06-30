@@ -7,7 +7,8 @@
 
 namespace ElectronSelectionHelpers{
   enum SelectionBits{
-    // both loose bits have ID but isolated or non-isolated trigger
+    kKinOnly,
+
     kPreselectionLoose_IsoTrig,
     kPreselectionLoose_NoIsoTrig,
     kPreselectionLoose,
@@ -41,10 +42,6 @@ namespace ElectronSelectionHelpers{
   constexpr float isoThr_tight_I3 = 8.0; 
 
   float getIsolationDRmax(ElectronObject const& part);
-
-  float relMiniIso(ElectronObject const& part);
-
-  float computeIso(ElectronObject const& part);
 
   void setSelectionBits(ElectronObject& part);
 }

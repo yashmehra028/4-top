@@ -85,6 +85,9 @@ def get_tasks(args):
    for sample in samples:
       isdata = "Run201" in sample.info["dataset"]
 
+      events_per_output = (150e3 if isdata else 150e3)
+      pset_args = sample.info["options"]
+
       outputfilenamecore = sample.info["shortname"]
       if not outputfilenamecore:
          outputfilenamecore = sample.info["dataset"]
@@ -97,14 +100,12 @@ def get_tasks(args):
       outputfilename = outputfilenamecore
       if not doXsecRun:
          outputfilename = outputfilename + ".root"
+         pset_args += " dataset={} short_name={} period={}".format(sample.info["dataset"], sample.info["shortname"], sample.info["period"])
       else:
          outputfilename = outputfilename + ".txt"
          if isdata:
             continue
       print("Output file: ",outputfilename)
-
-      events_per_output = (150e3 if isdata else 150e3)
-      pset_args = sample.info["options"]
 
       # build output directory
       griduname = os.environ.get("GRIDUSER","").strip()  # Set by Metis. Can be different from $USER for some people.
@@ -112,8 +113,8 @@ def get_tasks(args):
          griduname = os.environ.get("USER")
       part1 = sample.info["period"]
       part2 = outputfilenamecore
-      output_dir = "/ceph/cms/store/user/{}/tttt/Skims/{}/{}/{}/".format(
-         griduname, tag, part1, part2
+      output_dir = "/ceph/cms/store/group/tttt/Skims/{}/{}/{}/".format(
+         tag, part1, part2
       )
 
       taskArgs = dict()

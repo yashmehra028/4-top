@@ -33,24 +33,26 @@ bool PhotonSelectionHelpers::testKin(PhotonObject const& part){
 
 bool PhotonSelectionHelpers::testPreselectionLoose(PhotonObject const& part){
   return (
+    part.testSelectionBit(kKinOnly)
+    &&
     testLooseId(part)
     &&
     testLooseIso(part)
-    &&
-    testKin(part)
     );
 }
 bool PhotonSelectionHelpers::testPreselectionTight(PhotonObject const& part){
   return (
+    part.testSelectionBit(kKinOnly)
+    &&
     testTightId(part)
     &&
     testTightIso(part)
-    &&
-    testKin(part)
     );
 }
 void PhotonSelectionHelpers::setSelectionBits(PhotonObject& part){
   static_assert(std::numeric_limits<ParticleObject::SelectionBitsType_t>::digits >= nSelectionBits);
+
+  part.setSelectionBit(kKinOnly, testKin(part));
 
   part.setSelectionBit(kPreselectionLoose, testPreselectionLoose(part));
   part.setSelectionBit(kPreselectionTight, testPreselectionTight(part));

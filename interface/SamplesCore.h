@@ -9,6 +9,7 @@
 
 const TString ANALYSISPKGPATH = "${CMSSW_BASE}/src/tttt/";
 const TString ANALYSISPKGDATAPATH = ANALYSISPKGPATH + "data/";
+const TString DEFAULTSTOREINPUTDIR = "/store/group/tttt";
 
 // Cross section scale for the MC
 constexpr float xsecScale = 1e3;

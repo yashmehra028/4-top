@@ -4,9 +4,9 @@ OUTPUTDIR=$1
 OUTPUTNAME=$2
 INPUTFILENAMES=$3
 IFILE=$4
-CMSSWVERSION=$6
-SCRAMARCH=$7
-SKIMARGS="${@:8}" # since args can have spaces, we take all at once first
+CMSSWVERSION=$5
+SCRAMARCH=$6
+SKIMARGS="${@:7}" # since args can have spaces, we take all at once first
 
 # Make sure OUTPUTNAME doesn't have .root since we add it manually
 OUTPUTNAME=$(echo $OUTPUTNAME | sed 's/\.root//')

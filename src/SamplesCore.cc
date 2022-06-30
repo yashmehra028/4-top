@@ -2,8 +2,8 @@
 #include <stdexcept>
 #include <cmath>
 #include <unordered_map>
-#include "HostHelpersCore.h"
-#include "HelperFunctions.h"
+#include "IvyFramework/IvyDataTools/interface/HostHelpersCore.h"
+#include "IvyFramework/IvyDataTools/interface/HelperFunctions.h"
 #include "SamplesCore.h"
 #include "SamplesCore.hpp"
 #include "TRandom3.h"

@@ -89,7 +89,8 @@ bool ElectronHandler::constructElectronObjects(){
       // Set particle index as its unique identifier
       obj->setUniqueIdentifier(ip);
 
-      // We do not set the selection bits at this point because the bits depend on how pTratio and pTrel are computed.
+      // Set selection bits
+      ElectronSelectionHelpers::setSelectionBits(*obj);
 
       if (this->verbosity>=MiscUtils::DEBUG) IVYout << "\t- Success!" << endl;
 

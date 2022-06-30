@@ -41,12 +41,6 @@ float ElectronSelectionHelpers::getIsolationDRmax(ElectronObject const& part){
   return (10. / std::min(std::max(part.uncorrected_pt(), 50.), 200.));
 }
 
-float ElectronSelectionHelpers::relMiniIso(ElectronObject const& part){ return part.extras.miniPFRelIso_all; }
-
-float ElectronSelectionHelpers::computeIso(ElectronObject const& part){
-	return ElectronSelectionHelpers::relMiniIso(part);
-}
-
 
 bool ElectronSelectionHelpers::testLooseId_IsoTrig(ElectronObject const& part){
   double const part_pt = part.pt();
@@ -185,20 +179,20 @@ bool ElectronSelectionHelpers::testKin(ElectronObject const& part){
 
 bool ElectronSelectionHelpers::testPreselectionLoose_IsoTrig(ElectronObject const& part){
   return (
+    part.testSelectionBit(kKinOnly)
+    &&
     testLooseId_IsoTrig(part)
     &&
     testLooseIso(part)
-    &&
-    testKin(part)
     );
 }
 bool ElectronSelectionHelpers::testPreselectionLoose_NoIsoTrig(ElectronObject const& part){
   return (
+    part.testSelectionBit(kKinOnly)
+    &&
     testLooseId_NoIsoTrig(part)
     &&
     testLooseIso(part)
-    &&
-    testKin(part)
     );
 }
 bool ElectronSelectionHelpers::testPreselectionLoose(ElectronObject const& part){
@@ -210,25 +204,27 @@ bool ElectronSelectionHelpers::testPreselectionLoose(ElectronObject const& part)
 }
 bool ElectronSelectionHelpers::testPreselectionFakeable(ElectronObject const& part){
   return (
+    part.testSelectionBit(kKinOnly)
+    &&
     testFakeableId(part)
     &&
     testFakeableIso(part)
-    &&
-    testKin(part)
     );
 }
 bool ElectronSelectionHelpers::testPreselectionTight(ElectronObject const& part){
   return (
+    part.testSelectionBit(kKinOnly)
+    &&
     testTightId(part)
     &&
     testTightIso(part)
-    &&
-    testKin(part)
     );
 }
 
 void ElectronSelectionHelpers::setSelectionBits(ElectronObject& part){
   static_assert(std::numeric_limits<ParticleObject::SelectionBitsType_t>::digits >= nSelectionBits);
+
+  part.setSelectionBit(kKinOnly, testKin(part));
 
   part.setSelectionBit(kPreselectionLoose_NoIsoTrig, testPreselectionLoose_NoIsoTrig(part));
   part.setSelectionBit(kPreselectionLoose_IsoTrig, testPreselectionLoose_IsoTrig(part));

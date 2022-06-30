@@ -6,6 +6,8 @@
 
 namespace PhotonSelectionHelpers{
   enum SelectionBits{
+    kKinOnly,
+
     kPreselectionLoose,
     kPreselectionTight,
 

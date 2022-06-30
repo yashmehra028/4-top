@@ -61,7 +61,7 @@ void SelectionTracker::print() const{
 }
 
 
-int ScanChain(std::vector<TString> const& inputfnames, std::string output_fname, std::string dset, std::string proc, std::string str_period, double scale_factor){
+int ScanChain(std::vector<TString> const& inputfnames, std::string output_fname, std::string dset, std::string proc, std::string str_period, float xsec_val){
   if (!SampleHelpers::checkRunOnCondor()) std::signal(SIGINT, SampleHelpers::setSignalInterrupt);
 
   TDirectory* curdir = gDirectory;
@@ -141,8 +141,21 @@ int ScanChain(std::vector<TString> const& inputfnames, std::string output_fname,
 #undef COLLECTIONNAME_DIRECTIVE
 
   TFile* foutput = TFile::Open(output_fname.data(), "recreate");
-  TTree* tout	=	tin->getSelectedTree()->CloneTree(0);
-  tout->SetAutoSave(0);
+  BaseTree* tout = nullptr;
+  {
+    TTree* tin_copy	=	tin->getSelectedTree()->CloneTree(0);
+    tout = new BaseTree(nullptr, tin_copy, nullptr, nullptr, false); // Acquires the possession of tin_copy
+    tout->setAutoSave(0);
+  }
+  std::vector<TString> allbranchnames;
+  tout->getValidBranchNamesWithoutAlias(allbranchnames, false);
+  float* xsec = nullptr;
+  if (!isData){
+    if (!HelperFunctions::checkListVariable<TString>(allbranchnames, "xsec")){
+      tout->putBranch("xsec", xsec_val);
+    }
+    tout->getValRef("xsec", xsec);
+  }
 
   // Keep track of sums of weights
   SelectionTracker seltracker;
@@ -160,6 +173,8 @@ int ScanChain(std::vector<TString> const& inputfnames, std::string output_fname,
 
     tin->getEvent(ev);
     HelperFunctions::progressbar(ev, nEntries);
+
+    if (xsec) *xsec = xsec_val;
 
     double wgt_gensim_nominal = 1;
     genInfoHandler.constructGenInfo();
@@ -189,12 +204,24 @@ int ScanChain(std::vector<TString> const& inputfnames, std::string output_fname,
     // Therefore, what you call 'tight' is not really tight.
 
     muonHandler.constructMuons();
-    auto const& muons = muonHandler.getProducts();
-    unsigned int const n_muons = muons.size();
+    std::vector<MuonObject*> muons_selected;
+    {
+      auto const& muons = muonHandler.getProducts();
+      muons_selected.reserve(muons.size());
+      for (auto const& muon:muons){
+        if (muon->testSelectionBit(MuonSelectionHelpers::kKinOnly)) muons_selected.push_back(muon);
+      }
+    }
+    unsigned int const n_muons = muons_selected.size();
 
     electronHandler.constructElectrons();
-    auto const& electrons = electronHandler.getProducts();
-    unsigned int const n_electrons = electrons.size();
+    std::vector<ElectronObject*> electrons_selected;
+    {
+      auto const& electrons = electronHandler.getProducts();
+      electrons_selected.reserve(electrons.size());
+      for (auto const& electron:electrons){ if (electron->testSelectionBit(ElectronSelectionHelpers::kKinOnly)) electrons_selected.push_back(electron); }
+    }
+    unsigned int const n_electrons = electrons_selected.size();
 
     isotrackHandler.constructIsotracks(nullptr, nullptr); // Do not pass electrons or muons
     auto const& isotracks = isotrackHandler.getProducts();
@@ -218,6 +245,8 @@ int ScanChain(std::vector<TString> const& inputfnames, std::string output_fname,
     }
 
     // BEGIN PRESELECTION
+    seltracker.accumulate("Full sample", wgt_gensim_nominal);
+
     if (!eventHandler.test2018HEMFilter(&simEventHandler, nullptr, nullptr, &ak4jets)) continue; // Test for 2018 partial HEM failure
     seltracker.accumulate("Pass HEM veto", wgt_gensim_nominal);
     if (!eventHandler.passMETFilters()) continue; // Test for MET filters
@@ -231,23 +260,23 @@ int ScanChain(std::vector<TString> const& inputfnames, std::string output_fname,
     seltracker.accumulate("Pass any trigger", wgt_gensim_nominal);
 
     // Construct all possible dilepton pairs
-    dileptonHandler.constructDileptons(&muons, &electrons);
+    dileptonHandler.constructDileptons(&muons_selected, &electrons_selected);
     auto const& dileptons = dileptonHandler.getProducts();
     bool found_dilepton_SS = false;
     bool found_dilepton_OS = false;
-    bool found_dilepton_OS_Zcand = false;
+    bool found_dilepton_OSSF_Zcand = false;
     for (auto const& dilepton:dileptons){
       if (!dilepton->isOS()) found_dilepton_SS = true;
       else{
         found_dilepton_OS = true;
-        if (dilepton->isSF() && std::abs(dilepton->m()-91.2)<15.) found_dilepton_OS_Zcand = true;
+        if (dilepton->isSF() && std::abs(dilepton->m()-91.2)<15.) found_dilepton_OSSF_Zcand = true;
       }
     }
 
     bool const pass_loose_dilepton = (
       (found_dilepton_SS || found_dilepton_OS) && (n_ak4jets_tight>=2 && n_ak4jets_tight_btagged>=1)
       ||
-      found_dilepton_OS_Zcand
+      found_dilepton_OSSF_Zcand
       ) && event_weight_triggers_dilepton!=0.;
     bool const pass_loose_singlelepton = (n_muons + n_electrons)>=1 && n_ak4jets_tight>=1 && event_weight_triggers_singleleptoncontrol!=0.;
     seltracker.accumulate("Pass loose dilepton selection", wgt_gensim_nominal*double(pass_loose_dilepton));
@@ -257,12 +286,14 @@ int ScanChain(std::vector<TString> const& inputfnames, std::string output_fname,
 
     bool pass_loose_isotrack_veto = true;
     for (auto const& isotrack:isotracks){
+      if (!isotrack->testSelectionBit(IsotrackSelectionHelpers::kPreselectionVeto)) continue;
+
       double min_dR = -1;
-      for (auto const& part:muons){
+      for (auto const& part:muons_selected){
         double tmp_dR = part->deltaR(isotrack);
         if (min_dR<0. || min_dR>tmp_dR) min_dR = tmp_dR;
       }
-      for (auto const& part:electrons){
+      for (auto const& part:electrons_selected){
         double tmp_dR = part->deltaR(isotrack);
         if (min_dR<0. || min_dR>tmp_dR) min_dR = tmp_dR;
       }
@@ -271,11 +302,11 @@ int ScanChain(std::vector<TString> const& inputfnames, std::string output_fname,
     if (!pass_loose_isotrack_veto) continue;
     seltracker.accumulate("Pass isotrack veto", wgt_gensim_nominal);
 
-    tout->Fill();
+    tout->fill();
   }
 
   frac_zero_genwgts = double(n_zero_genwgts)/double(nEntries);
-  IVYout << "Number of events recorded: " << tout->GetEntries() << " / " << nEntries << endl;
+  IVYout << "Number of events recorded: " << tout->getNEvents() << " / " << nEntries << endl;
   seltracker.print();
   if (!isData){
     IVYout << "Writing the sum of gen. weights:" << endl;
@@ -296,7 +327,7 @@ int ScanChain(std::vector<TString> const& inputfnames, std::string output_fname,
     foutput->WriteTObject(&hCounters);
   }
 
-  foutput->WriteTObject(tout);
+  tout->writeToFile(foutput);
   delete tout;
   foutput->Close();
 

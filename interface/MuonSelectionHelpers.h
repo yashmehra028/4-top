@@ -7,7 +7,8 @@
 
 namespace MuonSelectionHelpers{
   enum SelectionBits{
-    // both loose bits have ID but isolated or non-isolated trigger
+    kKinOnly,
+
     kPreselectionLoose,
     kPreselectionFakeable,
     kPreselectionTight,

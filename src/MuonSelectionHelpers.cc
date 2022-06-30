@@ -60,34 +60,36 @@ bool MuonSelectionHelpers::testKin(MuonObject const& part){
 
 bool MuonSelectionHelpers::testPreselectionLoose(MuonObject const& part){
   return (
+    part.testSelectionBit(kKinOnly)
+    &&
     testLooseId(part)
     &&
     testLooseIso(part)
-    &&
-    testKin(part)
     );
 }
 bool MuonSelectionHelpers::testPreselectionFakeable(MuonObject const& part){
   return (
+    part.testSelectionBit(kKinOnly)
+    &&
     testFakableId(part)
     &&
     testFakableIso(part)
-    &&
-    testKin(part)
     );
 }
 bool MuonSelectionHelpers::testPreselectionTight(MuonObject const& part){
   return (
+    part.testSelectionBit(kKinOnly)
+    &&
     testTightId(part)
     &&
     testTightIso(part)
-    &&
-    testKin(part)
     );
 }
 
 void MuonSelectionHelpers::setSelectionBits(MuonObject& part){
   static_assert(std::numeric_limits<ParticleObject::SelectionBitsType_t>::digits >= nSelectionBits);
+
+  part.setSelectionBit(kKinOnly, testKin(part));
 
   part.setSelectionBit(kPreselectionLoose, testPreselectionLoose(part));
   part.setSelectionBit(kPreselectionFakeable, testPreselectionFakeable(part));
