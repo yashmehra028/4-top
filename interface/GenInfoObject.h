@@ -8,8 +8,25 @@
 #include "SystematicVariations.h"
 
 
+// NanoAOD variables
+#define GENINFO_NANOAOD_SCALAR_VARIABLES \
+GENINFO_NANOAOD_SCALAR_VARIABLE(float, genWeight, 1) \
+GENINFO_NANOAOD_SCALAR_VARIABLE(float, LHEWeight_originalXWGTUP, 1)
+
+#define GENINFO_NANOAOD_ARRAY_VARIABLES \
+GENINFO_NANOAOD_ARRAY_VARIABLE(float, LHEScaleWeight, 0, 50) \
+GENINFO_NANOAOD_ARRAY_VARIABLE(float, LHEPdfWeight, 0, 500) \
+GENINFO_NANOAOD_ARRAY_VARIABLE(float, PSWeight, 0, 500)
+
+#define GENINFO_NANOAOD_ALLVARIABLES \
+GENINFO_NANOAOD_SCALAR_VARIABLES \
+GENINFO_NANOAOD_ARRAY_VARIABLES
+
+// Framework translation
 #define GENINFO_EXTRA_VARIABLES \
 GENINFO_VARIABLE(float, genHEPMCweight, 1) \
+GENINFO_VARIABLE(float, LHEweight_unscaledOriginalWeight, 1) /* = LHEEventProduct::originalXWGTUP() */ \
+GENINFO_VARIABLE(float, LHEweight_defaultMemberZero, 1) /* = PDFweights[0] */ \
 GENINFO_VARIABLE(float, LHEweight_QCDscale_muR1_muF1, 1) \
 GENINFO_VARIABLE(float, LHEweight_QCDscale_muR1_muF2, 1) \
 GENINFO_VARIABLE(float, LHEweight_QCDscale_muR1_muF0p5, 1) \
@@ -63,7 +80,14 @@ public:
 
   void swap(GenInfoObject& other);
 
-  void acquireWeightsFromArray(float* const& wgts);
+#define GENINFO_NANOAOD_SCALAR_VARIABLE(TYPE, NAME, DEFVAL) , TYPE const& NAME
+#define GENINFO_NANOAOD_ARRAY_VARIABLE(TYPE, NAME, DEFVAL, MAXSIZE) , unsigned int const& n##NAME, TYPE const* arr_##NAME
+  void acquireWeights(
+    TString const& sampleIdentifier
+    GENINFO_NANOAOD_ALLVARIABLES
+  );
+#undef GENINFO_NANOAOD_ARRAY_VARIABLE
+#undef GENINFO_NANOAOD_SCALAR_VARIABLE
 
   float getGenWeight(SystematicsHelpers::SystematicVariationTypes const& syst) const;
 };

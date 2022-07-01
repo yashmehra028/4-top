@@ -11,13 +11,16 @@ namespace TriggerHelpers{
 
     kDoubleMu,
     kDoubleMu_Extra,
+    kDoubleMu_PFHT,
     kDoubleMu_Prescaled,
 
     kDoubleEle,
     kDoubleEle_HighPt,
+    kDoubleEle_PFHT,
 
     kMuEle,
     kMuEle_Extra,
+    kMuEle_PFHT,
 
     kSingleMu,
     kSingleMu_Prescaled,

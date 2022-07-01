@@ -95,7 +95,7 @@ bool MuonHandler::constructMuonObjects(){
       if (this->verbosity>=MiscUtils::DEBUG) IVYout << "\t- Success!" << endl;
 
       ip++;
-#define MUON_VARIABLE(TYPE, NAME) it_##NAME++;
+#define MUON_VARIABLE(TYPE, NAME) if (it_##NAME) it_##NAME++;
       MUON_MOMENTUM_VARIABLES;
       MUON_EXTRA_VARIABLES;
 #undef MUON_VARIABLE

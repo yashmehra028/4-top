@@ -94,7 +94,7 @@ bool PhotonHandler::constructPhotonObjects(){
       if (this->verbosity>=MiscUtils::DEBUG) IVYout << "\t- Success!" << endl;
 
       ip++;
-#define PHOTON_VARIABLE(TYPE, NAME) it_##NAME++;
+#define PHOTON_VARIABLE(TYPE, NAME) if (it_##NAME) it_##NAME++;
       PHOTON_MOMENTUM_VARIABLES;
       PHOTON_EXTRA_VARIABLES;
 #undef PHOTON_VARIABLE

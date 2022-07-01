@@ -80,5 +80,5 @@ SELECTION_TYPES;
 template<> bool ParticleSelectionHelpers::isJetForHEMVeto<AK4JetObject>(AK4JetObject const* jet){
   // No PU jet id requirement, so do not use the isTightJet check.
   // No eta requirement either...
-  return jet->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_JetIdOnly) && jet->pt()>=AK4JetSelectionHelpers::ptThr;
+  return jet->testSelectionBit(AK4JetSelectionHelpers::kJetIdOnly) && jet->pt()>=AK4JetSelectionHelpers::ptThr;
 }

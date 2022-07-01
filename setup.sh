@@ -10,7 +10,6 @@ PKGDIR="$(readlink -f .)"
 declare -i doPrintEnv=0
 declare -i doPrintEnvInstr=0
 declare -i needROOFITSYS_ROOTSYS=0
-declare -i runNanoCOREtests=0
 declare -a setupArgs=()
 
 for farg in "$@"; do
@@ -19,8 +18,6 @@ for farg in "$@"; do
     doPrintEnv=1
   elif [[ "$fargl" == "envinstr" ]]; then
     doPrintEnvInstr=1
-  elif [[ "$fargl" == "runnanotests" ]]; then
-    runNanoCOREtests=1
   else
     setupArgs+=( "$farg" ) 
   fi
@@ -38,16 +35,6 @@ printenv() {
     envopts="env standalone"
     ${CMSSW_BASE}/src/IvyFramework/IvyDataTools/setup.sh ${envopts}
     eval $(${CMSSW_BASE}/src/IvyFramework/IvyDataTools/setup.sh ${envopts})
-  fi
-
-  libappend="${CMSSW_BASE}/src/NanoTools/NanoCORE"
-  end=""
-  if [[ ! -z "${LD_LIBRARY_PATH+x}" ]]; then
-    end=":${LD_LIBRARY_PATH}"
-  fi
-  if [[ "${end}" != *"$libappend"* ]]; then
-    echo "export LD_LIBRARY_PATH=${libappend}${end}"
-    export LD_LIBRARY_PATH=${libappend}${end}
   fi
 
   libappend="${PKGDIR}/lib"
@@ -74,15 +61,6 @@ doenv() {
   if [[ -d ${CMSSW_BASE}/src/IvyFramework/IvyDataTools ]]; then
     envopts="env standalone"
     eval $(${CMSSW_BASE}/src/IvyFramework/IvyDataTools/setup.sh ${envopts})
-  fi
-
-  libappend="${CMSSW_BASE}/src/NanoTools/NanoCORE"
-  end=""
-  if [[ ! -z "${LD_LIBRARY_PATH+x}" ]]; then
-    end=":${LD_LIBRARY_PATH}"
-  fi
-  if [[ "${end}" != *"$libappend"* ]]; then
-    export LD_LIBRARY_PATH=${libappend}${end}
   fi
 }
 printenvinstr () {
@@ -124,7 +102,7 @@ elif [[ "$nSetupArgs" -ge 1 ]] && [[ "$nSetupArgs" -le 2 ]] && [[ "${setupArgs[0
 else
     echo "Unknown arguments:"
     echo "  ${setupArgs[@]}"
-    echo "Should be nothing, env, envinstr, runnanotests, clean, or -j [Ncores]"
+    echo "Should be nothing, env, envinstr, clean, or -j [Ncores]"
     exit 1
 fi
 
@@ -133,16 +111,6 @@ doenv
 
 # Compile IvyDataTools
 ${CMSSW_BASE}/src/IvyFramework/IvyDataTools/setup.sh standalone "${setupArgs[@]}" 1> /dev/null || exit $?
-
-# Compile NanoCORE
-(
-  strnanotest=""
-  if [[ $runNanoCOREtests -eq 1 ]]; then
-    strnanotest="test"
-  fi
-  cd ${CMSSW_BASE}/src/NanoTools/NanoCORE
-  make ${strnanotest} "${setupArgs[@]}" 1> /dev/null || exit $?
-)
 
 # Compile this repository
 make "${setupArgs[@]}"

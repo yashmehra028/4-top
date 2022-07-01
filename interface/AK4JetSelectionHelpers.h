@@ -7,10 +7,12 @@
 
 namespace AK4JetSelectionHelpers{
   enum SelectionBits{
-    kPreselectionTight_JetIdOnly,
+    kJetIdOnly,
+    kBTagOnly,
+    kKinOnly,
 
     kPreselectionTight,
-    kPreselectionTightB,
+    kPreselectionTight_BTagged,
 
     nSelectionBits
   };

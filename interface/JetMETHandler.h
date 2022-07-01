@@ -11,6 +11,7 @@
 class JetMETHandler : public IvyBase{
 public:
   static const std::string colName_ak4jets;
+  static const std::string colName_ak4jets_lowpt;
   static const std::string colName_pfmet;
 
 protected:
@@ -24,6 +25,7 @@ protected:
   void clear();
 
   bool constructAK4Jets();
+  bool constructAK4Jets_LowPt();
   bool constructMET();
 
   bool assignMETXYShifts();

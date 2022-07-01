@@ -94,9 +94,16 @@ float GenInfoObject::getGenWeight(SystematicsHelpers::SystematicVariationTypes c
   return wgt;
 }
 
-void GenInfoObject::acquireWeightsFromArray(float* const& wgts){
+#define GENINFO_NANOAOD_SCALAR_VARIABLE(TYPE, NAME, DEFVAL) , TYPE const& NAME
+#define GENINFO_NANOAOD_ARRAY_VARIABLE(TYPE, NAME, DEFVAL, MAXSIZE) , unsigned int const& n##NAME, TYPE const* arr_##NAME
+void GenInfoObject::acquireWeights(
+  TString const& sampleIdentifier
+  GENINFO_NANOAOD_ALLVARIABLES
+){
+#undef GENINFO_NANOAOD_ARRAY_VARIABLE
+#undef GENINFO_NANOAOD_SCALAR_VARIABLE
   // FIXME: I don't know the conventions just yet, so for now, set all systematics to 1, and central weight to wgts[0]
-  extras.genHEPMCweight = wgts[0];
+  extras.genHEPMCweight = genWeight;
   // Weight vairations are supposed to be ratios to genHEPMCweight!
   // BE CAREFUL ABOUT HOW TO TAKE RATIOS!!!
 }

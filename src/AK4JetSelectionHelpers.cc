@@ -7,14 +7,13 @@
 
 
 namespace AK4JetSelectionHelpers{
-  bool testPreselectionTight_JetIdOnly(AK4JetObject const& part);
-  bool testPreselectionTight(AK4JetObject const& part);
-  bool testPreselectionTightB(AK4JetObject const& part);
-
   bool testJetId(AK4JetObject const& part);
   bool testId(AK4JetObject const& part);
+  bool testBTag(AK4JetObject const& part);
   bool testKin(AK4JetObject const& part);
-  bool testB(AK4JetObject const& part);
+
+  bool testPreselectionTight(AK4JetObject const& part);
+  bool testPreselectionTight_BTagged(AK4JetObject const& part);
 }
 
 
@@ -26,9 +25,9 @@ bool AK4JetSelectionHelpers::testJetId(AK4JetObject const& part){
   return (part.extras.jetId>jetIdThr);
 }
 bool AK4JetSelectionHelpers::testId(AK4JetObject const& part){
-  return AK4JetSelectionHelpers::testJetId(part);
+  return part.testSelectionBit(kJetIdOnly); // Could add PU jet ID here as well...
 }
-bool AK4JetSelectionHelpers::testB(AK4JetObject const& part){
+bool AK4JetSelectionHelpers::testBTag(AK4JetObject const& part){
   auto const& dp = SampleHelpers::getDataPeriod();
   auto const& dy = SampleHelpers::getDataYear();
   float deepFlavThr = 1e9;
@@ -48,26 +47,28 @@ bool AK4JetSelectionHelpers::testKin(AK4JetObject const& part){
   return (part.pt()>=ptThr && std::abs(part.eta())<etaThr);
 }
 
-bool AK4JetSelectionHelpers::testPreselectionTight_JetIdOnly(AK4JetObject const& part){ return testJetId(part); }
 bool AK4JetSelectionHelpers::testPreselectionTight(AK4JetObject const& part){
   return (
     testId(part)
     &&
-    testKin(part)
-  );
+    part.testSelectionBit(kKinOnly)
+    );
 }
-bool AK4JetSelectionHelpers::testPreselectionTightB(AK4JetObject const& part){
+bool AK4JetSelectionHelpers::testPreselectionTight_BTagged(AK4JetObject const& part){
   return (
     part.testSelectionBit(kPreselectionTight)
     &&
-    testB(part)
-  );
+    part.testSelectionBit(kBTagOnly)
+    );
 }
 
 void AK4JetSelectionHelpers::setSelectionBits(AK4JetObject& part){
   static_assert(std::numeric_limits<ParticleObject::SelectionBitsType_t>::digits >= nSelectionBits);
 
-  part.setSelectionBit(kPreselectionTight_JetIdOnly, testPreselectionTight_JetIdOnly(part));
+  part.setSelectionBit(kJetIdOnly, testJetId(part));
+  part.setSelectionBit(kBTagOnly, testBTag(part));
+  part.setSelectionBit(kKinOnly, testKin(part));
+
   part.setSelectionBit(kPreselectionTight, testPreselectionTight(part));
-  part.setSelectionBit(kPreselectionTightB, testPreselectionTightB(part));
+  part.setSelectionBit(kPreselectionTight_BTagged, testPreselectionTight_BTagged(part));
 }

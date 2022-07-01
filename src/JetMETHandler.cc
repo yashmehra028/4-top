@@ -17,10 +17,16 @@ AK4JET_VARIABLE(float, eta) \
 AK4JET_VARIABLE(float, phi) \
 AK4JET_VARIABLE(float, mass) \
 AK4JET_COMMON_VARIABLES
+#define VECTOR_ITERATOR_HANDLER_DIRECTIVES_AK4JETS_LOWPT \
+AK4JET_LOWPT_VARIABLE(float, rawPt) \
+AK4JET_LOWPT_VARIABLE(float, eta) \
+AK4JET_LOWPT_VARIABLE(float, phi) \
+AK4JET_LOWPT_EXTRA_VARIABLES
 #define JETMET_METXY_VERTEX_VARIABLES \
 JETMET_METXY_VERTEX_VARIABLE(int, npvs)
 
 const std::string JetMETHandler::colName_ak4jets = GlobalCollectionNames::colName_ak4jets;
+const std::string JetMETHandler::colName_ak4jets_lowpt = GlobalCollectionNames::colName_ak4jets_lowpt;
 const std::string JetMETHandler::colName_pfmet = GlobalCollectionNames::colName_pfmet;
 
 
@@ -37,6 +43,11 @@ JetMETHandler::JetMETHandler() :
 #define AK4JET_VARIABLE(TYPE, NAME) this->addConsumed<TYPE* const>(JetMETHandler::colName_ak4jets + "_" + #NAME);
   VECTOR_ITERATOR_HANDLER_DIRECTIVES_AK4JETS;
 #undef AK4JET_VARIABLE
+
+  this->addConsumed<GlobalCollectionNames::collsize_t>(Form("n%s", JetMETHandler::colName_ak4jets_lowpt.data()));
+#define AK4JET_LOWPT_VARIABLE(TYPE, NAME) this->addConsumed<TYPE* const>(JetMETHandler::colName_ak4jets_lowpt + "_" + #NAME);
+  VECTOR_ITERATOR_HANDLER_DIRECTIVES_AK4JETS_LOWPT;
+#undef AK4JET_LOWPT_VARIABLE
 
 #define MET_VARIABLE(TYPE, NAME) this->addConsumed<TYPE>(JetMETHandler::colName_pfmet + "_" + #NAME);
   MET_EXTRA_VARIABLES;
@@ -66,7 +77,7 @@ bool JetMETHandler::constructJetMET(
   if (!currentTree) return false;
 
   bool res = (
-    constructAK4Jets() && constructMET()
+    constructAK4Jets() && constructAK4Jets_LowPt() && constructMET()
     &&
     assignMETXYShifts()
     );
@@ -113,7 +124,7 @@ bool JetMETHandler::constructAK4Jets(){
       if (this->verbosity>=MiscUtils::DEBUG) IVYout << "JetMETHandler::constructAK4Jets: Attempting ak4 jet " << ip << "..." << endl;
 
       ParticleObject::LorentzVector_t momentum;
-      momentum = ParticleObject::PolarLorentzVector_t(*it_pt, *it_eta, *it_phi, *it_mass); // Yes you have to do this on a separate line because CMSSW...
+      momentum = ParticleObject::PolarLorentzVector_t(*it_pt, *it_eta, *it_phi, *it_mass); // Yes you have to do this on a separate line...
       ak4jets.push_back(new AK4JetObject(momentum));
       AK4JetObject*& obj = ak4jets.back();
 
@@ -131,7 +142,7 @@ bool JetMETHandler::constructAK4Jets(){
       if (this->verbosity>=MiscUtils::DEBUG) IVYout << "\t- Success!" << endl;
 
       ip++;
-#define AK4JET_VARIABLE(TYPE, NAME) it_##NAME++;
+#define AK4JET_VARIABLE(TYPE, NAME) if (it_##NAME) it_##NAME++;
       VECTOR_ITERATOR_HANDLER_DIRECTIVES_AK4JETS;
       if (!isData){
         AK4JET_GENINFO_VARIABLES;
@@ -144,6 +155,61 @@ bool JetMETHandler::constructAK4Jets(){
 
   return true;
 }
+bool JetMETHandler::constructAK4Jets_LowPt(){
+  bool const isData = SampleHelpers::checkSampleIsData(currentTree->sampleIdentifier);
+
+  GlobalCollectionNames::collsize_t nProducts;
+#define AK4JET_LOWPT_VARIABLE(TYPE, NAME) TYPE* const* arr_##NAME = nullptr;
+  VECTOR_ITERATOR_HANDLER_DIRECTIVES_AK4JETS_LOWPT;
+#undef AK4JET_LOWPT_VARIABLE
+
+  // Beyond this point starts checks and selection
+  bool allVariablesPresent = this->getConsumedValue(Form("n%s", JetMETHandler::colName_ak4jets_lowpt.data()), nProducts);
+#define AK4JET_LOWPT_VARIABLE(TYPE, NAME) allVariablesPresent &= this->getConsumed<TYPE* const>(JetMETHandler::colName_ak4jets_lowpt + "_" + #NAME, arr_##NAME);
+  VECTOR_ITERATOR_HANDLER_DIRECTIVES_AK4JETS_LOWPT;
+#undef AK4JET_LOWPT_VARIABLE
+  if (!allVariablesPresent){
+    if (this->verbosity>=MiscUtils::ERROR) IVYerr << "JetMETHandler::constructAK4Jets_LowPt: Not all variables are consumed properly!" << endl;
+    assert(0);
+  }
+
+  if (this->verbosity>=MiscUtils::DEBUG) IVYout << "JetMETHandler::constructAK4Jets_LowPt: All variables are set up!" << endl;
+
+  ak4jets_masked.reserve(nProducts);
+#define AK4JET_LOWPT_VARIABLE(TYPE, NAME) TYPE* it_##NAME = nullptr; if (arr_##NAME) it_##NAME = &((*arr_##NAME)[0]);
+  VECTOR_ITERATOR_HANDLER_DIRECTIVES_AK4JETS_LOWPT;
+#undef AK4JET_LOWPT_VARIABLE
+  {
+    GlobalCollectionNames::collsize_t ip=0;
+    while (ip != nProducts){
+      if (this->verbosity>=MiscUtils::DEBUG) IVYout << "JetMETHandler::constructAK4Jets_LowPt: Attempting ak4 jet " << ip << "..." << endl;
+
+      ParticleObject::LorentzVector_t momentum;
+      momentum = ParticleObject::PolarLorentzVector_t(*it_rawPt, *it_eta, *it_phi, 0); // Yes you have to do this on a separate line...
+      ak4jets_masked.push_back(new AK4JetObject(momentum));
+      AK4JetObject*& obj = ak4jets_masked.back();
+
+      // Set extras
+#define AK4JET_LOWPT_VARIABLE(TYPE, NAME) obj->extras_lowpt.NAME = *it_##NAME;
+      AK4JET_LOWPT_EXTRA_VARIABLES;
+#undef AK4JET_LOWPT_VARIABLE
+
+      // These jets always fail selection, so there is no need to set bits
+
+      if (this->verbosity>=MiscUtils::DEBUG) IVYout << "\t- Success!" << endl;
+
+      ip++;
+#define AK4JET_LOWPT_VARIABLE(TYPE, NAME) if (it_##NAME) it_##NAME++;
+      VECTOR_ITERATOR_HANDLER_DIRECTIVES_AK4JETS_LOWPT;
+#undef AK4JET_LOWPT_VARIABLE
+    }
+  }
+  // Sort particles
+  ParticleObjectHelpers::sortByGreaterPt(ak4jets_masked);
+
+  return true;
+}
+
 bool JetMETHandler::constructMET(){
   bool const isData = SampleHelpers::checkSampleIsData(currentTree->sampleIdentifier);
 
@@ -315,6 +381,7 @@ void JetMETHandler::bookBranches(BaseTree* tree){
   if (!tree) return;
 
   tree->bookBranch<GlobalCollectionNames::collsize_t>(Form("n%s", JetMETHandler::colName_ak4jets.data()), 0);
+  tree->bookBranch<GlobalCollectionNames::collsize_t>(Form("n%s", JetMETHandler::colName_ak4jets_lowpt.data()), 0);
 
   bool const isData = SampleHelpers::checkSampleIsData(tree->sampleIdentifier);
 #define AK4JET_VARIABLE(TYPE, NAME) \
@@ -329,6 +396,10 @@ tree->bookArrayBranch<TYPE>(JetMETHandler::colName_ak4jets + "_" + #NAME, 0, Glo
 #define AK4JET_VARIABLE(TYPE, NAME) tree->bookArrayBranch<TYPE>(JetMETHandler::colName_ak4jets + "_" + #NAME, 0, GlobalCollectionNames::colMaxSize_ak4jets);
   VECTOR_ITERATOR_HANDLER_DIRECTIVES_AK4JETS;
 #undef AK4JET_VARIABLE
+
+#define AK4JET_LOWPT_VARIABLE(TYPE, NAME) tree->bookArrayBranch<TYPE>(JetMETHandler::colName_ak4jets_lowpt + "_" + #NAME, 0, GlobalCollectionNames::colMaxSize_ak4jets_lowpt);
+  VECTOR_ITERATOR_HANDLER_DIRECTIVES_AK4JETS_LOWPT;
+#undef AK4JET_LOWPT_VARIABLE
 
 #define MET_VARIABLE(TYPE, NAME) tree->bookBranch<TYPE>(JetMETHandler::colName_pfmet + "_" + #NAME, 0);
   MET_EXTRA_VARIABLES;

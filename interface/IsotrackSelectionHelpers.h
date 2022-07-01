@@ -40,7 +40,7 @@ namespace IsotrackSelectionHelpers{
   constexpr float absIsoThr_hadron_veto = 5.;
 
   // Determine how the physics objects are vetoed/cleaned/accepted
-  constexpr IsotrackIso isoType_preselection = kPFIsoChargedDR0p3;
+  constexpr IsotrackIso isoType_preselection = kMiniIsoCharged;
 
   constexpr SelectionBits bit_preselectionVeto_id = kVetoId;
   constexpr SelectionBits bit_preselectionVeto_iso = kVetoIso;

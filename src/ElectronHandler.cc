@@ -95,7 +95,7 @@ bool ElectronHandler::constructElectronObjects(){
       if (this->verbosity>=MiscUtils::DEBUG) IVYout << "\t- Success!" << endl;
 
       ip++;
-#define ELECTRON_VARIABLE(TYPE, NAME) it_##NAME++;
+#define ELECTRON_VARIABLE(TYPE, NAME) if (it_##NAME) it_##NAME++;
       ELECTRON_MOMENTUM_VARIABLES;
       ELECTRON_EXTRA_VARIABLES;
 #undef ELECTRON_VARIABLE

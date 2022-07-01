@@ -83,7 +83,7 @@ bool IsotrackHandler::constructIsotracks(std::vector<MuonObject*> const* muons, 
       if (this->verbosity>=MiscUtils::DEBUG) IVYout << "\t- Success!" << endl;
 
       ip++;
-#define ISOTRACK_VARIABLE(TYPE, NAME) it_##NAME++;
+#define ISOTRACK_VARIABLE(TYPE, NAME) if (it_##NAME) it_##NAME++;
       VECTOR_ITERATOR_HANDLER_DIRECTIVES;
 #undef ISOTRACK_VARIABLE
     }

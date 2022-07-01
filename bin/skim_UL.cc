@@ -36,6 +36,9 @@ using namespace HelperFunctions;
 using namespace IvyStreamHelpers;
 
 
+constexpr bool global_include_veto_isotracks = false;
+
+
 struct SelectionTracker{
   std::vector<TString> ordered_reqs;
   std::unordered_map<TString, std::pair<double, double>> req_sumws_pair_map;
@@ -136,7 +139,9 @@ int ScanChain(std::vector<TString> const& inputfnames, std::string output_fname,
   // Create the output file and skim tree
   // It should have the same format as far as anything is concerned.
   // That is why SetBranchStatus("...", 1) is called explicitly for all relevant collections - in case we need a variable we hadn't used during skimming.
-#define COLLECTIONNAME_DIRECTIVE(NAME, LABEL, MAXSIZE) tin->getSelectedTree()->SetBranchStatus((GlobalCollectionNames::colName_##NAME+"*").data(), 1);
+#define COLLECTIONNAME_DIRECTIVE(NAME, LABEL, MAXSIZE) \
+tin->getSelectedTree()->SetBranchStatus((GlobalCollectionNames::colName_##NAME+"*").data(), 1); \
+if (MAXSIZE>0) tin->getSelectedTree()->SetBranchStatus(Form("n%s", GlobalCollectionNames::colName_##NAME.data()), 1);
   COLLECTIONNAME_DIRECTIVES;
 #undef COLLECTIONNAME_DIRECTIVE
 
@@ -223,9 +228,6 @@ int ScanChain(std::vector<TString> const& inputfnames, std::string output_fname,
     }
     unsigned int const n_electrons = electrons_selected.size();
 
-    isotrackHandler.constructIsotracks(nullptr, nullptr); // Do not pass electrons or muons
-    auto const& isotracks = isotrackHandler.getProducts();
-
     jetHandler.constructJetMET(&simEventHandler);
     auto const& ak4jets = jetHandler.getAK4Jets();
     //auto const& eventmet = jetHandler.getPFMET();
@@ -238,17 +240,20 @@ int ScanChain(std::vector<TString> const& inputfnames, std::string output_fname,
     unsigned int n_ak4jets_tight = 0;
     unsigned int n_ak4jets_tight_btagged = 0;
     for (auto const& jet:ak4jets){
-      if (jet->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight)){
+      // When we count jets, only look for jets that pass jet ID.
+      // This way, when we apply JES/JER variations, we can account for changes in Nj/Nb counting because of the migration of some jets close to the pT threshold.
+      if (jet->testSelectionBit(AK4JetSelectionHelpers::kJetIdOnly)){
         n_ak4jets_tight++;
-        if (jet->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTightB)) n_ak4jets_tight_btagged++;
+        if (jet->testSelectionBit(AK4JetSelectionHelpers::kBTagOnly)) n_ak4jets_tight_btagged++;
       }
     }
 
     // BEGIN PRESELECTION
     seltracker.accumulate("Full sample", wgt_gensim_nominal);
 
-    if (!eventHandler.test2018HEMFilter(&simEventHandler, nullptr, nullptr, &ak4jets)) continue; // Test for 2018 partial HEM failure
-    seltracker.accumulate("Pass HEM veto", wgt_gensim_nominal);
+    // Do not apply HEM veto since it depends on the jet pT threshold, which itself depends on JES/JER variations.
+    //if (!eventHandler.test2018HEMFilter(&simEventHandler, nullptr, nullptr, &ak4jets)) continue; // Test for 2018 partial HEM failure
+    //seltracker.accumulate("Pass HEM veto", wgt_gensim_nominal);
     if (!eventHandler.passMETFilters()) continue; // Test for MET filters
     seltracker.accumulate("Pass MET filters", wgt_gensim_nominal);
 
@@ -284,23 +289,28 @@ int ScanChain(std::vector<TString> const& inputfnames, std::string output_fname,
     if (!pass_loose_dilepton && !pass_loose_singlelepton) continue;
     seltracker.accumulate("Pass loose object selection", wgt_gensim_nominal);
 
-    bool pass_loose_isotrack_veto = true;
-    for (auto const& isotrack:isotracks){
-      if (!isotrack->testSelectionBit(IsotrackSelectionHelpers::kPreselectionVeto)) continue;
+    if (global_include_veto_isotracks){
+      isotrackHandler.constructIsotracks(nullptr, nullptr); // Do not pass electrons or muons
+      auto const& isotracks = isotrackHandler.getProducts();
 
-      double min_dR = -1;
-      for (auto const& part:muons_selected){
-        double tmp_dR = part->deltaR(isotrack);
-        if (min_dR<0. || min_dR>tmp_dR) min_dR = tmp_dR;
+      bool pass_loose_isotrack_veto = true;
+      for (auto const& isotrack:isotracks){
+        if (!isotrack->testSelectionBit(IsotrackSelectionHelpers::kPreselectionVeto)) continue;
+
+        double min_dR = -1;
+        for (auto const& part:muons_selected){
+          double tmp_dR = part->deltaR(isotrack);
+          if (min_dR<0. || min_dR>tmp_dR) min_dR = tmp_dR;
+        }
+        for (auto const& part:electrons_selected){
+          double tmp_dR = part->deltaR(isotrack);
+          if (min_dR<0. || min_dR>tmp_dR) min_dR = tmp_dR;
+        }
+        if (min_dR>0.4){ pass_loose_isotrack_veto=false; break; }
       }
-      for (auto const& part:electrons_selected){
-        double tmp_dR = part->deltaR(isotrack);
-        if (min_dR<0. || min_dR>tmp_dR) min_dR = tmp_dR;
-      }
-      if (min_dR>0.4){ pass_loose_isotrack_veto=false; break; }
+      if (!pass_loose_isotrack_veto) continue;
+      seltracker.accumulate("Pass isotrack veto", wgt_gensim_nominal);
     }
-    if (!pass_loose_isotrack_veto) continue;
-    seltracker.accumulate("Pass isotrack veto", wgt_gensim_nominal);
 
     tout->fill();
   }

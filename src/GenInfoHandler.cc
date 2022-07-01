@@ -37,20 +37,28 @@ bool GenInfoHandler::constructGenInfo(){
 
   clear();
   if (!currentTree) return false;
+  if (SampleHelpers::checkSampleIsData(currentTree->sampleIdentifier)) return true;
 
-  bool res = constructCoreGenInfo();
+  bool res = (!acquireCoreGenInfo || constructCoreGenInfo());
 
   if (res) this->cacheEvent();
   return res;
 }
 
 bool GenInfoHandler::constructCoreGenInfo(){
-  // Use non-const pointer here because we might have to modify some of the weights
-  float* const* arr_genWeight = nullptr;
+#define GENINFO_NANOAOD_SCALAR_VARIABLE(TYPE, NAME, DEFVAL) TYPE const* NAME = nullptr;
+#define GENINFO_NANOAOD_ARRAY_VARIABLE(TYPE, NAME, DEFVAL, MAXSIZE) unsigned int const* n##NAME = nullptr;; TYPE* const* arr_##NAME = nullptr;
+  GENINFO_NANOAOD_ALLVARIABLES;
+#undef GENINFO_NANOAOD_ARRAY_VARIABLE
+#undef GENINFO_NANOAOD_SCALAR_VARIABLE
 
   // Beyond this point starts checks and selection
-  bool allVariablesPresent = (acquireCoreGenInfo ? this->getConsumed<float* const>("genWeight", arr_genWeight) : true);
-
+  bool allVariablesPresent = true;
+#define GENINFO_NANOAOD_SCALAR_VARIABLE(TYPE, NAME, DEFVAL) allVariablesPresent &= this->getConsumed(#NAME, NAME);
+#define GENINFO_NANOAOD_ARRAY_VARIABLE(TYPE, NAME, DEFVAL, MAXSIZE) allVariablesPresent &= this->getConsumed(#NAME, n##NAME); this->getConsumed<TYPE* const>(#NAME, arr_##NAME);
+  GENINFO_NANOAOD_ALLVARIABLES;
+#undef GENINFO_NANOAOD_ARRAY_VARIABLE
+#undef GENINFO_NANOAOD_SCALAR_VARIABLE
 
   if (!allVariablesPresent){
     if (this->verbosity>=MiscUtils::ERROR) IVYerr << "GenInfoHandler::constructCoreGenInfo: Not all variables are consumed properly!" << endl;
@@ -59,7 +67,15 @@ bool GenInfoHandler::constructCoreGenInfo(){
   if (this->verbosity>=MiscUtils::DEBUG) IVYout << "GenInfoHandler::constructCoreGenInfo: All variables are set up!" << endl;
 
   genInfo = new GenInfoObject();
-  if (acquireCoreGenInfo) genInfo->acquireWeightsFromArray(*arr_genWeight);
+
+#define GENINFO_NANOAOD_SCALAR_VARIABLE(TYPE, NAME, DEFVAL) , *NAME
+#define GENINFO_NANOAOD_ARRAY_VARIABLE(TYPE, NAME, DEFVAL, MAXSIZE) , *n##NAME, *arr_##NAME
+  genInfo->acquireWeights(
+    currentTree->sampleIdentifier
+    GENINFO_NANOAOD_ALLVARIABLES
+  );
+#undef GENINFO_NANOAOD_ARRAY_VARIABLE
+#undef GENINFO_NANOAOD_SCALAR_VARIABLE
 
   return true;
 }
@@ -67,7 +83,23 @@ bool GenInfoHandler::constructCoreGenInfo(){
 void GenInfoHandler::bookBranches(BaseTree* tree){
   if (!tree) return;
 
+  if (SampleHelpers::checkSampleIsData(tree->sampleIdentifier)) return;
+
+#define GENINFO_NANOAOD_SCALAR_VARIABLE(TYPE, NAME, DEFVAL) \
+tree->bookBranch<TYPE>(#NAME, DEFVAL); \
+this->addConsumed<TYPE>(#NAME); \
+this->defineConsumedSloppy(#NAME);
+#define GENINFO_NANOAOD_ARRAY_VARIABLE(TYPE, NAME, DEFVAL, MAXSIZE) \
+tree->bookBranch<unsigned int>(Form("n%s", #NAME), MAXSIZE); \
+this->addConsumed<unsigned int>(Form("n%s", #NAME)); \
+this->defineConsumedSloppy(Form("n%s", #NAME)); \
+tree->bookArrayBranch<TYPE>(#NAME, DEFVAL, MAXSIZE); \
+this->addConsumed<TYPE* const>(#NAME); \
+this->defineConsumedSloppy(#NAME);
   if (acquireCoreGenInfo){
-    tree->bookArrayBranch<float>("genWeight", 0, 500); this->addConsumed<float* const>("genWeight");
+    GENINFO_NANOAOD_ALLVARIABLES;
   }
+#undef GENINFO_NANOAOD_ARRAY_VARIABLE
+#undef GENINFO_NANOAOD_SCALAR_VARIABLE
+
 }

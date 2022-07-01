@@ -28,13 +28,6 @@ LIB                  = lib$(LIBSHORT).so
 LIBRULE              = $(LIBDIR)$(LIB)
 
 
-# NanoCORE essentials
-NANODIR              = $(BASEINCLUDE)NanoTools/NanoCORE/
-NANOLIBDIR           = $(NANODIR)
-NANOINCDIR           = $(NANODIR)
-NANOCXXFLAGS =  -I$(NANOINCDIR)/ -L$(NANOLIBDIR)
-NANOLIBS =  -lNANO_CORE
-
 # IvyFramework essentials
 IVYCOREDIR              = $(BASEINCLUDE)IvyFramework/IvyDataTools/
 IVYCORELIBDIR           = $(IVYCOREDIR)lib/
@@ -44,8 +37,8 @@ IVYCORELIBS =  -lIvyFrameworkIvyDataTools
 
 
 # Here begins compilation...
-EXTCXXFLAGS   = $(NANOCXXFLAGS) $(IVYCORECXXFLAGS)
-EXTLIBS       = $(NANOLIBS) $(IVYCORELIBS)
+EXTCXXFLAGS   = $(IVYCORECXXFLAGS)
+EXTLIBS       = $(IVYCORELIBS)
 
 ROOTCFLAGS    = $(shell root-config --cflags) -Lrootlib
 ROOTLIBS     = $(shell root-config --libs) -lMathMore -lGenVector -Lrootlib
@@ -72,8 +65,7 @@ SOURCESCC = $(wildcard $(SRCDIR)*.cc)
 SOURCESCXX = $(wildcard $(SRCDIR)*.cxx)
 OBJECTSPRIM = $(SOURCESCC:.cc=.o) $(SOURCESCXX:.cxx=.o)
 OBJECTS = $(subst $(SRCDIR),$(OBJDIR),$(OBJECTSPRIM))
-DEPSPRIM = $(SOURCESCC:.cc=.d) $(SOURCESCXX:.cxx=.d)
-DEPS = $(subst $(SRCDIR),$(OBJDIR),$(DEPSPRIM))
+DEPS = $(OBJECTS:.o=.d)
 
 BINSCC = $(wildcard $(BINDIR)*.cc)
 BINSCXX = $(wildcard $(BINDIR)*.cxx)
