@@ -81,13 +81,20 @@ int ScanChain(std::vector<TString> const& inputfnames, std::string output_fname,
   std::vector<TriggerHelpers::TriggerType> const requiredTriggers_Dilepton{
     TriggerHelpers::kDoubleMu,
     TriggerHelpers::kDoubleEle,
-    TriggerHelpers::kMuEle
+    TriggerHelpers::kMuEle,
+    // These PFHT triggers were used in the 2016 analysis. We keep them for now, but we could drop them later.
+    TriggerHelpers::kDoubleMu_PFHT,
+    TriggerHelpers::kDoubleEle_PFHT,
+    TriggerHelpers::kMuEle_PFHT
   };
   std::vector<std::string> const hltnames_Dilepton = TriggerHelpers::getHLTMenus(requiredTriggers_Dilepton);
   HelperFunctions::appendVector(requiredTriggers, requiredTriggers_Dilepton);
   std::vector<TriggerHelpers::TriggerType> const requiredTriggers_SingleLeptonControl{
     TriggerHelpers::kSingleMu_Control_Iso,
-    TriggerHelpers::kSingleEle_Control_Iso
+    TriggerHelpers::kSingleEle_Control_Iso,
+    // These nonisolated triggers were used in the 2016 analysis. We keep them for now, but we could drop them later.
+    TriggerHelpers::kSingleMu_Control_NoIso,
+    TriggerHelpers::kSingleEle_Control_NoIso
   };
   std::vector<std::string> const hltnames_SingleLeptonControl = TriggerHelpers::getHLTMenus(requiredTriggers_SingleLeptonControl);
   HelperFunctions::appendVector(requiredTriggers, requiredTriggers_SingleLeptonControl);
