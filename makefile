@@ -72,6 +72,8 @@ SOURCESCC = $(wildcard $(SRCDIR)*.cc)
 SOURCESCXX = $(wildcard $(SRCDIR)*.cxx)
 OBJECTSPRIM = $(SOURCESCC:.cc=.o) $(SOURCESCXX:.cxx=.o)
 OBJECTS = $(subst $(SRCDIR),$(OBJDIR),$(OBJECTSPRIM))
+DEPSPRIM = $(SOURCESCC:.cc=.d) $(SOURCESCXX:.cxx=.d)
+DEPS = $(subst $(SRCDIR),$(OBJDIR),$(DEPSPRIM))
 
 BINSCC = $(wildcard $(BINDIR)*.cc)
 BINSCXX = $(wildcard $(BINDIR)*.cxx)
@@ -80,7 +82,8 @@ EXES = $(subst $(BINDIR),$(EXEDIR),$(EXESPRIM))
 
 
 .PHONY: all help compile clean
-.SILENT: alldirs scripts clean $(OBJECTS) $(OBJDIR)LinkDef_out.o $(LIBRULE) $(EXES)
+.SILENT: alldirs scripts clean $(OBJECTS) $(DEPS) $(OBJDIR)LinkDef_out.o $(LIBRULE) $(EXES)
+
 
 all: $(OBJECTS) $(LIBRULE) $(EXES)
 
@@ -102,10 +105,10 @@ $(LIBRULE):	$(OBJECTS) $(OBJDIR)LinkDef_out.o | alldirs
 
 $(OBJDIR)%.d:	$(SRCDIR)%.c* | alldirs
 	echo "Checking dependencies for $<"; \
-	$(CXX) -MM -MT $@ -MT ${@:.d=.o} $(CXXFLAGS) $< > $@; \
+	$(CXX) -MM -MT $@ $(CXXFLAGS) $< > $@; \
                      [ -s $@ ] || rm -f $@
 
-$(OBJDIR)%.o: 	$(SRCDIR)%.c* | alldirs
+$(OBJDIR)%.o: 	$(SRCDIR)%.c* $(OBJDIR)%.d | alldirs
 	echo "Compiling $<"; \
 	$(CXX) $(CXXFLAGS) $< -c -o $@ $(LIBS)
 
@@ -153,6 +156,9 @@ clean:
 	rm -f $(TESTDIR)*.d
 	rm -f $(TESTDIR)*.pcm
 	rm -f $(TESTDIR)*.pyc
+
+
+include $(DEPS)
 
 
 endif

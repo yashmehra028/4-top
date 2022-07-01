@@ -77,7 +77,7 @@ bool MuonHandler::constructMuonObjects(){
       if (this->verbosity>=MiscUtils::DEBUG) IVYout << "MuonHandler::constructMuonObjects: Attempting muon " << ip << "..." << endl;
 
       ParticleObject::LorentzVector_t momentum;
-      momentum = ParticleObject::PolarLorentzVector_t(*it_pt, *it_eta, *it_phi, *it_mass); // Yes you have to do this on a separate line because CMSSW...
+      momentum = ParticleObject::PolarLorentzVector_t(*it_pt, *it_eta, *it_phi, *it_mass); // Yes you have to do this on a separate line...
       productList.push_back(new MuonObject(*it_pdgId, momentum));
       MuonObject*& obj = productList.back();
 

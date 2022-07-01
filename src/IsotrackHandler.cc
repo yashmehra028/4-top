@@ -68,7 +68,7 @@ bool IsotrackHandler::constructIsotracks(std::vector<MuonObject*> const* muons, 
       if (this->verbosity>=MiscUtils::DEBUG) IVYout << "IsotrackHandler::constructIsotracks: Attempting isotrack " << ip << "..." << endl;
 
       ParticleObject::LorentzVector_t momentum;
-      momentum = ParticleObject::PolarLorentzVector_t(*it_pt, *it_eta, *it_phi, 0); // Yes you have to do this on a separate line because CMSSW...
+      momentum = ParticleObject::PolarLorentzVector_t(*it_pt, *it_eta, *it_phi, 0); // Yes you have to do this on a separate line...
       productList.push_back(new ProductType_t(*it_pdgId, momentum));
       ProductType_t*& obj = productList.back();
 
