@@ -83,35 +83,42 @@ void SimEventHandler::setupPUHistograms(){
   std::vector<TString> dataperiods = SampleHelpers::getValidDataPeriods();
 
   TString mcpufile = Form("PU_MC_%i.root", SampleHelpers::getDataYear());
-  std::vector<TString> datapucores;
+  std::unordered_map<TString, TString> datapucores;
   switch (SampleHelpers::getDataYear()){
   case 2016:
-    datapucores = std::vector<TString>{
-      "Cert_271036-284044_13TeV_ReReco_07Aug2017_Collisions16_JSON_firstRun_272007_lastRun_275376",
-      "Cert_271036-284044_13TeV_ReReco_07Aug2017_Collisions16_JSON_firstRun_275657_lastRun_276283",
-      "Cert_271036-284044_13TeV_ReReco_07Aug2017_Collisions16_JSON_firstRun_276315_lastRun_276811",
-      "Cert_271036-284044_13TeV_ReReco_07Aug2017_Collisions16_JSON_firstRun_276831_lastRun_277420",
-      "Cert_271036-284044_13TeV_ReReco_07Aug2017_Collisions16_JSON_firstRun_277772_lastRun_278808",
-      "Cert_271036-284044_13TeV_ReReco_07Aug2017_Collisions16_JSON_firstRun_278820_lastRun_280385",
-      "Cert_271036-284044_13TeV_ReReco_07Aug2017_Collisions16_JSON_firstRun_280919_lastRun_284044"
-    };
+    datapucores = std::unordered_map<TString, TString>(
+      {
+      { "2016B", "Cert_271036-284044_13TeV_Legacy2016_Collisions16_JSON_firstRun_272007_lastRun_275376" },
+      { "2016C", "Cert_271036-284044_13TeV_Legacy2016_Collisions16_JSON_firstRun_275657_lastRun_276283" },
+      { "2016D", "Cert_271036-284044_13TeV_Legacy2016_Collisions16_JSON_firstRun_276315_lastRun_276811" },
+      { "2016E", "Cert_271036-284044_13TeV_Legacy2016_Collisions16_JSON_firstRun_276831_lastRun_277420" },
+      { "2016F_APV", "Cert_271036-284044_13TeV_Legacy2016_Collisions16_JSON_firstRun_277772_lastRun_278768_inc_278770_278806_278807" },
+      { "2016F_NonAPV", "Cert_271036-284044_13TeV_Legacy2016_Collisions16_JSON_firstRun_278771_lastRun_278805_inc_278769_278808" },
+      { "2016G", "Cert_271036-284044_13TeV_Legacy2016_Collisions16_JSON_firstRun_278820_lastRun_280385" },
+      { "2016H", "Cert_271036-284044_13TeV_Legacy2016_Collisions16_JSON_firstRun_280919_lastRun_284044" }
+      }
+    );
     break;
   case 2017:
-    datapucores = std::vector<TString>{
-      "Cert_294927-306462_13TeV_EOY2017ReReco_Collisions17_JSON_firstRun_297046_lastRun_299329",
-      "Cert_294927-306462_13TeV_EOY2017ReReco_Collisions17_JSON_firstRun_299368_lastRun_302029",
-      "Cert_294927-306462_13TeV_EOY2017ReReco_Collisions17_JSON_firstRun_302030_lastRun_303434",
-      "Cert_294927-306462_13TeV_EOY2017ReReco_Collisions17_JSON_firstRun_303824_lastRun_304797",
-      "Cert_294927-306462_13TeV_EOY2017ReReco_Collisions17_JSON_firstRun_305040_lastRun_306462"
-    };
+    datapucores = std::unordered_map<TString, TString>(
+      {
+      { "2017B", "Cert_294927-306462_13TeV_UL2017_Collisions17_GoldenJSON_firstRun_297046_lastRun_299329" },
+      { "2017C", "Cert_294927-306462_13TeV_UL2017_Collisions17_GoldenJSON_firstRun_299368_lastRun_302029" },
+      { "2017D", "Cert_294927-306462_13TeV_UL2017_Collisions17_GoldenJSON_firstRun_302030_lastRun_303434" },
+      { "2017E", "Cert_294927-306462_13TeV_UL2017_Collisions17_GoldenJSON_firstRun_303824_lastRun_304797" },
+      { "2017F", "Cert_294927-306462_13TeV_UL2017_Collisions17_GoldenJSON_firstRun_305040_lastRun_306462" }
+      }
+    );
     break;
   case 2018:
-    datapucores = std::vector<TString>{
-      "Cert_314472-325175_13TeV_17SeptEarlyReReco2018ABC_PromptEraD_Collisions18_JSON_firstRun_315252_lastRun_316995",
-      "Cert_314472-325175_13TeV_17SeptEarlyReReco2018ABC_PromptEraD_Collisions18_JSON_firstRun_317080_lastRun_319310",
-      "Cert_314472-325175_13TeV_17SeptEarlyReReco2018ABC_PromptEraD_Collisions18_JSON_firstRun_319337_lastRun_320065",
-      "Cert_314472-325175_13TeV_17SeptEarlyReReco2018ABC_PromptEraD_Collisions18_JSON_firstRun_320673_lastRun_325175"
-    };
+    datapucores = std::unordered_map<TString, TString>(
+      {
+      { "2018A", "Cert_314472-325175_13TeV_Legacy2018_Collisions18_JSON_firstRun_315252_lastRun_316995" },
+      { "2018B", "Cert_314472-325175_13TeV_Legacy2018_Collisions18_JSON_firstRun_317080_lastRun_319310" },
+      { "2018C", "Cert_314472-325175_13TeV_Legacy2018_Collisions18_JSON_firstRun_319337_lastRun_320065" },
+      { "2018D", "Cert_314472-325175_13TeV_Legacy2018_Collisions18_JSON_firstRun_320673_lastRun_325175" }
+      }
+    );
     break;
   default:
     if (this->verbosity>=MiscUtils::ERROR) IVYerr << "SimEventHandler::setupPUHistograms: Data year " << SampleHelpers::getDataYear() << " is not defined." << endl;
@@ -119,7 +126,12 @@ void SimEventHandler::setupPUHistograms(){
     break;
   }
 
-  assert(datapucores.size() == dataperiods.size());
+  for (auto const& dp:dataperiods){
+    if (datapucores.find(dp)==datapucores.end()){
+      if (this->verbosity>=MiscUtils::ERROR) IVYerr << "SimEventHandler::setupPUHistograms: Data period " << dp << " does not have a corresponding PU reference." << endl;
+      assert(0);
+    }
+  }
 
   TString cinput_pufile_main = ANALYSISPKGDATAPATH + "PileUp/";
   TFile* finput_mc = TFile::Open(cinput_pufile_main + mcpufile, "read");
@@ -133,12 +145,13 @@ void SimEventHandler::setupPUHistograms(){
   curdir->cd();
 
   auto it_dataperiod = dataperiods.cbegin();
-  auto it_datapucores = datapucores.cbegin();
   while (hmc && it_dataperiod != dataperiods.cend()){
+    auto const& datapucore = datapucores.find(*it_dataperiod)->second;
+
     std::vector<TString> datapufiles{
-      *it_datapucores + "_PUnominal.root",
-      *it_datapucores + "_PUdn.root",
-      *it_datapucores + "_PUup.root"
+      datapucore + "_PUnominal.root",
+      datapucore + "_PUdn.root",
+      datapucore + "_PUup.root"
     };
     map_DataPeriod_PUHistList[*it_dataperiod] = std::vector<TH1F*>(datapufiles.size(), nullptr);
 
@@ -165,7 +178,6 @@ void SimEventHandler::setupPUHistograms(){
     }
 
     it_dataperiod++;
-    it_datapucores++;
   }
 
   curdir->cd();
