@@ -26,4 +26,4 @@ test/*.json
 obj
 lib
 executables
-*.root
+/*.root
