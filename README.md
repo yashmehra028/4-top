@@ -12,3 +12,18 @@ cd tttt
 ./setup.sh -j [Ncores]
 # To clean: ./setup.sh clean
 ```
+
+# How to submit jobs using Metis
+In a screen, run the following:
+```
+cd ../ProjectMetis
+. setup.sh
+cd -
+cd test
+mtarfile tarball.tar.xz --xz --xz_level 3 -x NanoTools HiggsAnalysis/CombinedLimit
+```
+This will make a tarball to be uploaded to Condor.
+You can then run the skim submission script as follows:
+```
+python submit_skims.py --tarfile tarball.tar.xz --tag [TAG] [CSV FILES]
+```

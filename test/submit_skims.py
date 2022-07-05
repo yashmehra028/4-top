@@ -27,6 +27,7 @@ def get_tasks(args):
       localSearchDir=args.localSearchDir
 
    metis_exe="condor_executable_skim.sh"
+   metis_pset=""
    if doXsecRun:
       metis_exe="condor_executable_xsec.sh"
       metis_pset=os.path.expandvars("${CMSSW_BASE}/src/IvyFramework/IvyDataTools/test/xsec_cfg.py")
@@ -170,5 +171,5 @@ if __name__ == "__main__":
          task.process()
          total_summary[task.get_sample().get_datasetname()] = task.get_task_summary()
 
-   StatsParser(data=total_summary, webdir="~/public_html/dump/metis_tttt/").do()
-   interruptible_sleep(2*3600)
+      StatsParser(data=total_summary, webdir="~/public_html/dump/metis_tttt/").do()
+      interruptible_sleep(2*3600)

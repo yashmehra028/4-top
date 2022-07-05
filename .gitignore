@@ -27,3 +27,5 @@ obj
 lib
 executables
 /*.root
+**/tasks
+**/*.tar*

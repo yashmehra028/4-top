@@ -89,7 +89,7 @@ tarfile=package.tar.gz
     if [[ -e ../${tarfile} ]]; then
         mv ../${tarfile} ${tarfile}
         tar xf ${tarfile}
-        eval $(./tttt/setup.sh env)
+        eval $(./src/tttt/setup.sh env)
     fi
 )
 
@@ -147,6 +147,8 @@ if [[ "${INPUTFILENAMES}" == *"/hadoop/cms"* ]] || [[ "${INPUTFILENAMES}" == *"/
   fi
   echo "New list of input files: ${INPUTFILENAMES}"
 fi
+
+
 
 cmdRun="skim_UL inputs=${INPUTFILENAMES} output=${OUTPUTNAME}.root ${SKiMARGS}"
 echo "Running: ${cmdRun}"
