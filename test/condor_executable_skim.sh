@@ -89,10 +89,14 @@ tarfile=package.tar.gz
     if [[ -e ../${tarfile} ]]; then
         mv ../${tarfile} ${tarfile}
         tar xf ${tarfile}
-        eval $(./src/tttt/setup.sh env)
     fi
 )
 
+cd $CMSSWVERSION
+eval `scramv1 runtime -sh`
+echo "CMSSW_BASE: ${CMSSW_BASE}"
+eval $(./src/tttt/setup.sh env)
+cd -
 
 # # logging every 45 seconds gives ~100kb log file/3 hours
 # dstat -cdngytlmrs --float --nocolor -T --output dsout.csv 180 >& /dev/null &
@@ -149,8 +153,7 @@ if [[ "${INPUTFILENAMES}" == *"/hadoop/cms"* ]] || [[ "${INPUTFILENAMES}" == *"/
 fi
 
 
-
-cmdRun="skim_UL inputs=${INPUTFILENAMES} output=${OUTPUTNAME}.root ${SKiMARGS}"
+cmdRun="skim_UL inputs=${INPUTFILENAMES} output=${OUTPUTNAME}.root ${SKIMARGS}"
 echo "Running: ${cmdRun}"
 ${cmdRun}
 CMSRUN_STATUS=$?
