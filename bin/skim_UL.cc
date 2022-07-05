@@ -13,6 +13,7 @@
 #include "IvyFramework/IvyDataTools/interface/HelperFunctions.h"
 #include "IvyFramework/IvyDataTools/interface/IvyStreamHelpers.hh"
 #include "IvyFramework/IvyDataTools/interface/BaseTree.h"
+#include "IvyFramework/IvyDataTools/interface/SimpleEntry.h"
 #include "GlobalCollectionNames.h"
 #include "SamplesCore.h"
 #include "MuonSelectionHelpers.h"
@@ -64,7 +65,7 @@ void SelectionTracker::print() const{
 }
 
 
-int ScanChain(std::vector<TString> const& inputfnames, std::string output_fname, std::string dset, std::string proc, std::string str_period, float xsec_val){
+int ScanChain(std::vector<TString> const& inputfnames, std::string const& output_fname, std::string const& dset, std::string const& proc, std::string const& str_period, SimpleScalarEntry const& extra_arguments){
   if (!SampleHelpers::checkRunOnCondor()) std::signal(SIGINT, SampleHelpers::setSignalInterrupt);
 
   TDirectory* curdir = gDirectory;
@@ -102,7 +103,7 @@ int ScanChain(std::vector<TString> const& inputfnames, std::string output_fname,
   // Declare handlers
   GenInfoHandler genInfoHandler;
   SimEventHandler simEventHandler;
-  EventFilterHandler eventHandler(requiredTriggers);
+  EventFilterHandler eventFilter(requiredTriggers);
   MuonHandler muonHandler;
   ElectronHandler electronHandler;
   JetMETHandler jetHandler;
@@ -111,6 +112,11 @@ int ScanChain(std::vector<TString> const& inputfnames, std::string output_fname,
   // These are called handlers, but they are more like helpers.
   DileptonHandler dileptonHandler;
   //ParticleDisambiguator particleDisambiguator;
+
+  // Disable some advanced event tracking for skims
+  eventFilter.setTrackDataEvents(false);
+  eventFilter.setCheckUniqueDataEvent(false);
+  eventFilter.setCheckHLTPathRunRanges(false);
 
   curdir->cd();
 
@@ -128,8 +134,8 @@ int ScanChain(std::vector<TString> const& inputfnames, std::string output_fname,
   simEventHandler.bookBranches(tin);
   simEventHandler.wrapTree(tin);
 
-  eventHandler.bookBranches(tin);
-  eventHandler.wrapTree(tin);
+  eventFilter.bookBranches(tin);
+  eventFilter.wrapTree(tin);
 
   muonHandler.bookBranches(tin);
   muonHandler.wrapTree(tin);
@@ -159,15 +165,6 @@ if (MAXSIZE>0) tin->getSelectedTree()->SetBranchStatus(Form("n%s", GlobalCollect
     tout = new BaseTree(nullptr, tin_copy, nullptr, nullptr, false); // Acquires the possession of tin_copy
     tout->setAutoSave(0);
   }
-  std::vector<TString> allbranchnames;
-  tout->getValidBranchNamesWithoutAlias(allbranchnames, false);
-  float* xsec = nullptr;
-  if (!isData){
-    if (!HelperFunctions::checkListVariable<TString>(allbranchnames, "xsec")){
-      tout->putBranch("xsec", xsec_val);
-    }
-    tout->getValRef("xsec", xsec);
-  }
 
   // Keep track of sums of weights
   SelectionTracker seltracker;
@@ -185,8 +182,6 @@ if (MAXSIZE>0) tin->getSelectedTree()->SetBranchStatus(Form("n%s", GlobalCollect
 
     tin->getEvent(ev);
     HelperFunctions::progressbar(ev, nEntries);
-
-    if (xsec) *xsec = xsec_val;
 
     double wgt_gensim_nominal = 1;
     genInfoHandler.constructGenInfo();
@@ -209,11 +204,11 @@ if (MAXSIZE>0) tin->getSelectedTree()->SetBranchStatus(Form("n%s", GlobalCollect
     puwgt = simEventHandler.getPileUpWeight(SystematicsHelpers::ePUUp);
     sum_wgts_PUUp += genwgt * puwgt;
 
-    eventHandler.constructFilters(&simEventHandler);
+    eventFilter.constructFilters(&simEventHandler);
 
     // In what follows, note that basic selection flags for leptons and jets are set,
     // but object disambiguation is not done yet.
-    // Therefore, what you call 'tight' is not really tight.
+    // Therefore, whatever you call 'tight' is not really as tight.
 
     muonHandler.constructMuons();
     std::vector<MuonObject*> muons_selected;
@@ -259,13 +254,13 @@ if (MAXSIZE>0) tin->getSelectedTree()->SetBranchStatus(Form("n%s", GlobalCollect
     seltracker.accumulate("Full sample", wgt_gensim_nominal);
 
     // Do not apply HEM veto since it depends on the jet pT threshold, which itself depends on JES/JER variations.
-    //if (!eventHandler.test2018HEMFilter(&simEventHandler, nullptr, nullptr, &ak4jets)) continue; // Test for 2018 partial HEM failure
+    //if (!eventFilter.test2018HEMFilter(&simEventHandler, nullptr, nullptr, &ak4jets)) continue; // Test for 2018 partial HEM failure
     //seltracker.accumulate("Pass HEM veto", wgt_gensim_nominal);
-    if (!eventHandler.passMETFilters()) continue; // Test for MET filters
+    if (!eventFilter.passMETFilters()) continue; // Test for MET filters
     seltracker.accumulate("Pass MET filters", wgt_gensim_nominal);
 
-    float event_weight_triggers_dilepton = eventHandler.getTriggerWeight(hltnames_Dilepton);
-    float event_weight_triggers_singleleptoncontrol = eventHandler.getTriggerWeight(hltnames_SingleLeptonControl);
+    float event_weight_triggers_dilepton = eventFilter.getTriggerWeight(hltnames_Dilepton);
+    float event_weight_triggers_singleleptoncontrol = eventFilter.getTriggerWeight(hltnames_SingleLeptonControl);
     seltracker.accumulate("Pass dilepton triggers", wgt_gensim_nominal*double(event_weight_triggers_dilepton!=0.));
     seltracker.accumulate("Pass single lepton control triggers", wgt_gensim_nominal*double(event_weight_triggers_singleleptoncontrol!=0.));
     if ((event_weight_triggers_dilepton+event_weight_triggers_singleleptoncontrol)==0.) continue; // Test if any triggers passed at all
@@ -363,7 +358,7 @@ int main(int argc, char** argv){
   std::string str_proc;
   std::string str_period;
   std::string str_output;
-  double xsec_br = 1;
+  SimpleScalarEntry extra_arguments;
   for (int iarg=iarg_offset; iarg<argc; iarg++){
     std::string strarg = argv[iarg];
     std::string wish, value;
@@ -383,12 +378,7 @@ int main(int argc, char** argv){
     else if (wish=="short_name") str_proc = value;
     else if (wish=="period") str_period = value;
     else if (wish=="output") str_output = value;
-    else if (wish=="xsec") xsec_br *= std::stod(value);
-    else if (wish=="BR") xsec_br *= std::stod(value);
-    else{
-      IVYerr << "ERROR: Unknown argument " << wish << " = " << value << endl;
-      print_help=true;
-    }
+    else extra_arguments.setVal<TString>(wish.data(), value.data());
   }
 
   if (!print_help && (inputs.empty() || str_proc=="" || str_dset=="" || str_period=="" || str_output=="")){
@@ -404,8 +394,7 @@ int main(int argc, char** argv){
     IVYout << "- short_name: Process short name. Mandatory.\n";
     IVYout << "- period: Data period. Mandatory.\n";
     IVYout << "- output: Name of the output file. Could be nested in a directory. Mandatory.\n";
-    IVYout << "- xsec: xsec. Defaults to 1.\n";
-    IVYout << "- BR: Branching fraction. Defaults to 1.\n";
+    IVYout << "Other optional arguments could also be passed using the structure '<argument>=<value>'.\n";
 
     IVYout << endl;
     return (has_help ? 0 : 1);
@@ -419,5 +408,5 @@ int main(int argc, char** argv){
     strinputs.push_back(fname);
   }
 
-  return ScanChain(strinputs, str_output, str_dset, str_proc, str_period, xsec_br);
+  return ScanChain(strinputs, str_output, str_dset, str_proc, str_period, extra_arguments);
 }

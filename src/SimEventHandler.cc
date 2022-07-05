@@ -44,8 +44,7 @@ SimEventHandler::SimEventHandler() :
 #undef SIMEVENT_PUVARIABLE
 #undef SIMEVENT_RNDVARIABLE
 
-  // FIXME: MAKE THE NEW PU HISTOGRAMS AND THEN FIX THIS FUNCTION
-  //setupPUHistograms();
+  setupPUHistograms();
 }
 SimEventHandler::~SimEventHandler(){
   clear();
@@ -65,11 +64,11 @@ void SimEventHandler::clear(){
 
 /*
 How to obtain the data PU histograms:
-1) Set up a CMSSW area other than CMSSW_10_2_X (9.4.9 works)
+1) Set up a CMSSW area other than CMSSW_10_2_X (10.6.26 works)
 2) Run
-pulatest=/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions16/13TeV/PileUp/pileup_latest.txt
-pulatest=/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions17/13TeV/PileUp/pileup_latest.txt
-pulatest=/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions18/13TeV/PileUp/pileup_latest.txt
+pulatest=/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions16/13TeV/PileUp/UltraLegacy/pileup_latest.txt
+pulatest=/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions17/13TeV/PileUp/UltraLegacy/pileup_latest.txt
+pulatest=/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions18/13TeV/PileUp/UltraLegacy/pileup_latest.txt
 pileupCalc.py -i NtupleMaker/data/LumiJSON/${jsonfile} --inputLumiJSON ${pulatest} --calcMode true --minBiasXsec 69200 --maxPileupBin 100 --numPileupBins 100 ${jsonfile}_PUnominal.root
 pileupCalc.py -i NtupleMaker/data/LumiJSON/${jsonfile} --inputLumiJSON ${pulatest} --calcMode true --minBiasXsec 66016.8 --maxPileupBin 100 --numPileupBins 100 ${jsonfile}_PUdn.root
 pileupCalc.py -i NtupleMaker/data/LumiJSON/${jsonfile} --inputLumiJSON ${pulatest} --calcMode true --minBiasXsec 72383.2 --maxPileupBin 100 --numPileupBins 100 ${jsonfile}_PUup.root
@@ -293,12 +292,6 @@ bool SimEventHandler::constructRandomNumbers(){
   return true;
 }
 bool SimEventHandler::constructPUWeight(){
-  // FIXME: FIX THIS FUNCTION AFTER ADDING NEW PU HISTOGRAMS
-  {
-    for (auto& v:pileupWeights) v = 1;
-    return true;
-  }
-
 #define SIMEVENT_PUVARIABLE(TYPE, NAME) TYPE const* NAME = nullptr;
   SIMEVENT_PUVARIABLES;
 #undef SIMEVENT_PUVARIABLE
