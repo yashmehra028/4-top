@@ -119,10 +119,10 @@ if __name__ == "__main__":
          if len(sample_sname_pair)>3:
             BR = sample_sname_pair[3]
       if xsec is not None:
-         comment = "xsec from off-shell fwk"
+         comment = "xsec = {} BR = {} from off-shell fwk".format(xsec, BR)
       elif dset in dset_xsec_map:
          xsec = float(dset_xsec_map[dset])
-         comment = "xsec from scale1fbs.txt"
+         comment = "xsec = {} BR = {} from scale1fbs.txt".format(xsec, BR)
       else:
          raise RuntimeWarning("Data set {} is not found in the xsec file.".format(dset))
          continue
