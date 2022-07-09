@@ -10,6 +10,10 @@
 
 // NanoAOD variables
 #define GENINFO_NANOAOD_SCALAR_VARIABLES \
+GENINFO_NANOAOD_SCALAR_VARIABLE(int, Generator_id1, -9000) \
+GENINFO_NANOAOD_SCALAR_VARIABLE(int, Generator_id2, -9000) \
+GENINFO_NANOAOD_SCALAR_VARIABLE(float, Generator_x1, 0) \
+GENINFO_NANOAOD_SCALAR_VARIABLE(float, Generator_x2, 0) \
 GENINFO_NANOAOD_SCALAR_VARIABLE(float, genWeight, 1) \
 GENINFO_NANOAOD_SCALAR_VARIABLE(float, LHEWeight_originalXWGTUP, 1)
 
@@ -24,6 +28,8 @@ GENINFO_NANOAOD_ARRAY_VARIABLES
 
 // Framework translation
 #define GENINFO_EXTRA_VARIABLES \
+GENINFO_VARIABLE(float, PDF_x1, 0) \
+GENINFO_VARIABLE(float, PDF_x2, 0) \
 GENINFO_VARIABLE(float, genHEPMCweight, 1) \
 GENINFO_VARIABLE(float, LHEweight_unscaledOriginalWeight, 1) /* = LHEEventProduct::originalXWGTUP() */ \
 GENINFO_VARIABLE(float, LHEweight_defaultMemberZero, 1) /* = PDFweights[0] */ \
@@ -60,6 +66,9 @@ public:
   GENINFO_EXTRA_VARIABLES;
 #undef GENINFO_VARIABLE
 
+  std::unordered_map<TString, float> LHE_ME_weights;
+  std::unordered_map<TString, float> Kfactors;
+
   GenInfoVariables();
   GenInfoVariables(GenInfoVariables const& other);
   GenInfoVariables& operator=(const GenInfoVariables& other);
@@ -82,7 +91,7 @@ public:
 
 #define GENINFO_NANOAOD_SCALAR_VARIABLE(TYPE, NAME, DEFVAL) , TYPE const& NAME
 #define GENINFO_NANOAOD_ARRAY_VARIABLE(TYPE, NAME, DEFVAL, MAXSIZE) , unsigned int const& n##NAME, TYPE const* arr_##NAME
-  void acquireWeights(
+  void acquireGenInfo(
     TString const& sampleIdentifier
     GENINFO_NANOAOD_ALLVARIABLES
   );

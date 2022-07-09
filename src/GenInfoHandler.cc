@@ -6,6 +6,7 @@
 #include "SamplesCore.h"
 #include "HelperFunctions.h"
 #include "GenInfoHandler.h"
+#include "IvyFramework/IvyDataTools/interface/IvyPDGHelpers.h"
 #include "IvyFramework/IvyDataTools/interface/IvyStreamHelpers.hh"
 
 
@@ -21,8 +22,12 @@ const std::string GenInfoHandler::colName_genak4jets = GlobalCollectionNames::co
 GenInfoHandler::GenInfoHandler() :
   IvyBase(),
 
+  KFactor_QCD_ggVV_Sig_handle(nullptr),
+  KFactor_QCD_qqVV_Bkg_handle(nullptr),
+  KFactor_EW_qqVV_Bkg_handle(nullptr),
+
   acquireCoreGenInfo(true),
-  //acquireLHEMEWeights(true),
+  acquireLHEMEWeights(true),
   //acquireLHEParticles(true),
   acquireGenParticles(true),
   //acquireGenAK4Jets(false),
@@ -30,6 +35,14 @@ GenInfoHandler::GenInfoHandler() :
 
   genInfo(nullptr)
 {}
+
+GenInfoHandler::~GenInfoHandler(){
+  clear();
+
+  delete KFactor_QCD_ggVV_Sig_handle;
+  delete KFactor_QCD_qqVV_Bkg_handle;
+  delete KFactor_EW_qqVV_Bkg_handle;
+}
 
 void GenInfoHandler::clear(){
   this->resetCache();
@@ -56,12 +69,14 @@ bool GenInfoHandler::constructGenInfo(){
   if (!currentTree) return false;
   if (SampleHelpers::checkSampleIsData(currentTree->sampleIdentifier)) return true;
 
+  bool const require_kfactor_computations = !kfactor_num_denum_list.empty();
   bool res = (
-    (!acquireCoreGenInfo || constructCoreGenInfo())
+    ((!acquireCoreGenInfo && !require_kfactor_computations) || constructCoreGenInfo())
     //&& (!acquireLHEParticles || constructLHEParticles())
-    && (!acquireGenParticles || constructGenParticles())
+    && ((!acquireGenParticles && !require_kfactor_computations) || constructGenParticles())
     //&& (!acquireGenAK4Jets || constructGenAK4Jets())
     //&& (!acquireGenAK8Jets || constructGenAK8Jets())
+    && (!require_kfactor_computations || computeKFactors())
     );
 
   if (res) this->cacheEvent();
@@ -83,6 +98,28 @@ bool GenInfoHandler::constructCoreGenInfo(){
 #undef GENINFO_NANOAOD_ARRAY_VARIABLE
 #undef GENINFO_NANOAOD_SCALAR_VARIABLE
 
+  std::unordered_map<TString, float const*> kfactorlist;
+  for (TString const& strkfactor:tree_kfactorlist_map[currentTree]){
+    kfactorlist[strkfactor] = nullptr;
+    allVariablesPresent &= this->getConsumed(strkfactor, kfactorlist.find(strkfactor)->second);
+    if (!(kfactorlist.find(strkfactor)->second)){
+      if (this->verbosity>=MiscUtils::ERROR) IVYerr << "GenInfoHandler::constructCoreGenInfo: K factor handle for " << strkfactor << " is null!" << endl;
+      assert(0);
+    }
+  }
+
+  std::unordered_map<TString, float const*> MElist;
+  if (acquireLHEMEWeights){
+    for (TString const& strme:tree_MElist_map[currentTree]){
+      MElist[strme] = nullptr;
+      allVariablesPresent &= this->getConsumed(strme, MElist.find(strme)->second);
+      if (!(MElist.find(strme)->second)){
+        if (this->verbosity>=MiscUtils::ERROR) IVYerr << "GenInfoHandler::constructCoreGenInfo: ME handle for " << strme << " is null!" << endl;
+        assert(0);
+      }
+    }
+  }
+
   if (!allVariablesPresent){
     if (this->verbosity>=MiscUtils::ERROR) IVYerr << "GenInfoHandler::constructCoreGenInfo: Not all variables are consumed properly!" << endl;
     assert(0);
@@ -93,12 +130,15 @@ bool GenInfoHandler::constructCoreGenInfo(){
 
 #define GENINFO_NANOAOD_SCALAR_VARIABLE(TYPE, NAME, DEFVAL) , *NAME
 #define GENINFO_NANOAOD_ARRAY_VARIABLE(TYPE, NAME, DEFVAL, MAXSIZE) , *n##NAME, *arr_##NAME
-  genInfo->acquireWeights(
+  genInfo->acquireGenInfo(
     currentTree->sampleIdentifier
     GENINFO_NANOAOD_ALLVARIABLES
   );
 #undef GENINFO_NANOAOD_ARRAY_VARIABLE
 #undef GENINFO_NANOAOD_SCALAR_VARIABLE
+
+  for (auto it:kfactorlist) genInfo->extras.Kfactors[it.first] = (it.second ? *(it.second) : 1.f);
+  for (auto it:MElist) genInfo->extras.LHE_ME_weights[it.first] = (it.second ? *(it.second) : 0.f);
 
   return true;
 }
@@ -192,6 +232,8 @@ void GenInfoHandler::bookBranches(BaseTree* tree){
 
   if (SampleHelpers::checkSampleIsData(tree->sampleIdentifier)) return;
 
+  std::vector<TString> allbranchnames; tree->getValidBranchNamesWithoutAlias(allbranchnames, false);
+
 #define GENINFO_NANOAOD_SCALAR_VARIABLE(TYPE, NAME, DEFVAL) \
 tree->bookBranch<TYPE>(#NAME, DEFVAL); \
 this->addConsumed<TYPE>(#NAME); \
@@ -219,4 +261,197 @@ this->defineConsumedSloppy(#NAME);
 #define GENPARTICLE_VARIABLE(TYPE, NAME, DEFVAL) this->addConsumed<TYPE* const>(colName_genparticles + "_" + #NAME); this->defineConsumedSloppy(colName_genparticles + "_" + #NAME);
   GENPARTICLE_NANOAOD_VARIABLES;
 #undef GENPARTICLE_VARIABLE
+
+  // K factor and ME reweighting branches are defined as sloppy
+  std::vector<TString> kfactorlist;
+  std::vector<TString> melist;
+  bool has_lheparticles=false;
+  for (TString const& bname:allbranchnames){
+    if (bname.Contains("KFactor")){
+      tree->bookBranch<float>(bname, 1.f);
+      this->addConsumed<float>(bname);
+      this->defineConsumedSloppy(bname);
+      kfactorlist.push_back(bname);
+    }
+    if (acquireLHEMEWeights && (bname.Contains("p_Gen") || bname.Contains("LHECandMass"))){
+      tree->bookBranch<float>(bname, 0.f);
+      this->addConsumed<float>(bname);
+      this->defineConsumedSloppy(bname);
+      melist.push_back(bname);
+    }
+    else if (acquireLHEParticles && bname.Contains(colName_lheparticles)) has_lheparticles = true;
+  }
+
+  tree_kfactorlist_map[tree] = kfactorlist;
+  tree_MElist_map[tree] = melist;
+  tree_lheparticles_present_map[tree] = has_lheparticles;
+}
+
+void GenInfoHandler::setupKFactorHandles(std::vector<std::string> const& strkfactoropts){
+  std::vector<std::pair<std::string, std::string>> kfactorsets;
+  for (auto const& strkfactoropt:strkfactoropts){
+    if (strkfactoropt == "applyKFactorQCDLOtoNNLOggVVSig" || strkfactoropt == "applyKFactorQCDNLOtoNNLOggVVSig") kfactorsets.emplace_back(
+      "kfactor_qcd_nnlo_ggvv_sig",
+      (strkfactoropt == "applyKFactorQCDLOtoNNLOggVVSig" ? "" : "kfactor_qcd_nlo_ggvv_sig")
+    );
+    else if (strkfactoropt == "applyKFactorQCDNLOtoNNLOqqZZBkg" || strkfactoropt == "applyKFactorQCDNLOtoNNLOqqWZBkg" || strkfactoropt == "applyKFactorQCDNLOtoNNLOqqWWBkg"){
+      std::string strnumerator = "";
+      if (strkfactoropt == "applyKFactorQCDNLOtoNNLOqqZZBkg") strnumerator = "kfactor_qcd_nnlo_qqzz_bkg";
+      else if (strkfactoropt == "applyKFactorQCDNLOtoNNLOqqWZBkg") strnumerator = "kfactor_qcd_nnlo_qqwz_bkg";
+      else strnumerator = "kfactor_qcd_nnlo_qqww_bkg";
+      kfactorsets.emplace_back(strnumerator, "");
+    }
+    else if (strkfactoropt == "applyKFactorEWLOtoNLOqqZZBkg" || strkfactoropt == "applyKFactorEWLOtoNLOqqWZBkg" || strkfactoropt == "applyKFactorEWLOtoNLOqqWWBkg"){
+      std::string strnumerator = "";
+      if (strkfactoropt == "applyKFactorEWLOtoNLOqqZZBkg") strnumerator = "kfactor_ew_nlo_qqzz_bkg";
+      else if (strkfactoropt == "applyKFactorEWLOtoNLOqqWZBkg") strnumerator = "kfactor_ew_nlo_qqwz_bkg";
+      else strnumerator = "kfactor_ew_nlo_qqww_bkg";
+      kfactorsets.emplace_back(strnumerator, "");
+    }
+  }
+
+  if (!kfactorsets.empty() && this->verbosity>=MiscUtils::INFO) IVYout << "GenInfoHandler::setupKFactorHandles: The following K factor sets are set up:" << kfactorsets << "." << endl;
+
+  if (!kfactorsets.empty()) kfactor_num_denum_list.reserve(kfactorsets.size());
+  for (auto const& pp:kfactorsets){
+    // Get K factor specifications
+    std::string const& strkfactor_num = pp.first;
+    std::string const& strkfactor_den = pp.second;
+    // Use lowercase letters for comparison
+    std::string strkfactor_num_lower, strkfactor_den_lower;
+    HelperFunctions::lowercase(strkfactor_num, strkfactor_num_lower);
+    HelperFunctions::lowercase(strkfactor_den, strkfactor_den_lower);
+
+    // Build K factors
+    KFactorHelpers::KFactorType numerator = KFactorHelpers::nKFactorTypes;
+    KFactorHelpers::KFactorType denominator = KFactorHelpers::nKFactorTypes;
+    if (strkfactor_num_lower == "kfactor_qcd_nnlo_ggvv_sig") numerator = KFactorHelpers::kf_QCD_NNLO_GGVV_SIG;
+    else if (strkfactor_num_lower == "kfactor_qcd_nlo_ggvv_sig") numerator = KFactorHelpers::kf_QCD_NLO_GGVV_SIG;
+    else if (strkfactor_num_lower == "kfactor_qcd_nnlo_qqzz_bkg") numerator = KFactorHelpers::kf_QCD_NNLO_QQZZ_BKG;
+    else if (strkfactor_num_lower == "kfactor_qcd_nnlo_qqwz_bkg") numerator = KFactorHelpers::kf_QCD_NNLO_QQWZ_BKG;
+    else if (strkfactor_num_lower == "kfactor_qcd_nnlo_qqww_bkg") numerator = KFactorHelpers::kf_QCD_NNLO_QQWW_BKG;
+    else if (strkfactor_num_lower == "kfactor_ew_nlo_qqzz_bkg") numerator = KFactorHelpers::kf_EW_NLO_QQZZ_BKG;
+    else if (strkfactor_num_lower == "kfactor_ew_nlo_qqwz_bkg") numerator = KFactorHelpers::kf_EW_NLO_QQWZ_BKG;
+    else if (strkfactor_num_lower == "kfactor_ew_nlo_qqww_bkg") numerator = KFactorHelpers::kf_EW_NLO_QQWW_BKG;
+    else{
+      IVYerr << Form("GenInfoHandler::setupKFactorHandles: Cannot identify the numerator of the K factor pair (%s, %s).", strkfactor_num.data(), strkfactor_den.data()) << endl;
+      assert(0);
+    }
+
+    bool doBuild_KFactor_QCD_ggVV_Sig_handle = (numerator==KFactorHelpers::kf_QCD_NNLO_GGVV_SIG || numerator==KFactorHelpers::kf_QCD_NLO_GGVV_SIG);
+    if (doBuild_KFactor_QCD_ggVV_Sig_handle){
+      if (strkfactor_den_lower == "kfactor_qcd_nnlo_ggvv_sig") denominator = KFactorHelpers::kf_QCD_NNLO_GGVV_SIG;
+      else if (strkfactor_den_lower == "kfactor_qcd_nlo_ggvv_sig") denominator = KFactorHelpers::kf_QCD_NLO_GGVV_SIG;
+      else if (strkfactor_den_lower != ""){ IVYerr << Form("GenInfoHandler::setupKFactorHandles: K factor pair (%s, %s) is not implemented.", strkfactor_num.data(), strkfactor_den.data()) << endl; assert(0); }
+      KFactor_QCD_ggVV_Sig_handle = new KFactorHelpers::KFactorHandler_QCD_ggVV_Sig(SampleHelpers::getDataYear());
+    }
+
+    bool doBuild_KFactor_QCD_qqVV_Bkg_handle = (numerator==KFactorHelpers::kf_QCD_NNLO_QQZZ_BKG || numerator==KFactorHelpers::kf_QCD_NNLO_QQWZ_BKG || numerator==KFactorHelpers::kf_QCD_NNLO_QQWW_BKG);
+    if (doBuild_KFactor_QCD_qqVV_Bkg_handle) KFactor_QCD_qqVV_Bkg_handle = new KFactorHelpers::KFactorHandler_QCD_qqVV_Bkg(SampleHelpers::getDataYear());
+
+    bool doBuild_KFactor_EW_qqVV_Bkg_handle = (numerator==KFactorHelpers::kf_EW_NLO_QQZZ_BKG || numerator==KFactorHelpers::kf_EW_NLO_QQWZ_BKG || numerator==KFactorHelpers::kf_EW_NLO_QQWW_BKG);
+    if (doBuild_KFactor_EW_qqVV_Bkg_handle) KFactor_EW_qqVV_Bkg_handle = new KFactorHelpers::KFactorHandler_EW_qqVV_Bkg(SampleHelpers::getDataYear(), numerator);
+
+    if (numerator!=KFactorHelpers::nKFactorTypes) kfactor_num_denum_list.emplace_back(numerator, denominator);
+  }
+}
+
+bool GenInfoHandler::computeKFactors(){
+  if (KFactor_QCD_ggVV_Sig_handle){
+    std::vector<GenParticleObject*> Higgses;
+    std::vector<GenParticleObject*> Vbosons;
+
+    for (auto const& part:genparticles){
+      if (part->extras.isHardProcess){
+        if (IvyPDGHelpers::isAHiggs(part->pdgId())) Higgses.push_back(part);
+        else if (IvyPDGHelpers::isAZBoson(part->pdgId()) || IvyPDGHelpers::isAWBoson(part->pdgId()) || IvyPDGHelpers::isAPhoton(part->pdgId())) Vbosons.push_back(part);
+      }
+    }
+
+    if (Higgses.size()==1) genInfo->extras.Kfactors[KFactorHelpers::KFactorHandler_QCD_ggVV_Sig::KFactorArgName] = Higgses.front()->mass();
+    else if (Vbosons.size()==2) genInfo->extras.Kfactors[KFactorHelpers::KFactorHandler_QCD_ggVV_Sig::KFactorArgName] = (Vbosons.front()->p4() + Vbosons.back()->p4()).M();
+    else{
+      IVYerr << "GenInfoHandler::computeKFactors: No single Higgs candidate or two intermediate V bosons are found to pass to KFactor_QCD_ggVV_Sig_handle." << endl;
+      assert(0);
+    }
+
+    for (auto const& kfpair:kfactor_num_denum_list){
+      if (kfpair.first == KFactorHelpers::kf_QCD_NNLO_GGVV_SIG || kfpair.first == KFactorHelpers::kf_QCD_NLO_GGVV_SIG) KFactor_QCD_ggVV_Sig_handle->eval(kfpair.first, kfpair.second, genInfo->extras.Kfactors);
+    }
+  }
+
+  if (KFactor_QCD_qqVV_Bkg_handle || KFactor_EW_qqVV_Bkg_handle){
+    KFactorHelpers::KFactorType corr_type = KFactorHelpers::nKFactorTypes;
+    if (KFactor_EW_qqVV_Bkg_handle) corr_type = KFactor_EW_qqVV_Bkg_handle->getType();
+    else{
+      for (auto const& kfpair:kfactor_num_denum_list){
+        if (
+          kfpair.first == KFactorHelpers::kf_QCD_NNLO_QQZZ_BKG
+          ||
+          kfpair.first == KFactorHelpers::kf_QCD_NNLO_QQWZ_BKG
+          ||
+          kfpair.first == KFactorHelpers::kf_QCD_NNLO_QQWW_BKG
+          ){
+          corr_type = kfpair.first;
+          break;
+        }
+      }
+    }
+
+    KFactorHelpers::VVFinalStateType final_state_type = KFactorHelpers::nVVFinalStateTypes;
+    switch (corr_type){
+    case KFactorHelpers::kf_QCD_NNLO_QQZZ_BKG:
+    case KFactorHelpers::kf_EW_NLO_QQZZ_BKG:
+      final_state_type = KFactorHelpers::kZZ;
+      break;
+    case KFactorHelpers::kf_QCD_NNLO_QQWZ_BKG:
+    case KFactorHelpers::kf_EW_NLO_QQWZ_BKG:
+      final_state_type = KFactorHelpers::kWZ;
+      break;
+    case KFactorHelpers::kf_QCD_NNLO_QQWW_BKG:
+    case KFactorHelpers::kf_EW_NLO_QQWW_BKG:
+      final_state_type = KFactorHelpers::kWW;
+      break;
+    default:
+      IVYerr << "GenInfoHandler::computeKFactors: No known VV final state for the correction type " << corr_type << "." << endl;
+      assert(0);
+      break;
+    }
+
+    std::vector<GenParticleObject*> incomingQuarks;
+    std::vector<GenParticleObject*> incomingGluons;
+    std::vector<GenParticleObject*> outgoingQuarks;
+    std::vector<GenParticleObject*> outgoingGluons;
+    std::pair<GenParticleObject*, GenParticleObject*> V1pair;
+    std::pair<GenParticleObject*, GenParticleObject*> V2pair;
+    KFactorHelpers::getVVTopology(
+      final_state_type, genparticles,
+      incomingQuarks, incomingGluons,
+      outgoingQuarks, outgoingGluons,
+      V1pair, V2pair
+    );
+
+    for (auto const& kfpair:kfactor_num_denum_list){
+      if (
+        kfpair.first == KFactorHelpers::kf_QCD_NNLO_QQZZ_BKG
+        ||
+        kfpair.first == KFactorHelpers::kf_QCD_NNLO_QQWZ_BKG
+        ||
+        kfpair.first == KFactorHelpers::kf_QCD_NNLO_QQWW_BKG
+        ) KFactor_QCD_qqVV_Bkg_handle->eval(kfpair.first, V1pair, V2pair, genInfo->extras.Kfactors);
+      if (
+        kfpair.first == KFactorHelpers::kf_EW_NLO_QQZZ_BKG
+        ||
+        kfpair.first == KFactorHelpers::kf_EW_NLO_QQWZ_BKG
+        ||
+        kfpair.first == KFactorHelpers::kf_EW_NLO_QQWW_BKG
+        ) KFactor_EW_qqVV_Bkg_handle->eval(
+          genInfo->extras.PDF_x1, genInfo->extras.PDF_x2,
+          incomingQuarks, V1pair, V2pair,
+          genInfo->extras.Kfactors
+        );
+    }
+  }
+
+  return true;
 }

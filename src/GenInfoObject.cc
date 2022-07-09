@@ -20,11 +20,17 @@ GenInfoVariables::GenInfoVariables(GenInfoVariables const& other){
 #define GENINFO_VARIABLE(TYPE, NAME, DEFVAL) this->NAME=other.NAME;
   GENINFO_EXTRA_VARIABLES;
 #undef GENINFO_VARIABLE
+
+  this->LHE_ME_weights = other.LHE_ME_weights;
+  this->Kfactors = other.Kfactors;
 }
 void GenInfoVariables::swap(GenInfoVariables& other){
 #define GENINFO_VARIABLE(TYPE, NAME, DEFVAL) std::swap(this->NAME, other.NAME);
   GENINFO_EXTRA_VARIABLES;
 #undef GENINFO_VARIABLE
+
+  std::swap(this->LHE_ME_weights, other.LHE_ME_weights);
+  std::swap(this->Kfactors, other.Kfactors);
 }
 GenInfoVariables& GenInfoVariables::operator=(const GenInfoVariables& other){
   GenInfoVariables tmp(other);
@@ -96,12 +102,15 @@ float GenInfoObject::getGenWeight(SystematicsHelpers::SystematicVariationTypes c
 
 #define GENINFO_NANOAOD_SCALAR_VARIABLE(TYPE, NAME, DEFVAL) , TYPE const& NAME
 #define GENINFO_NANOAOD_ARRAY_VARIABLE(TYPE, NAME, DEFVAL, MAXSIZE) , unsigned int const& n##NAME, TYPE const* arr_##NAME
-void GenInfoObject::acquireWeights(
+void GenInfoObject::acquireGenInfo(
   TString const& sampleIdentifier
   GENINFO_NANOAOD_ALLVARIABLES
 ){
 #undef GENINFO_NANOAOD_ARRAY_VARIABLE
 #undef GENINFO_NANOAOD_SCALAR_VARIABLE
+
+  extras.PDF_x1 = Generator_x1;
+  extras.PDF_x2 = Generator_x2;
   // FIXME: I don't know the conventions just yet, so for now, set all systematics to 1, and central weight to wgts[0]
   extras.genHEPMCweight = genWeight;
   // Weight vairations are supposed to be ratios to genHEPMCweight!

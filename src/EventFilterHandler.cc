@@ -11,6 +11,7 @@
 #include "ParticleObjectHelpers.h"
 #include "FourTopTriggerHelpers.h"
 #include "IvyFramework/IvyDataTools/interface/IvyStreamHelpers.hh"
+#include "IvyFramework/IvyDataTools/interface/HostHelpersCore.h"
 
 
 using namespace std;
@@ -28,7 +29,8 @@ EventFilterHandler::EventFilterHandler(std::vector<TriggerHelpers::TriggerType> 
   checkHLTPathRunRanges(true),
   trackTriggerObjects(false),
   checkTriggerObjectsForHLTPaths(false),
-  product_uniqueEvent(true)
+  product_uniqueEvent(true),
+  product_passDataCert(true)
 {
   // HLT triggers
   for (auto const& trigtype:requestedTriggers){
@@ -47,6 +49,7 @@ void EventFilterHandler::clear(){
   this->resetCache();
 
   product_uniqueEvent = true;
+  product_passDataCert = true;
   for (auto*& prod:product_HLTpaths) delete prod;
   product_HLTpaths.clear();
   for (auto*& prod:product_triggerobjects) delete prod;
@@ -67,6 +70,8 @@ bool EventFilterHandler::constructFilters(SimEventHandler const* simEventHandler
     this->constructMETFilters()
     &&
     this->accumulateRunLumiEventBlock()
+    &&
+    (datacert_run_lumirangelist_map.empty() || this->testDataCert())
     );
 
   if (res) this->cacheEvent();
@@ -531,6 +536,36 @@ bool EventFilterHandler::accumulateRunLumiEventBlock(){
   return true;
 }
 
+bool EventFilterHandler::testDataCert(){
+  if (!SampleHelpers::checkSampleIsData(currentTree->sampleIdentifier)){
+    product_passDataCert = true;
+    return true;
+  }
+
+  bool allVariablesPresent = true;
+#define RUNLUMIEVENT_VARIABLE(TYPE, NAME, NANONAME) TYPE const* NAME = nullptr; allVariablesPresent &= this->getConsumed(#NANONAME, NAME);
+  RUNLUMIEVENT_VARIABLES;
+#undef RUNLUMIEVENT_VARIABLE
+  if (!allVariablesPresent){
+    if (this->verbosity>=MiscUtils::ERROR) IVYerr << "EventFilterHandler::testDataCert: Not all variables are consumed properly!" << endl;
+    assert(0);
+  }
+  if (this->verbosity>=MiscUtils::DEBUG) IVYout << "EventFilterHandler::testDataCert: All variables are set up!" << endl;
+
+  product_passDataCert = false;
+  auto it_run = datacert_run_lumirangelist_map.find(*RunNumber);
+  if (it_run != datacert_run_lumirangelist_map.end()){
+    for (auto const& lumi_range:it_run->second){
+      if (*LuminosityBlock>=lumi_range.first && *LuminosityBlock<=lumi_range.second){
+        product_passDataCert = true;
+        break;
+      }
+    }
+  }
+
+  return true;
+}
+
 std::vector<std::string> EventFilterHandler::acquireMETFilterFlags(BaseTree* intree){
   std::vector<std::string> res;
 
@@ -619,5 +654,69 @@ void EventFilterHandler::bookBranches(BaseTree* tree){
 #define RUNLUMIEVENT_VARIABLE(TYPE, NAME, NANONAME) tree->bookBranch<TYPE>(#NANONAME, 0); this->addConsumed<TYPE>(#NANONAME); this->defineConsumedSloppy(#NANONAME);
     RUNLUMIEVENT_VARIABLES;
 #undef RUNLUMIEVENT_VARIABLE
+  }
+}
+
+void EventFilterHandler::loadGoldenJSON(std::string strjsonfname){
+  strjsonfname = std::string(ANALYSISPKGDATAPATH.Data()) + "LumiJSON/" + strjsonfname;
+  HostHelpers::ExpandEnvironmentVariables(strjsonfname);
+  if (!HostHelpers::FileReadable(strjsonfname.data())){
+    if (this->verbosity>=MiscUtils::ERROR) IVYerr << "EventFilterHandler::loadGoldenJSON: JSON file " << strjsonfname << " is not readable." << endl;
+    assert(0);
+  }
+
+  std::vector<std::string> strlines;
+  ifstream fin(strjsonfname.data(), ios_base::in);
+  while (!fin.eof()){
+    std::string strline;
+    std::getline(fin, strline);
+    HelperFunctions::lrstrip(strline, " \n\t{}");
+    if (strline.empty()) continue;
+
+    if (strline.find(":")!=std::string::npos){
+      strlines.push_back(strline);
+      continue;
+    }
+
+    if (strlines.empty()){
+      if (this->verbosity>=MiscUtils::ERROR) IVYerr << "EventFilterHandler::loadGoldenJSON: Encountered an empty line collection while processing line '" << strline << "'." << endl;
+      assert(0);
+    }
+
+    strlines.back() += strline;
+  }
+  fin.close();
+
+  const char* chars_rm=" [\"";
+  for (auto& strline:strlines){
+    // Postprocess strings before interpreting them
+    for (int ic=0; ic<strlen(chars_rm); ic++){ while (strline.find(chars_rm[ic])!=std::string::npos) HelperFunctions::replaceString<std::string, std::string const>(strline, std::string(1, chars_rm[ic]), ""); }
+    HelperFunctions::replaceString<std::string, const char*>(strline, "]]", "]");
+    while (strline.find("],")!=std::string::npos) HelperFunctions::replaceString<std::string, const char*>(strline, "],", " ");
+    // Record to map
+    std::string strrun, strlumipairlist_flat;
+    HelperFunctions::splitOption(strline, strrun, strlumipairlist_flat, ':');
+    unsigned int runval = std::stoi(strrun);
+    std::vector<std::string> strlumipairlist;
+    HelperFunctions::splitOptionRecursive(strlumipairlist_flat, strlumipairlist, ' ', false);
+    std::vector< std::pair<unsigned int, unsigned int> > lumirangelist; lumirangelist.reserve(strlumipairlist.size());
+    for (auto const& strlumipair:strlumipairlist){
+      std::vector<std::string> tmp_lumipair;
+      HelperFunctions::splitOptionRecursive(strlumipair, tmp_lumipair, ',', false);
+      if (tmp_lumipair.size()!=2){
+        if (this->verbosity>=MiscUtils::ERROR) IVYerr << "Lumi pair " << strlumipair << " is not parsed correctly!" << endl;
+        assert(0);
+      }
+      else{
+        unsigned int ilumi = std::stoi(tmp_lumipair.front());
+        unsigned int jlumi = std::stoi(tmp_lumipair.back());
+        lumirangelist.emplace_back(ilumi, jlumi);
+      }
+    }
+    datacert_run_lumirangelist_map[runval] = lumirangelist;
+  }
+  if (this->verbosity>=MiscUtils::INFO){
+    IVYout << "EventFilterHandler::loadGoldenJSON: The loaded Golden JSON run/lumi filter is as follows:" << endl;
+    for (auto const& pp:datacert_run_lumirangelist_map) IVYout << "\t- " << pp.first << ": " << pp.second << endl;
   }
 }

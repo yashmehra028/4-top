@@ -65,7 +65,7 @@ void SelectionTracker::print() const{
 }
 
 
-int ScanChain(std::vector<TString> const& inputfnames, std::string const& output_fname, std::string const& dset, std::string const& proc, std::string const& str_period, SimpleScalarEntry const& extra_arguments){
+int ScanChain(std::vector<TString> const& inputfnames, std::string const& output_fname, std::string const& dset, std::string const& proc, std::string const& str_period, std::unordered_map<std::string, std::string> const& extra_arguments){
   if (!SampleHelpers::checkRunOnCondor()) std::signal(SIGINT, SampleHelpers::setSignalInterrupt);
 
   TDirectory* curdir = gDirectory;
@@ -76,6 +76,16 @@ int ScanChain(std::vector<TString> const& inputfnames, std::string const& output
       std::string output_dir(output_fname, 0, tmp_pos);
       gSystem->mkdir(output_dir.data(), true);
     }
+  }
+  std::string strjsonfile;
+  std::vector<std::string> kfactoropts;
+  for (auto const& pp:extra_arguments){
+    if (pp.first.find("applyKFactor")!=std::string::npos){
+      bool flag = false;
+      HelperFunctions::castStringToValue(pp.second, flag);
+      if (flag) kfactoropts.push_back(pp.first);
+    }
+    else if (pp.first == "goldenjson") strjsonfile = pp.second;
   }
 
   std::vector<TriggerHelpers::TriggerType> requiredTriggers;
@@ -113,10 +123,14 @@ int ScanChain(std::vector<TString> const& inputfnames, std::string const& output
   DileptonHandler dileptonHandler;
   //ParticleDisambiguator particleDisambiguator;
 
+  // Setup K factors
+  genInfoHandler.setupKFactorHandles(kfactoropts);
+
   // Disable some advanced event tracking for skims
   eventFilter.setTrackDataEvents(false);
   eventFilter.setCheckUniqueDataEvent(false);
   eventFilter.setCheckHLTPathRunRanges(false);
+  if (strjsonfile!="") eventFilter.loadGoldenJSON(strjsonfile);
 
   curdir->cd();
 
@@ -155,16 +169,24 @@ int ScanChain(std::vector<TString> const& inputfnames, std::string const& output
 #define COLLECTIONNAME_DIRECTIVE(NAME, LABEL, MAXSIZE) \
 tin->getSelectedTree()->SetBranchStatus((GlobalCollectionNames::colName_##NAME+"*").data(), 1); \
 if (MAXSIZE>0) tin->getSelectedTree()->SetBranchStatus(Form("n%s", GlobalCollectionNames::colName_##NAME.data()), 1);
-  COLLECTIONNAME_DIRECTIVES;
+  COLLECTIONNAME_COMMON_DIRECTIVES;
+  if (!isData){
+    COLLECTIONNAME_SIM_DIRECTIVES;
+  }
 #undef COLLECTIONNAME_DIRECTIVE
 
   TFile* foutput = TFile::Open(output_fname.data(), "recreate");
+  foutput->cd();
+
+  SimpleEntry commonEntry;
   BaseTree* tout = nullptr;
   {
     TTree* tin_copy	=	tin->getSelectedTree()->CloneTree(0);
     tout = new BaseTree(nullptr, tin_copy, nullptr, nullptr, false); // Acquires the possession of tin_copy
     tout->setAutoSave(0);
   }
+
+  curdir->cd();
 
   // Keep track of sums of weights
   SelectionTracker seltracker;
@@ -176,33 +198,39 @@ if (MAXSIZE>0) tin->getSelectedTree()->SetBranchStatus(Form("n%s", GlobalCollect
   double sum_wgts_PUDn=0;
   double sum_wgts_PUUp=0;
 
+  bool firstOutputEvent = true;
   int nEntries = tin->getNEvents();
+  IVYout << "Looping over " << nEntries << " events..." << endl;
   for (int ev=0; ev<nEntries; ev++){
     if (SampleHelpers::doSignalInterrupt==1) break;
 
     tin->getEvent(ev);
     HelperFunctions::progressbar(ev, nEntries);
 
-    double wgt_gensim_nominal = 1;
     genInfoHandler.constructGenInfo();
     auto const& genInfo = genInfoHandler.getGenInfo();
-    double genwgt = genInfo->getGenWeight(SystematicsHelpers::sNominal);
-    if (genwgt==0.){
-      n_zero_genwgts++;
-      continue;
-    }
-    sum_wgts_noPU += genwgt;
-    sum_abs_wgts_noPU += std::abs(genwgt);
 
-    double puwgt;
     simEventHandler.constructSimEvent();
-    puwgt = simEventHandler.getPileUpWeight(SystematicsHelpers::sNominal);
-    wgt_gensim_nominal = genwgt * puwgt;
-    sum_wgts += wgt_gensim_nominal;
-    puwgt = simEventHandler.getPileUpWeight(SystematicsHelpers::ePUDn);
-    sum_wgts_PUDn += genwgt * puwgt;
-    puwgt = simEventHandler.getPileUpWeight(SystematicsHelpers::ePUUp);
-    sum_wgts_PUUp += genwgt * puwgt;
+
+    double wgt_gensim_nominal = 1;
+    if (!isData){
+      double genwgt = genInfo->getGenWeight(SystematicsHelpers::sNominal);
+      if (genwgt==0.){
+        n_zero_genwgts++;
+        continue;
+      }
+      sum_wgts_noPU += genwgt;
+      sum_abs_wgts_noPU += std::abs(genwgt);
+
+      double puwgt;
+      puwgt = simEventHandler.getPileUpWeight(SystematicsHelpers::sNominal);
+      wgt_gensim_nominal = genwgt * puwgt;
+      sum_wgts += wgt_gensim_nominal;
+      puwgt = simEventHandler.getPileUpWeight(SystematicsHelpers::ePUDn);
+      sum_wgts_PUDn += genwgt * puwgt;
+      puwgt = simEventHandler.getPileUpWeight(SystematicsHelpers::ePUUp);
+      sum_wgts_PUUp += genwgt * puwgt;
+    }
 
     eventFilter.constructFilters(&simEventHandler);
 
@@ -314,7 +342,46 @@ if (MAXSIZE>0) tin->getSelectedTree()->SetBranchStatus(Form("n%s", GlobalCollect
       seltracker.accumulate("Pass isotrack veto", wgt_gensim_nominal);
     }
 
+    if (!eventFilter.isUniqueDataEvent() || !eventFilter.passDataCert()) continue;
+    seltracker.accumulate("Pass unique event check and data certification", wgt_gensim_nominal);
+
+    // Accumulate any ME weights and K factors that might be present
+    if (!isData){
+      for (auto const& pp:genInfo->extras.LHE_ME_weights) commonEntry.setNamedVal(pp.first, pp.second);
+      for (auto const& pp:genInfo->extras.Kfactors) commonEntry.setNamedVal(pp.first, pp.second);
+    }
+
+    /*************************************************/
+    /* NO MORE CALLS TO SELECTION BEYOND THIS POINT! */
+    /*************************************************/
+
+    // If this is the first output event, create the tree branches based on what is available in the commonEntry.
+    if (firstOutputEvent){
+#define SIMPLE_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=commonEntry.named##name_t##s.begin(); itb!=commonEntry.named##name_t##s.end(); itb++) tout->putBranch(itb->first, itb->second);
+#define VECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=commonEntry.namedV##name_t##s.begin(); itb!=commonEntry.namedV##name_t##s.end(); itb++) tout->putBranch(itb->first, &(itb->second));
+#define DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=commonEntry.namedVV##name_t##s.begin(); itb!=commonEntry.namedVV##name_t##s.end(); itb++) tout->putBranch(itb->first, &(itb->second));
+      SIMPLE_DATA_OUTPUT_DIRECTIVES;
+      VECTOR_DATA_OUTPUT_DIRECTIVES;
+      DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVES;
+#undef SIMPLE_DATA_OUTPUT_DIRECTIVE
+#undef VECTOR_DATA_OUTPUT_DIRECTIVE
+#undef DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE
+    }
+
+    // Record whatever is in commonEntry into the tree.
+#define SIMPLE_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=commonEntry.named##name_t##s.begin(); itb!=commonEntry.named##name_t##s.end(); itb++) tout->setVal(itb->first, itb->second);
+#define VECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=commonEntry.namedV##name_t##s.begin(); itb!=commonEntry.namedV##name_t##s.end(); itb++) tout->setVal(itb->first, &(itb->second));
+#define DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=commonEntry.namedVV##name_t##s.begin(); itb!=commonEntry.namedVV##name_t##s.end(); itb++) tout->setVal(itb->first, &(itb->second));
+    SIMPLE_DATA_OUTPUT_DIRECTIVES;
+    VECTOR_DATA_OUTPUT_DIRECTIVES;
+    DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVES;
+#undef SIMPLE_DATA_OUTPUT_DIRECTIVE
+#undef VECTOR_DATA_OUTPUT_DIRECTIVE
+#undef DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE
+
     tout->fill();
+
+    if (firstOutputEvent) firstOutputEvent = false;
   }
 
   frac_zero_genwgts = double(n_zero_genwgts)/double(nEntries);
@@ -358,7 +425,7 @@ int main(int argc, char** argv){
   std::string str_proc;
   std::string str_period;
   std::string str_output;
-  SimpleScalarEntry extra_arguments;
+  std::unordered_map<std::string, std::string> extra_arguments;
   for (int iarg=iarg_offset; iarg<argc; iarg++){
     std::string strarg = argv[iarg];
     std::string wish, value;
@@ -378,7 +445,7 @@ int main(int argc, char** argv){
     else if (wish=="short_name") str_proc = value;
     else if (wish=="period") str_period = value;
     else if (wish=="output") str_output = value;
-    else extra_arguments.setVal<TString>(wish.data(), value.data());
+    else extra_arguments[wish] = value;
   }
 
   if (!print_help && (inputs.empty() || str_proc=="" || str_dset=="" || str_period=="" || str_output=="")){

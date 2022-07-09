@@ -31,6 +31,9 @@ protected:
   bool checkTriggerObjectsForHLTPaths;
 
   bool product_uniqueEvent;
+  bool product_passDataCert;
+
+  std::unordered_map<unsigned int, std::vector< std::pair<unsigned int, unsigned int> >> datacert_run_lumirangelist_map;
 
   std::vector<HLTTriggerPathObject*> product_HLTpaths;
   std::vector<TriggerObject*> product_triggerobjects;
@@ -43,6 +46,7 @@ protected:
   bool constructTriggerObjects();
   bool constructMETFilters();
   bool accumulateRunLumiEventBlock();
+  bool testDataCert();
 
 public:
   // Constructors
@@ -87,6 +91,7 @@ public:
 
   // For data trees. MC is always true
   bool const& isUniqueDataEvent() const{ return product_uniqueEvent; }
+  bool const& passDataCert() const{ return product_passDataCert; }
 
   void setTrackDataEvents(bool flag){ this->trackDataEvents=flag; }
   void setCheckUniqueDataEvent(bool flag){ this->checkUniqueDataEvent=flag; }
@@ -99,8 +104,10 @@ public:
   std::unordered_map<std::string, bool> const& getMETFilters() const{ return this->product_metfilters; }
 
   void bookBranches(BaseTree* intree);
-  static std::vector<std::string> acquireMETFilterFlags(BaseTree* intree);
 
+  void loadGoldenJSON(std::string strjsonfname);
+
+  static std::vector<std::string> acquireMETFilterFlags(BaseTree* intree);
 };
 
 
