@@ -48,6 +48,11 @@ def get_tasks(args):
             if dataset.strip().startswith("#"):
                continue
             sample = None
+            xsecval=float(1.)
+            BRval=float(1.)
+            if "AODSIM" in dataset:
+               xsecval=row["xsec"]
+               BRval=row["BR"]
             if 'private' in dataset:
                if localSearchDir is None:
                   raise RuntimeError("The collection of samples contains a private sample {}, but no local search directory is specified.".format(dataset))
@@ -64,9 +69,9 @@ def get_tasks(args):
                else:
                   print("Files for {} are found under {}".format(dataset, dset_local_input_dir))
 
-               sample = DirectorySample(dataset=dataset, xsec=row["xsec"], efact=row["BR"], location=dset_local_input_dir)
+               sample = DirectorySample(dataset=dataset, xsec=xsecval, efact=BRval, location=dset_local_input_dir)
             else:
-               sample = DBSSample(dataset=dataset, xsec=row["xsec"], efact=row["BR"])
+               sample = DBSSample(dataset=dataset, xsec=xsecval, efact=BRval)
             sample.info["shortname"] = row["short_name"] # Add another entry into the dictionary of the sample
             sample.info["period"] = row["period"]
             opts=row["extra_arguments"]

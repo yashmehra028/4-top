@@ -8,6 +8,7 @@
 DILEPTON_VARIABLE(bool, isValid, false) \
 DILEPTON_VARIABLE(bool, isOS, false) \
 DILEPTON_VARIABLE(bool, isSF, false) \
+DILEPTON_VARIABLE(int, pdgIdMult, -9000) \
 DILEPTON_VARIABLE(unsigned char, nTightDaughters, 0)
 
 
@@ -40,10 +41,10 @@ public:
 
   void configure();
 
-  bool isValid() const{ return extras.isValid; }
-  bool isOS() const{ return extras.isOS; }
-  bool isSF() const{ return extras.isSF; }
-  unsigned char nTightDaughters() const{ return extras.nTightDaughters; }
+#define DILEPTON_VARIABLE(TYPE, NAME, DEFVAL) TYPE NAME() const{ return extras.NAME; }
+  DILEPTON_VARIABLES;
+#undef DILEPTON_VARIABLE
+
   ParticleObject* getDaughter_leadingPt() const;
   ParticleObject* getDaughter_subleadingPt() const;
 

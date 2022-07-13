@@ -1,6 +1,9 @@
 #include <algorithm>
 #include <utility>
+#include <cmath>
 #include "ElectronObject.h"
+#include "AK4JetObject.h"
+#include "TVector3.h"
 
 
 ElectronVariables::ElectronVariables(){
@@ -51,4 +54,25 @@ ElectronObject& ElectronObject::operator=(const ElectronObject& other){
 }
 ElectronObject::~ElectronObject(){}
 
+IvyParticle::LorentzVector_t::Scalar ElectronObject::ptrel() const{
+  AK4JetObject* mother = nullptr;
+  for (auto const& mom:mothers){
+    mother = dynamic_cast<AK4JetObject*>(mom);
+    if (mother) break;
+  }
+  if (!mother) return 0.;
+  TVector3 p3_part = this->p4_TLV().Vect();
+  TVector3 p3_jet = mother->p4_TLV().Vect();
+  TVector3 p3_diff = p3_jet - p3_part;
+  return std::abs(p3_diff.Cross(p3_part).Mag()/p3_diff.Mag());
+}
+IvyParticle::LorentzVector_t::Scalar ElectronObject::ptratio() const{
+  AK4JetObject* mother = nullptr;
+  for (auto const& mom:mothers){
+    mother = dynamic_cast<AK4JetObject*>(mom);
+    if (mother) break;
+  }
+  if (!mother) return 0.;
+  return this->pt() / mother->pt();
+}
 

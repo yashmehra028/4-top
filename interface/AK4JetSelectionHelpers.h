@@ -18,9 +18,10 @@ namespace AK4JetSelectionHelpers{
   };
 
   // Kinematic pT thresholds
-  constexpr float ptThr = 40.; 
+  constexpr float ptThr = 30.; 
 
   // Kinematic eta thresholds
+  constexpr float etaThr_common = 4.7;
   constexpr float etaThr_btag_Phase0Tracker = 2.4;
   constexpr float etaThr_btag_Phase1Tracker = 2.5;
 

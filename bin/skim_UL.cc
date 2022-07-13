@@ -199,6 +199,7 @@ if (MAXSIZE>0) tin->getSelectedTree()->SetBranchStatus(Form("n%s", GlobalCollect
   double sum_wgts_PUUp=0;
 
   bool firstOutputEvent = true;
+  unsigned int n_traversed = 0;
   int nEntries = tin->getNEvents();
   IVYout << "Looping over " << nEntries << " events..." << endl;
   for (int ev=0; ev<nEntries; ev++){
@@ -206,6 +207,7 @@ if (MAXSIZE>0) tin->getSelectedTree()->SetBranchStatus(Form("n%s", GlobalCollect
 
     tin->getEvent(ev);
     HelperFunctions::progressbar(ev, nEntries);
+    n_traversed++;
 
     genInfoHandler.constructGenInfo();
     auto const& genInfo = genInfoHandler.getGenInfo();
@@ -385,7 +387,7 @@ if (MAXSIZE>0) tin->getSelectedTree()->SetBranchStatus(Form("n%s", GlobalCollect
   }
 
   frac_zero_genwgts = double(n_zero_genwgts)/double(nEntries);
-  IVYout << "Number of events recorded: " << tout->getNEvents() << " / " << nEntries << endl;
+  IVYout << "Number of events recorded: " << tout->getNEvents() << " / " << n_traversed << " / " << nEntries << endl;
   seltracker.print();
   if (!isData){
     IVYout << "Writing the sum of gen. weights:" << endl;

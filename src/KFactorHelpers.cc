@@ -797,6 +797,8 @@ namespace KFactorHelpers{
     curdir->cd();
   }
   void KFactorHandler_QCD_ggVV_Sig::eval(KFactorHelpers::KFactorType type, KFactorHelpers::KFactorType denominator, std::unordered_map<TString, float>& kfactors_map) const{
+    static const std::string kfactorname_N3LO = "KFactor_QCD_NNLO_N3LO_ggVV_Sig_Nominal";
+    constexpr double kfactor_n3lo = 1.098946;
     static const std::vector<std::string> kfactornames{
       "KFactor_QCD_NNLO_ggVV_Sig_Nominal",
       "KFactor_QCD_NNLO_ggVV_Sig_QCDScaleDn",
@@ -831,24 +833,38 @@ namespace KFactorHelpers{
     case kf_QCD_NLO_GGVV_SIG:
       kfactor_denominator = sp_NLO.front()->Eval(kfactor_arg);
       break;
+    case nKFactorTypes:
+      break;
     default:
+      IVYerr << "KFactorHandler_QCD_ggVV_Sig::eval: K factor denominator " << denominator << " is not implemented." << endl;
+      assert(0);
       break;
     }
 
     size_t ikf=0;
-    if (type == kf_QCD_NNLO_GGVV_SIG){
+    switch (type){
+    case kf_QCD_NNLO_N3LO_GGVV_SIG:
+      kfactors_map[kfactorname_N3LO] = kfactor_n3lo;
+      break;
+    case kf_QCD_NNLO_GGVV_SIG:
       for (auto const& spkf:sp_NNLO){
         kfactors_map[kfactornames.at(ikf)] = spkf->Eval(kfactor_arg) / kfactor_denominator;
         ikf++;
       }
-    }
-    ikf = sp_NNLO.size();
-    if (type == kf_QCD_NLO_GGVV_SIG){
+      break;
+    case kf_QCD_NLO_GGVV_SIG:
+      ikf = sp_NNLO.size();
       for (auto const& spkf:sp_NLO){
         kfactors_map[kfactornames.at(ikf)] = spkf->Eval(kfactor_arg) / kfactor_denominator;
         ikf++;
       }
+      break;
+    default:
+      IVYerr << "KFactorHandler_QCD_ggVV_Sig::eval: K factor numerator " << type << " is not implemented." << endl;
+      assert(0);
+      break;
     }
+
   }
 
 

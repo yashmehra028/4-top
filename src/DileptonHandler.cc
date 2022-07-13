@@ -63,7 +63,7 @@ bool DileptonHandler::constructSSDileptons(
       }
     }
     // SSDF
-    for (int c=0; c<2; c++){
+    for (int c=0; c<1; c++){ // Index only reaches 1 becuase e+mu+ and mu+e+ are the same collections.
       for (ParticleObject* F1:lepMinusPlus[c][s]){
         for (ParticleObject* F2:lepMinusPlus[1-c][s]){
           if (ParticleObject::checkDeepDaughtership(F1, F2)) continue;

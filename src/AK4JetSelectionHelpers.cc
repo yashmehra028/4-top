@@ -30,6 +30,11 @@ bool AK4JetSelectionHelpers::testId(AK4JetObject const& part){
 bool AK4JetSelectionHelpers::testBTag(AK4JetObject const& part){
   auto const& dp = SampleHelpers::getDataPeriod();
   auto const& dy = SampleHelpers::getDataYear();
+
+  float etaThr = -1;
+  if (dy<=2016) etaThr = etaThr_btag_Phase0Tracker;
+  else etaThr = etaThr_btag_Phase1Tracker;
+
   float deepFlavThr = 1e9;
   if (dy==2016) deepFlavThr = (SampleHelpers::isAPV2016Affected(dp) ? deepFlavThr_2016_APV : deepFlavThr_2016_NonAPV);
   else if (dy==2017) deepFlavThr = deepFlavThr_2017;
@@ -38,13 +43,10 @@ bool AK4JetSelectionHelpers::testBTag(AK4JetObject const& part){
     IVYerr << "AK4JetSelectionHelpers::testB: Data period " << dp << " is not defined." << endl;
     assert(0);
   }
-  return (part.extras.btagDeepFlavB>deepFlavThr);
+  return (part.extras.btagDeepFlavB>deepFlavThr && std::abs(part.eta())<etaThr);
 }
 bool AK4JetSelectionHelpers::testKin(AK4JetObject const& part){
-  float etaThr = -1;
-  if (SampleHelpers::getDataYear()<=2016) etaThr = etaThr_btag_Phase0Tracker;
-  else etaThr = etaThr_btag_Phase1Tracker;
-  return (part.pt()>=ptThr && std::abs(part.eta())<etaThr);
+  return (part.pt()>=ptThr && std::abs(part.eta())<etaThr_common);
 }
 
 bool AK4JetSelectionHelpers::testPreselectionTight(AK4JetObject const& part){

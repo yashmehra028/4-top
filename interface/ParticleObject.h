@@ -16,6 +16,9 @@ public:
   // Swap and assignment operators are not virtual; they bring more complication than necessary, so they are implemented in the derived classes.
   void swap(ParticleObject& other);
 
+  virtual LorentzVector_t::Scalar ptrel() const{ return 0; }
+  virtual LorentzVector_t::Scalar ptratio() const{ return 0; }
+
 };
 
 #endif

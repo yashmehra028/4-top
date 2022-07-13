@@ -14,6 +14,7 @@ namespace SampleHelpers{
   int theDataYear=2018;
   TString theDataPeriod="2018"; // Initialize the extern here to 2018
   TString theInputDirectory=""; // Initialize the extern here to empty string
+  TString theInputTag=""; // Initialize the extern here to empty string
 
   std::vector< std::pair< std::vector< std::pair<unsigned int, unsigned int> >, TString > > const runRangeList_dataPeriod_pair_list = define_runRangeList_dataPeriod_pair_list();
   std::unordered_map< TString, std::vector< std::pair<unsigned int, double> > > const dataPeriod_runNumber_lumi_pairs_map = define_dataPeriod_runNumber_lumi_pairs_map();
@@ -50,10 +51,12 @@ void SampleHelpers::setInputDirectory(TString s){
   }
   theInputDirectory=s;
 }
+void SampleHelpers::setInputTag(TString s){ theInputTag = s; }
 
 int const& SampleHelpers::getDataYear(){ return theDataYear; }
 TString const& SampleHelpers::getDataPeriod(){ return theDataPeriod; }
 TString const& SampleHelpers::getInputDirectory(){ return theInputDirectory; }
+TString const& SampleHelpers::getInputTag(){ return theInputTag; }
 TString SampleHelpers::getSqrtsString(){
   switch (theDataYear){
   case 2011:
@@ -169,7 +172,7 @@ std::vector< std::pair<unsigned int, double> > const& SampleHelpers::getRunNumbe
   return it->second;
 }
 
-bool SampleHelpers::isAPV2016Affected(unsigned int run){ return ((run>=272007 && run<278769) || run==278770 || run==278807); } // The last two runs are not actually affected, but there was a mistake at reco., so we include them here as well.
+bool SampleHelpers::isAPV2016Affected(unsigned int run){ return ((run>=272007 && run<278769) || run==278770 || run==278806 || run==278807); } // The last two runs are not actually affected, but there was a mistake at reco., so we include them here as well.
 bool SampleHelpers::isAPV2016Affected(TString const& period){
   return period.Contains("_APV") || period=="2016B" || period=="2016C" || period=="2016D" || period=="2016E";
 }

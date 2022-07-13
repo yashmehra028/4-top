@@ -38,6 +38,9 @@ public:
 
   float etaSC() const{ return this->extras.deltaEtaSC + this->eta(); }
 
+  LorentzVector_t::Scalar ptrel() const;
+  LorentzVector_t::Scalar ptratio() const;
+
 };
 
 #endif

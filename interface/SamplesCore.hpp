@@ -6,6 +6,7 @@
 #include <cmath>
 #include <unordered_map>
 #include "IvyFramework/IvyDataTools/interface/HelperFunctions.h"
+#include "IvyFramework/IvyDataTools/interface/IvyStreamHelpers.hh"
 #include "SamplesCore.h"
 
 
@@ -1431,13 +1432,14 @@ std::unordered_map< TString, double > SampleHelpers::define_dataPeriod_lumi_map(
         if (!HelperFunctions::getUnorderedMapIterator(period_HEMaffected, res, it)) res[period_HEMaffected] = rn_lumi_pair.second;
         else it->second += rn_lumi_pair.second;
       }
-      if (getDataYearFromPeriod(period)==2016){
+      if (getDataYearFromPeriod(period)==2016 && period!="2016"){
         TString period_APV = TString("2016_") + (isAPV2016Affected(rn_lumi_pair.first) ? "" : "Non") + "APV";
         if (!HelperFunctions::getUnorderedMapIterator(period_APV, res, it)) res[period_APV] = rn_lumi_pair.second;
         else it->second += rn_lumi_pair.second;
       }
     }
   }
+
   return res;
 }
 

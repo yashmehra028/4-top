@@ -21,15 +21,18 @@ namespace SampleHelpers{
   extern int theDataYear;
   extern TString theDataPeriod;
   extern TString theInputDirectory;
+  extern TString theInputTag;
 
   void setDataPeriod(TString s);
   void setInputDirectory(TString s);
+  void setInputTag(TString s);
 
   void configure(TString period, TString stag, HostHelpers::Hosts input_host = HostHelpers::kUCSDT2); // Run this before doing anything else!
 
   int const& getDataYear();
   TString const& getDataPeriod();
   TString const& getInputDirectory();
+  TString const& getInputTag();
   TString getSqrtsString();
 
   int getDataYearFromPeriod(TString const& period);

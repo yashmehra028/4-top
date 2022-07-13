@@ -5,11 +5,13 @@
 #include "MuonObject.h"
 #include "ElectronObject.h"
 #include "PhotonObject.h"
+#include "AK4JetObject.h"
 
 
 class MuonHandler;
 class ElectronHandler;
 class PhotonHandler;
+class JetMETHandler;
 
 
 class ParticleDisambiguator{
@@ -18,7 +20,7 @@ protected:
     std::vector<MuonObject*>*& muons,
     std::vector<ElectronObject*>*& electrons,
     std::vector<PhotonObject*>*& photons,
-    bool doDeleteObjects
+    std::vector<AK4JetObject*>*& ak4jets
   );
 
 public:
@@ -27,7 +29,8 @@ public:
   void disambiguateParticles(
     MuonHandler* muonHandle,
     ElectronHandler* electronHandle,
-    PhotonHandler* photonHandle
+    PhotonHandler* photonHandle,
+    JetMETHandler* jetHandle
   );
 
 };

@@ -40,6 +40,9 @@ public:
 
   void swap(MuonObject& other);
 
+  LorentzVector_t::Scalar ptrel() const;
+  LorentzVector_t::Scalar ptratio() const;
+
 };
 
 #endif

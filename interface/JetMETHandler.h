@@ -6,6 +6,7 @@
 #include "SimEventHandler.h"
 #include "AK4JetObject.h"
 #include "METObject.h"
+#include "ParticleDisambiguator.h"
 
 
 class JetMETHandler : public IvyBase{
@@ -15,6 +16,8 @@ public:
   static const std::string colName_pfmet;
 
 protected:
+  friend class ParticleDisambiguator;
+
   std::vector<AK4JetObject*> ak4jets;
   std::vector<AK4JetObject*> ak4jets_masked;
 

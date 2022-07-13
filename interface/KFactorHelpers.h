@@ -14,6 +14,7 @@
 namespace KFactorHelpers{
   // Various enumerators
   enum KFactorType{
+    kf_QCD_NNLO_N3LO_GGVV_SIG,
     kf_QCD_NNLO_GGVV_SIG,
     kf_QCD_NLO_GGVV_SIG,
 

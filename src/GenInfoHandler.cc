@@ -290,7 +290,8 @@ this->defineConsumedSloppy(#NAME);
 void GenInfoHandler::setupKFactorHandles(std::vector<std::string> const& strkfactoropts){
   std::vector<std::pair<std::string, std::string>> kfactorsets;
   for (auto const& strkfactoropt:strkfactoropts){
-    if (strkfactoropt == "applyKFactorQCDLOtoNNLOggVVSig" || strkfactoropt == "applyKFactorQCDNLOtoNNLOggVVSig") kfactorsets.emplace_back(
+    if (strkfactoropt == "applyKFactorQCDNNLOtoN3LOggVVSig") kfactorsets.emplace_back("kfactor_qcd_nnlo_n3lo_ggvv_sig", "");
+    else if (strkfactoropt == "applyKFactorQCDLOtoNNLOggVVSig" || strkfactoropt == "applyKFactorQCDNLOtoNNLOggVVSig") kfactorsets.emplace_back(
       "kfactor_qcd_nnlo_ggvv_sig",
       (strkfactoropt == "applyKFactorQCDLOtoNNLOggVVSig" ? "" : "kfactor_qcd_nlo_ggvv_sig")
     );
@@ -325,7 +326,8 @@ void GenInfoHandler::setupKFactorHandles(std::vector<std::string> const& strkfac
     // Build K factors
     KFactorHelpers::KFactorType numerator = KFactorHelpers::nKFactorTypes;
     KFactorHelpers::KFactorType denominator = KFactorHelpers::nKFactorTypes;
-    if (strkfactor_num_lower == "kfactor_qcd_nnlo_ggvv_sig") numerator = KFactorHelpers::kf_QCD_NNLO_GGVV_SIG;
+    if (strkfactor_num_lower == "kfactor_qcd_nnlo_n3lo_ggvv_sig") numerator = KFactorHelpers::kf_QCD_NNLO_N3LO_GGVV_SIG;
+    else if (strkfactor_num_lower == "kfactor_qcd_nnlo_ggvv_sig") numerator = KFactorHelpers::kf_QCD_NNLO_GGVV_SIG;
     else if (strkfactor_num_lower == "kfactor_qcd_nlo_ggvv_sig") numerator = KFactorHelpers::kf_QCD_NLO_GGVV_SIG;
     else if (strkfactor_num_lower == "kfactor_qcd_nnlo_qqzz_bkg") numerator = KFactorHelpers::kf_QCD_NNLO_QQZZ_BKG;
     else if (strkfactor_num_lower == "kfactor_qcd_nnlo_qqwz_bkg") numerator = KFactorHelpers::kf_QCD_NNLO_QQWZ_BKG;
@@ -334,23 +336,33 @@ void GenInfoHandler::setupKFactorHandles(std::vector<std::string> const& strkfac
     else if (strkfactor_num_lower == "kfactor_ew_nlo_qqwz_bkg") numerator = KFactorHelpers::kf_EW_NLO_QQWZ_BKG;
     else if (strkfactor_num_lower == "kfactor_ew_nlo_qqww_bkg") numerator = KFactorHelpers::kf_EW_NLO_QQWW_BKG;
     else{
-      IVYerr << Form("GenInfoHandler::setupKFactorHandles: Cannot identify the numerator of the K factor pair (%s, %s).", strkfactor_num.data(), strkfactor_den.data()) << endl;
+      if (this->verbosity>=MiscUtils::ERROR) IVYerr << Form("GenInfoHandler::setupKFactorHandles: Cannot identify the numerator of the K factor pair (%s, %s).", strkfactor_num.data(), strkfactor_den.data()) << endl;
       assert(0);
     }
 
-    bool doBuild_KFactor_QCD_ggVV_Sig_handle = (numerator==KFactorHelpers::kf_QCD_NNLO_GGVV_SIG || numerator==KFactorHelpers::kf_QCD_NLO_GGVV_SIG);
+    bool doBuild_KFactor_QCD_ggVV_Sig_handle = (numerator==KFactorHelpers::kf_QCD_NNLO_N3LO_GGVV_SIG || numerator==KFactorHelpers::kf_QCD_NNLO_GGVV_SIG || numerator==KFactorHelpers::kf_QCD_NLO_GGVV_SIG);
     if (doBuild_KFactor_QCD_ggVV_Sig_handle){
-      if (strkfactor_den_lower == "kfactor_qcd_nnlo_ggvv_sig") denominator = KFactorHelpers::kf_QCD_NNLO_GGVV_SIG;
+      if (strkfactor_den_lower == "kfactor_qcd_nnlo_n3lo_ggvv_sig") denominator = KFactorHelpers::kf_QCD_NNLO_N3LO_GGVV_SIG;
+      else if (strkfactor_den_lower == "kfactor_qcd_nnlo_ggvv_sig") denominator = KFactorHelpers::kf_QCD_NNLO_GGVV_SIG;
       else if (strkfactor_den_lower == "kfactor_qcd_nlo_ggvv_sig") denominator = KFactorHelpers::kf_QCD_NLO_GGVV_SIG;
-      else if (strkfactor_den_lower != ""){ IVYerr << Form("GenInfoHandler::setupKFactorHandles: K factor pair (%s, %s) is not implemented.", strkfactor_num.data(), strkfactor_den.data()) << endl; assert(0); }
-      KFactor_QCD_ggVV_Sig_handle = new KFactorHelpers::KFactorHandler_QCD_ggVV_Sig(SampleHelpers::getDataYear());
+      else if (strkfactor_den_lower != ""){
+        if (this->verbosity>=MiscUtils::ERROR) IVYerr << Form("GenInfoHandler::setupKFactorHandles: K factor pair (%s, %s) is not implemented.", strkfactor_num.data(), strkfactor_den.data()) << endl;
+        assert(0);
+      }
+      if (!KFactor_QCD_ggVV_Sig_handle) KFactor_QCD_ggVV_Sig_handle = new KFactorHelpers::KFactorHandler_QCD_ggVV_Sig(SampleHelpers::getDataYear());
     }
 
     bool doBuild_KFactor_QCD_qqVV_Bkg_handle = (numerator==KFactorHelpers::kf_QCD_NNLO_QQZZ_BKG || numerator==KFactorHelpers::kf_QCD_NNLO_QQWZ_BKG || numerator==KFactorHelpers::kf_QCD_NNLO_QQWW_BKG);
-    if (doBuild_KFactor_QCD_qqVV_Bkg_handle) KFactor_QCD_qqVV_Bkg_handle = new KFactorHelpers::KFactorHandler_QCD_qqVV_Bkg(SampleHelpers::getDataYear());
+    if (doBuild_KFactor_QCD_qqVV_Bkg_handle && !KFactor_QCD_qqVV_Bkg_handle) KFactor_QCD_qqVV_Bkg_handle = new KFactorHelpers::KFactorHandler_QCD_qqVV_Bkg(SampleHelpers::getDataYear());
 
     bool doBuild_KFactor_EW_qqVV_Bkg_handle = (numerator==KFactorHelpers::kf_EW_NLO_QQZZ_BKG || numerator==KFactorHelpers::kf_EW_NLO_QQWZ_BKG || numerator==KFactorHelpers::kf_EW_NLO_QQWW_BKG);
-    if (doBuild_KFactor_EW_qqVV_Bkg_handle) KFactor_EW_qqVV_Bkg_handle = new KFactorHelpers::KFactorHandler_EW_qqVV_Bkg(SampleHelpers::getDataYear(), numerator);
+    if (doBuild_KFactor_EW_qqVV_Bkg_handle){
+      if (KFactor_EW_qqVV_Bkg_handle){
+        if (this->verbosity>=MiscUtils::ERROR) IVYerr << "GenInfoHandler::setupKFactorHandles: KFactor_EW_qqVV_Bkg_handle is already set up!" << endl;
+        assert(0);
+      }
+      KFactor_EW_qqVV_Bkg_handle = new KFactorHelpers::KFactorHandler_EW_qqVV_Bkg(SampleHelpers::getDataYear(), numerator);
+    }
 
     if (numerator!=KFactorHelpers::nKFactorTypes) kfactor_num_denum_list.emplace_back(numerator, denominator);
   }
@@ -376,7 +388,13 @@ bool GenInfoHandler::computeKFactors(){
     }
 
     for (auto const& kfpair:kfactor_num_denum_list){
-      if (kfpair.first == KFactorHelpers::kf_QCD_NNLO_GGVV_SIG || kfpair.first == KFactorHelpers::kf_QCD_NLO_GGVV_SIG) KFactor_QCD_ggVV_Sig_handle->eval(kfpair.first, kfpair.second, genInfo->extras.Kfactors);
+      if (
+        kfpair.first == KFactorHelpers::kf_QCD_NNLO_N3LO_GGVV_SIG
+        ||
+        kfpair.first == KFactorHelpers::kf_QCD_NNLO_GGVV_SIG
+        ||
+        kfpair.first == KFactorHelpers::kf_QCD_NLO_GGVV_SIG
+        ) KFactor_QCD_ggVV_Sig_handle->eval(kfpair.first, kfpair.second, genInfo->extras.Kfactors);
     }
   }
 
