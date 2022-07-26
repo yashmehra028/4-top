@@ -123,6 +123,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   // Acquire input tree/chain
   TString strinput = SampleHelpers::getInputDirectory() + "/" + SampleHelpers::getDataPeriod() + "/" + proc.data();
   TString cinput = (input_files=="" ? strinput + "/*.root" : strinput + "/" + input_files.data());
+  IVYout << "Accessing input files " << cinput << "..." << endl;
   BaseTree* tin = new BaseTree(cinput, "Events", "", "");
   tin->sampleIdentifier = SampleHelpers::getSampleIdentifier(dset);
   bool const isData = SampleHelpers::checkSampleIsData(tin->sampleIdentifier);
@@ -441,17 +442,17 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     if (icat>=0) hCat->Fill(static_cast<double>(icat-1)+0.5, static_cast<double>(iCRZ)+0.5, wgt);
 
     if (runSyncExercise) foutput_sync
-        << ev << ","
-        << *ptr_EventNumber << ","
-        << eventmet->pt() << ","
-        << nleptons_selected << ","
-        << nleptons_tight << ","
-        << (dilepton_SS_tight ? 1 : 0) << ","
-        << ak4jets_pt40_HT << ","
-        << nak4jets_tight_pt40 << ","
-        << nak4jets_tight_pt25_btagged << ","
-        << (iCRZ ? "Z" : (icat==idx_CRW ? "W" : (icat==0 ? "N/A" : std::to_string(icat).data())))
-        << endl;
+      << *ptr_EventNumber << ","
+      << ev << ","
+      << eventmet->pt() << ","
+      << nleptons_selected << ","
+      << nleptons_tight << ","
+      << (dilepton_SS_tight ? "SS" : "!SS") << ","
+      << ak4jets_pt40_HT << ","
+      << nak4jets_tight_pt40 << ","
+      << nak4jets_tight_pt25_btagged << ","
+      << (iCRZ ? "Z" : (icat==idx_CRW ? "W" : (icat==0 ? "N/A" : std::to_string(icat).data())))
+      << endl;
 
     n_recorded++;
 
