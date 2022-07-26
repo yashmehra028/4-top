@@ -13,7 +13,9 @@
 #include "IvyFramework/IvyDataTools/interface/HelperFunctions.h"
 #include "IvyFramework/IvyDataTools/interface/IvyStreamHelpers.hh"
 #include "IvyFramework/IvyDataTools/interface/BaseTree.h"
+#include "IvyFramework/IvyDataTools/interface/SimpleEntry.h"
 #include "GlobalCollectionNames.h"
+#include "RunLumiEventBlock.h"
 #include "SamplesCore.h"
 #include "MuonSelectionHelpers.h"
 #include "ElectronSelectionHelpers.h"
@@ -63,25 +65,34 @@ void SelectionTracker::print() const{
   }
 }
 
-
-int ScanChain(std::string const& strdate, ::string const& dset, std::string const& proc, double const& xsec){
+int ScanChain(std::string const& strdate, std::string const& dset, std::string const& proc, double const& xsec, SimpleEntry const& extra_arguments){
   if (!SampleHelpers::checkRunOnCondor()) std::signal(SIGINT, SampleHelpers::setSignalInterrupt);
 
   TDirectory* curdir = gDirectory;
 
   float const absEtaThr_ak4jets = (SampleHelpers::getDataYear()<=2016 ? AK4JetSelectionHelpers::etaThr_btag_Phase0Tracker : AK4JetSelectionHelpers::etaThr_btag_Phase1Tracker);
 
+  // Turn on synchronization exercise options
+  std::string input_files;
+  extra_arguments.getNamedVal("input_files", input_files);
+  bool runSyncExercise = false;
+  extra_arguments.getNamedVal("run_sync", runSyncExercise);
+
+  // This is the output directory.
+  // Output should always be recorded as if you are running the job locally.
+  // We will inform the Condor job later on that some files would need transfer if we are running on Condor.
   TString coutput_main = ANALYSISPKGPATH + "test/output/Analysis_CutBased/" + strdate.data() + "/" + SampleHelpers::getDataPeriod();
   HostHelpers::ExpandEnvironmentVariables(coutput_main);
   gSystem->mkdir(coutput_main, true);
-  TString stroutput = coutput_main + "/" + proc.data() + ".root";
+  TString stroutput = coutput_main + "/" + proc.data() + ".root"; // This is the output file.
 
+  // Trigger configuration
   std::vector<TriggerHelpers::TriggerType> requiredTriggers_Dilepton{
     TriggerHelpers::kDoubleMu,
     TriggerHelpers::kDoubleEle,
     TriggerHelpers::kMuEle
   };
-  // These PFHT triggers were used in the 2016 analysis. We keep them for now, but we could drop them later.
+  // These PFHT triggers were used in the 2016 analysis. They are a bit more efficient.
   if (SampleHelpers::getDataYear()==2016) requiredTriggers_Dilepton = std::vector<TriggerHelpers::TriggerType>{
       TriggerHelpers::kDoubleMu_PFHT,
       TriggerHelpers::kDoubleEle_PFHT,
@@ -102,8 +113,7 @@ int ScanChain(std::string const& strdate, ::string const& dset, std::string cons
   DileptonHandler dileptonHandler;
   ParticleDisambiguator particleDisambiguator;
 
-  //dileptonHandler.setVerbosity(MiscUtils::DEBUG);
-  // Disable some advanced event tracking for skims
+  // Some advanced event filters
   eventFilter.setTrackDataEvents(true);
   eventFilter.setCheckUniqueDataEvent(true);
   eventFilter.setCheckHLTPathRunRanges(true);
@@ -112,7 +122,7 @@ int ScanChain(std::string const& strdate, ::string const& dset, std::string cons
 
   // Acquire input tree/chain
   TString strinput = SampleHelpers::getInputDirectory() + "/" + SampleHelpers::getDataPeriod() + "/" + proc.data();
-  TString cinput = strinput + "/*.root";
+  TString cinput = (input_files=="" ? strinput + "/*.root" : strinput + "/" + input_files.data());
   BaseTree* tin = new BaseTree(cinput, "Events", "", "");
   tin->sampleIdentifier = SampleHelpers::getSampleIdentifier(dset);
   bool const isData = SampleHelpers::checkSampleIsData(tin->sampleIdentifier);
@@ -122,12 +132,15 @@ int ScanChain(std::string const& strdate, ::string const& dset, std::string cons
   }
 
   double sum_wgts = (isData ? 1 : 0);
-  for (auto const& fname:SampleHelpers::lsdir(strinput.Data())){
-    if (fname.EndsWith(".root")){
-      TFile* ftmp = TFile::Open(strinput + "/" + fname, "read");
-      TH2D* hCounters = (TH2D*) ftmp->Get("Counters");
-      sum_wgts += hCounters->GetBinContent(1, 1);
-      ftmp->Close();
+  if (!isData){
+    for (auto const& fname:SampleHelpers::lsdir(strinput.Data())){
+      if (runSyncExercise && fname!=input_files.data()) continue;
+      if (fname.EndsWith(".root")){
+        TFile* ftmp = TFile::Open(strinput + "/" + fname, "read");
+        TH2D* hCounters = (TH2D*) ftmp->Get("Counters");
+        sum_wgts += hCounters->GetBinContent(1, 1);
+        ftmp->Close();
+      }
     }
   }
   if (sum_wgts==0.){
@@ -137,6 +150,9 @@ int ScanChain(std::string const& strdate, ::string const& dset, std::string cons
 
   curdir->cd();
 
+  // Calculate the overall normalization scale on the events.
+  // Includes xsec (in fb), lumi (in fb-1), and 1/sum of weights in all of the MC.
+  // Data normalizaion factor is always 1.
   double const lumi = SampleHelpers::getIntegratedLuminosity(SampleHelpers::getDataPeriod());
   double norm_scale = (isData ? 1. : xsec * xsecScale * lumi)/sum_wgts;
 
@@ -146,7 +162,14 @@ int ScanChain(std::string const& strdate, ::string const& dset, std::string cons
 
   curdir->cd();
 
-  // Wrap the ivies around the input tree
+  // Wrap the ivies around the input tree:
+  // Booking is basically SetBranchStatus+SetBranchAddress. You can book for as many trees as you would like.
+  // In some cases, bookBranches also informs the ivy dynamically that it is supposed to consume certain entries.
+  // For entries common to all years or any data or MC, the consumption information is handled in the ivy constructor already.
+  // None of these mean the ivy establishes its access to the input tree yet.
+  // Wrapping a tree informs the ivy that it is supposed to consume the booked entries from that particular tree.
+  // Without wrapping, you are not really accessing the entries from the input tree to construct the physics objects;
+  // all you would get are 0 electrons, 0 jets, everything failing event filters etc.
   genInfoHandler.bookBranches(tin);
   genInfoHandler.wrapTree(tin);
 
@@ -168,6 +191,12 @@ int ScanChain(std::string const& strdate, ::string const& dset, std::string cons
   isotrackHandler.bookBranches(tin);
   isotrackHandler.wrapTree(tin);
 
+  EventNumber_t* ptr_EventNumber = nullptr;
+  if (runSyncExercise){
+    tin->bookBranch<EventNumber_t>("event", 0);
+    tin->getValRef("event", ptr_EventNumber);
+  }
+
   TFile* foutput = TFile::Open(stroutput, "recreate");
   foutput->cd();
   TH2D* hCat = new TH2D("hCat", "", 15, 0, 15, 2, 0, 2); hCat->Sumw2();
@@ -179,6 +208,14 @@ int ScanChain(std::string const& strdate, ::string const& dset, std::string cons
   hCat->GetYaxis()->SetBinLabel(2, "CRZ");
 
   curdir->cd();
+
+  // Create a sync file
+  ofstream foutput_sync;
+  TString stroutput_sync = coutput_main + "/" + Form("sync_%s.csv", proc.data());
+  if (runSyncExercise){
+    foutput_sync.open(stroutput_sync.Data(), std::ios_base::out);
+    foutput_sync << "Event#,#inFile,MET,Nlooseleptons,Ntightleptons,Goodsspair?,HT,Njets,Nbjets,SR/CR" << endl;
+  }
 
   // Keep track of sums of weights
   SelectionTracker seltracker;
@@ -209,11 +246,23 @@ int ScanChain(std::string const& strdate, ::string const& dset, std::string cons
       puwgt = simEventHandler.getPileUpWeight(SystematicsHelpers::sNominal);
 
       wgt = genwgt * puwgt;
+
+      // Add L1 prefiring weight for 2016 and 2017
+      //wgt *= simEventHandler.getL1PrefiringWeight(SystematicsHelpers::sNominal);
     }
 
     muonHandler.constructMuons();
     electronHandler.constructElectrons();
     jetHandler.constructJetMET(&simEventHandler);
+
+    // !!!IMPORTANT!!!
+    // NEVER USE LEPTONS AND JETS IN AN ANALYSIS BEFORE SOME FORM OF DISAMBIGUATION BETWEEN THEM!
+    // Muon and electron handlers only apply mini. iso. reqs.
+    // In order to compute pTratio and pTrel, you need jets.
+    // ParticleDisambiguator does the matching, and assigns the overlapping jets (or closest ones) as 'mothers' of the leptons.
+    // Once mothers are assigned, ParticleObject::ptratio and ptrel functions work as intended,
+    // and you can apply the additional selections on these variables this way.
+    // ParticleDisambiguator then cleans all geometrically overlapping jets by resetting their selection bits, which makes them unusable.
     particleDisambiguator.disambiguateParticles(&muonHandler, &electronHandler, nullptr, &jetHandler);
 
     auto const& muons = muonHandler.getProducts();
@@ -254,38 +303,40 @@ int ScanChain(std::string const& strdate, ::string const& dset, std::string cons
     for (auto const& part:electrons_tight) leptons_tight.push_back(dynamic_cast<ParticleObject*>(part));
     ParticleObjectHelpers::sortByGreaterPt(leptons_tight);
 
-    double ak4jets_pt4_HT=0;
+    double ak4jets_pt40_HT=0;
     auto const& ak4jets = jetHandler.getAK4Jets();
     std::vector<AK4JetObject*> ak4jets_tight_pt40;
-    std::vector<AK4JetObject*> ak4jets_tight_pt40_btagged;
+    std::vector<AK4JetObject*> ak4jets_tight_pt25_btagged;
     for (auto const& jet:ak4jets){
-      if (ParticleSelectionHelpers::isTightJet(jet) && jet->pt()>=40. && std::abs(jet->eta())<absEtaThr_ak4jets){
-        ak4jets_tight_pt40.push_back(jet);
-        ak4jets_pt4_HT += jet->pt();
-        if (jet->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTagged)) ak4jets_tight_pt40_btagged.push_back(jet);
+      if (ParticleSelectionHelpers::isTightJet(jet) && jet->pt()>=25. && std::abs(jet->eta())<absEtaThr_ak4jets){
+        if (jet->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTagged)) ak4jets_tight_pt25_btagged.push_back(jet);
+        if (jet->pt()>=40.){
+          ak4jets_tight_pt40.push_back(jet);
+          ak4jets_pt40_HT += jet->pt();
+        }
       }
     }
     unsigned int const nak4jets_tight_pt40 = ak4jets_tight_pt40.size();
-    unsigned int const nak4jets_tight_pt40_btagged = ak4jets_tight_pt40_btagged.size();
+    unsigned int const nak4jets_tight_pt25_btagged = ak4jets_tight_pt25_btagged.size();
 
     auto const& eventmet = jetHandler.getPFMET();
 
     // BEGIN PRESELECTION
     seltracker.accumulate("Full sample", wgt);
 
-    if (nak4jets_tight_pt40_btagged<2) continue;
+    if (nak4jets_tight_pt25_btagged<2 || nak4jets_tight_pt40<2) continue;
     seltracker.accumulate("Pass Nj and Nb", wgt);
 
     if (eventmet->pt()<50.) continue;
     seltracker.accumulate("Pass pTmiss", wgt);
 
-    if (ak4jets_pt4_HT<300.) continue;
+    if (ak4jets_pt40_HT<300.) continue;
     seltracker.accumulate("Pass HT", wgt);
 
-    if (nleptons_selected<2 || nleptons_selected>=5 || nleptons_loose>1) continue;
+    if (nleptons_selected<2 || nleptons_selected>=5 || nleptons_tight<2) continue;
     seltracker.accumulate("Has >=2 and <=4 leptons, >=2 of which are tight", wgt);
 
-    if (nleptons_tight>=2 && (leptons_tight.front()->pt()<25. || leptons_tight.at(1)->pt()<20.)) continue;
+    if (leptons_tight.front()->pt()<25. || leptons_tight.at(1)->pt()<20.) continue;
     seltracker.accumulate("Pass pT1 and pT2", wgt);
 
     if (nleptons_tight>=3 && leptons_tight.at(2)->pt()<20.) continue;
@@ -305,8 +356,10 @@ int ScanChain(std::string const& strdate, ::string const& dset, std::string cons
       if (dilepton->isOS()) ndileptons_OS++;
       else ndileptons_SS++;
     }
-    seltracker.accumulate("nOS", wgt*static_cast<double>(ndileptons_OS));
-    seltracker.accumulate("nSS", wgt*static_cast<double>(ndileptons_SS));
+    // If uncommented, these numbers could later tell you the average number of OS and SS dileptons before the rest of the selections
+    // once you divide the numbers by the previous gen. weight sum.
+    //seltracker.accumulate("nOS", wgt*static_cast<double>(ndileptons_OS));
+    //seltracker.accumulate("nSS", wgt*static_cast<double>(ndileptons_SS));
 
     bool fail_vetos = false;
     DileptonObject* dilepton_SS_tight = nullptr;
@@ -321,7 +374,13 @@ int ScanChain(std::string const& strdate, ::string const& dset, std::string cons
         break;
       }
       if (isSS && isTight && !dilepton_SS_tight) dilepton_SS_tight = dilepton;
-      if (!isSS && isSF && isTight && is_DYClose && !dilepton_OS_DYCand_tight) dilepton_OS_DYCand_tight = dilepton;
+      if (!isSS && isSF && is_DYClose){
+        if (isTight && !dilepton_OS_DYCand_tight) dilepton_OS_DYCand_tight = dilepton;
+        else{
+          fail_vetos = true;
+          break;
+        }
+      }
     }
 
     if (fail_vetos) continue;
@@ -332,13 +391,17 @@ int ScanChain(std::string const& strdate, ::string const& dset, std::string cons
 
     // Put event filters to the last because data has unique event tracking enabled.
     eventFilter.constructFilters(&simEventHandler);
-    if (!eventFilter.test2018HEMFilter(&simEventHandler, nullptr, nullptr, &ak4jets)) continue; // Test for 2018 partial HEM failure
+    //if (!eventFilter.test2018HEMFilter(&simEventHandler, nullptr, nullptr, &ak4jets)) continue; // Test for 2018 partial HEM failure
+    //if (!eventFilter.test2018HEMFilter(&simEventHandler, &electrons, nullptr, nullptr)) continue; // Test for 2018 partial HEM failure
     seltracker.accumulate("Pass HEM veto", wgt);
     if (!eventFilter.passMETFilters()) continue; // Test for MET filters
     seltracker.accumulate("Pass MET filters", wgt);
-    if (!eventFilter.isUniqueDataEvent()) continue;
+    if (!eventFilter.isUniqueDataEvent()) continue; // Test if the data event is unique (i.e., dorky). Does not do anything in the MC.
     seltracker.accumulate("Pass unique event check", wgt);
 
+    // Later on, an overload of getTriggerWeight could be used to match trigger objects.
+    // That would mean, however, that trigger bits need to be interpreted from NanoAOD.
+    // Well, good luck with juggling between different years...
     float event_weight_triggers_dilepton = eventFilter.getTriggerWeight(hltnames_Dilepton);
     if (event_weight_triggers_dilepton==0.) continue; // Test if any triggers passed at all
     seltracker.accumulate("Pass any trigger", wgt);
@@ -348,12 +411,13 @@ int ScanChain(std::string const& strdate, ::string const& dset, std::string cons
     /*************************************************/
     /* NO MORE CALLS TO SELECTION BEYOND THIS POINT! */
     /*************************************************/
+    constexpr int idx_CRW = 15;
     int iCRZ = (dilepton_OS_DYCand_tight ? 1 : 0);
-    int icat = -1;
+    int icat = 0;
     if (nleptons_tight==2){
-      switch (nak4jets_tight_pt40_btagged){
+      switch (nak4jets_tight_pt25_btagged){
       case 2:
-        if (nak4jets_tight_pt40<6) icat=15;
+        if (nak4jets_tight_pt40<6) icat = idx_CRW;
         else icat = 1 + std::min(nak4jets_tight_pt40, static_cast<unsigned int>(8))-6;
         break;
       case 3:
@@ -365,7 +429,7 @@ int ScanChain(std::string const& strdate, ::string const& dset, std::string cons
       }
     }
     else{
-      switch (nak4jets_tight_pt40_btagged){
+      switch (nak4jets_tight_pt25_btagged){
       case 2:
         if (nak4jets_tight_pt40>=5) icat = 9 + std::min(nak4jets_tight_pt40, static_cast<unsigned int>(7))-5;
         break;
@@ -375,6 +439,19 @@ int ScanChain(std::string const& strdate, ::string const& dset, std::string cons
       }
     }
     if (icat>=0) hCat->Fill(static_cast<double>(icat-1)+0.5, static_cast<double>(iCRZ)+0.5, wgt);
+
+    if (runSyncExercise) foutput_sync
+        << ev << ","
+        << *ptr_EventNumber << ","
+        << eventmet->pt() << ","
+        << nleptons_selected << ","
+        << nleptons_tight << ","
+        << (dilepton_SS_tight ? 1 : 0) << ","
+        << ak4jets_pt40_HT << ","
+        << nak4jets_tight_pt40 << ","
+        << nak4jets_tight_pt25_btagged << ","
+        << (iCRZ ? "Z" : (icat==idx_CRW ? "W" : (icat==0 ? "N/A" : std::to_string(icat).data())))
+        << endl;
 
     n_recorded++;
 
@@ -386,10 +463,24 @@ int ScanChain(std::string const& strdate, ::string const& dset, std::string cons
 
   if (n_traversed>0) hCat->Scale(norm_scale * static_cast<double>(nEntries) / static_cast<double>(n_traversed));
 
-  IVYout << "Event counts for the SR:" << endl;
-  for (int ix=1; ix<=hCat->GetNbinsX(); ix++) IVYout << "\t- " << hCat->GetXaxis()->GetBinLabel(ix) << ": " << hCat->GetBinContent(ix, 1) << " +- " << hCat->GetBinError(ix, 1) << endl;
-  IVYout << "Event counts for the CRZ:" << endl;
-  for (int ix=1; ix<=hCat->GetNbinsX(); ix++) IVYout << "\t- " << hCat->GetXaxis()->GetBinLabel(ix) << ": " << hCat->GetBinContent(ix, 2) << " +- " << hCat->GetBinError(ix, 2) << endl;
+  {
+    double integral_error;
+    integral_error = 0;
+    IVYout << "Event counts for the SR:" << endl;
+    for (int ix=1; ix<=hCat->GetNbinsX(); ix++) IVYout << "\t- " << hCat->GetXaxis()->GetBinLabel(ix) << ": " << hCat->GetBinContent(ix, 1) << " +- " << hCat->GetBinError(ix, 1) << endl;
+    IVYout << "\t- Total: " << HelperFunctions::getHistogramIntegralAndError(hCat, 1, hCat->GetNbinsX()-1, 1, 1, false, &integral_error) << " +- " << integral_error << endl;
+    IVYout << "\t- Failed: " << hCat->GetBinContent(0, 1) << " +- " << hCat->GetBinError(0, 1) << endl;
+    integral_error = 0;
+    IVYout << "Event counts for the CRZ:" << endl;
+    for (int ix=1; ix<=hCat->GetNbinsX(); ix++) IVYout << "\t- " << hCat->GetXaxis()->GetBinLabel(ix) << ": " << hCat->GetBinContent(ix, 2) << " +- " << hCat->GetBinError(ix, 2) << endl;
+    IVYout << "\t- Total: " << HelperFunctions::getHistogramIntegralAndError(hCat, 1, hCat->GetNbinsX()-1, 2, 2, false, &integral_error) << " +- " << integral_error << endl;
+    IVYout << "\t- Failed: " << hCat->GetBinContent(0, 2) << " +- " << hCat->GetBinError(0, 2) << endl;
+  }
+
+  if (runSyncExercise){
+    foutput_sync.close();
+    SampleHelpers::splitFileAndAddForTransfer(stroutput_sync);
+  }
 
   foutput->WriteTObject(hCat);
   delete hCat;
@@ -398,6 +489,8 @@ int ScanChain(std::string const& strdate, ::string const& dset, std::string cons
   curdir->cd();
   delete tin;
 
+  // Split large files, and add them to the transfer queue from Condor to the target site
+  // Does nothing if you are running the program locally because your output is already in the desired location.
   SampleHelpers::splitFileAndAddForTransfer(stroutput);
   return 0;
 }
@@ -411,6 +504,7 @@ int main(int argc, char** argv){
   std::string str_period;
   std::string str_tag;
   std::string str_outtag;
+  SimpleEntry extra_arguments;
   double xsec = -1;
   for (int iarg=iarg_offset; iarg<argc; iarg++){
     std::string strarg = argv[iarg];
@@ -429,6 +523,18 @@ int main(int argc, char** argv){
     else if (wish=="period") str_period = value;
     else if (wish=="input_tag") str_tag = value;
     else if (wish=="output_tag") str_outtag = value;
+    else if (wish=="input_files"){
+      if (value.find("/")!=std::string::npos){
+        IVYerr << "ERROR: Input file specification cannot contain directory structure." << endl;
+        print_help=true;
+      }
+      extra_arguments.setNamedVal(wish, value);
+    }
+    else if (wish=="run_sync"){
+      bool tmpval;
+      HelperFunctions::castStringToValue(value, tmpval);
+      extra_arguments.setNamedVal(wish, tmpval);
+    }
     else if (wish=="xsec"){
       if (xsec<0.) xsec = 1;
       xsec *= std::stod(value);
@@ -458,6 +564,8 @@ int main(int argc, char** argv){
     IVYout << "- output_tag: Version of the output. Mandatory.\n";
     IVYout << "- xsec: Cross section value. Mandatory in the MC.\n";
     IVYout << "- BR: BR value. Mandatory in the MC.\n";
+    IVYout << "- input_files: Input files to run. Optional. Default is to run on all files\n";
+    IVYout << "- run_sync: Turn on synchronization output. Optional. Default is to run without synchronization output.\n";
 
     IVYout << endl;
     return (has_help ? 0 : 1);
@@ -465,5 +573,5 @@ int main(int argc, char** argv){
 
   SampleHelpers::configure(str_period, Form("skims:%s", str_tag.data()), HostHelpers::kUCSDT2);
 
-  return ScanChain(str_outtag, str_dset, str_proc, xsec);
+  return ScanChain(str_outtag, str_dset, str_proc, xsec, extra_arguments);
 }

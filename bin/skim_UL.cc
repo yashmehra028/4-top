@@ -286,8 +286,9 @@ if (MAXSIZE>0) tin->getSelectedTree()->SetBranchStatus(Form("n%s", GlobalCollect
     // Do not apply HEM veto since it depends on the jet pT threshold, which itself depends on JES/JER variations.
     //if (!eventFilter.test2018HEMFilter(&simEventHandler, nullptr, nullptr, &ak4jets)) continue; // Test for 2018 partial HEM failure
     //seltracker.accumulate("Pass HEM veto", wgt_gensim_nominal);
-    if (!eventFilter.passMETFilters()) continue; // Test for MET filters
-    seltracker.accumulate("Pass MET filters", wgt_gensim_nominal);
+
+    //if (!eventFilter.passMETFilters()) continue; // Test for MET filters
+    //seltracker.accumulate("Pass MET filters", wgt_gensim_nominal);
 
     float event_weight_triggers_dilepton = eventFilter.getTriggerWeight(hltnames_Dilepton);
     float event_weight_triggers_singleleptoncontrol = eventFilter.getTriggerWeight(hltnames_SingleLeptonControl);

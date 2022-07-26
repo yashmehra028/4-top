@@ -2,10 +2,14 @@
 #define RUNEVENTLUMIBLOCK_H
 
 
+typedef unsigned int RunNumber_t;
+typedef unsigned int LuminosityBlock_t;
+typedef unsigned long long EventNumber_t;
+
 #define RUNLUMIEVENT_VARIABLES \
-RUNLUMIEVENT_VARIABLE(unsigned int, RunNumber, run) \
-RUNLUMIEVENT_VARIABLE(unsigned int, LuminosityBlock, luminosityBlock) \
-RUNLUMIEVENT_VARIABLE(unsigned long long, EventNumber, event)
+RUNLUMIEVENT_VARIABLE(RunNumber_t, RunNumber, run) \
+RUNLUMIEVENT_VARIABLE(LuminosityBlock_t, LuminosityBlock, luminosityBlock) \
+RUNLUMIEVENT_VARIABLE(EventNumber_t, EventNumber, event)
 
 
 class RunLumiEventBlock{

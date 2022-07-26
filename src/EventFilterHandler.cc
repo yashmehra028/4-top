@@ -276,8 +276,8 @@ bool EventFilterHandler::test2018HEMFilter(
   }
 
   // For affected runs, check object presence.
-  static const std::pair<float, float> eta_region(-3.0, -1.4);
-  static const std::pair<float, float> phi_region(-1.6, -0.8);
+  static const std::pair<float, float> eta_region(-3.2, -1.3);
+  static const std::pair<float, float> phi_region(-1.57, -0.87);
   bool doVeto = false;
   if (!doVeto && electrons){
     for (auto const* part:(*electrons)){
@@ -584,8 +584,6 @@ std::vector<std::string> EventFilterHandler::acquireMETFilterFlags(BaseTree* int
     if (!SampleHelpers::checkSampleIsFastSim(intree->sampleIdentifier)){ // For data or non-FS MC
       res.push_back("globalSuperTightHalo2016Filter");
     }
-
-    // Else need "Bad PF Muon Filter" and "Bad Charged Hadron Filter" to be calculated on the fly for data, MC and FastSim, see https://twiki.cern.ch/twiki/bin/viewauth/CMS/MissingETOptionalFiltersRun2#How_to_run_the_Bad_Charged_Hadro
     break;
   }
   case 2017:
