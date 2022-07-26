@@ -369,8 +369,9 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       bool isSS = !dilepton->isOS();
       bool isTight = dilepton->nTightDaughters()==2;
       bool isSF = dilepton->isSF();
-      bool is_DYClose = std::abs(dilepton->m()-91.2)<15. || dilepton->m()<12.;
-      if (isSS && isSF && is_DYClose && std::abs(dilepton->getDaughter(0)->pdgId())==11){
+      bool is_LowMass = dilepton->m()<12.;
+      bool is_DYClose = std::abs(dilepton->m()-91.2)<15. || is_LowMass;
+      if (isSS && isSF && is_LowMass && std::abs(dilepton->getDaughter(0)->pdgId())==11){
         fail_vetos = true;
         break;
       }
