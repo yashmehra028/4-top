@@ -78,6 +78,9 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   bool runSyncExercise = false;
   extra_arguments.getNamedVal("run_sync", runSyncExercise);
 
+  // Flag to control whether any preselection other than nleps>=2 to be applied
+  bool const applyPreselection = !runSyncExercise;
+
   // This is the output directory.
   // Output should always be recorded as if you are running the job locally.
   // We will inform the Condor job later on that some files would need transfer if we are running on Condor.
@@ -215,7 +218,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   TString stroutput_sync = coutput_main + "/" + Form("sync_%s.csv", proc.data());
   if (runSyncExercise){
     foutput_sync.open(stroutput_sync.Data(), std::ios_base::out);
-    foutput_sync << "Event#,#inFile,MET,Nlooseleptons,Ntightleptons,Goodsspair?,HT,Njets,Nbjets,SR/CR" << endl;
+    foutput_sync << "Event#,#inFile,MET,MET_phi,Nlooseleptons,Ntightleptons,Goodsspair?,HT,Njets,Nbjets,SR/CR" << endl;
   }
 
   // Keep track of sums of weights
@@ -266,6 +269,10 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     // ParticleDisambiguator then cleans all geometrically overlapping jets by resetting their selection bits, which makes them unusable.
     particleDisambiguator.disambiguateParticles(&muonHandler, &electronHandler, nullptr, &jetHandler);
 
+    bool const printObjInfo = runSyncExercise && (ev==3 || ev==15 || ev==30 || ev==31 || ev==32 || ev==41);
+
+    if (printObjInfo) IVYout << "Lepton info for event " << ev << ":" << endl;
+
     auto const& muons = muonHandler.getProducts();
     std::vector<MuonObject*> muons_selected;
     std::vector<MuonObject*> muons_tight;
@@ -274,6 +281,13 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       if (part->pt()<5.) continue;
       if (ParticleSelectionHelpers::isTightParticle(part)) muons_tight.push_back(part);
       else if (ParticleSelectionHelpers::isLooseParticle(part)) muons_loose.push_back(part);
+
+      if (printObjInfo) IVYout
+        << "\t- PDG id = " << part->pdgId()
+        << ", pt = " << part->pt() << ", eta = " << part->eta() << ", phi = " << part->phi()
+        << ", loose? " << ParticleSelectionHelpers::isLooseParticle(part)
+        << ", tight? " << ParticleSelectionHelpers::isTightParticle(part)
+        << endl;
     }
     HelperFunctions::appendVector(muons_selected, muons_tight);
     HelperFunctions::appendVector(muons_selected, muons_loose);
@@ -286,6 +300,13 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       if (part->pt()<7.) continue;
       if (ParticleSelectionHelpers::isTightParticle(part)) electrons_tight.push_back(part);
       else if (ParticleSelectionHelpers::isLooseParticle(part)) electrons_loose.push_back(part);
+
+      if (printObjInfo) IVYout
+        << "\t- PDG id = " << part->pdgId()
+        << ", pt = " << part->pt() << ", eta = " << part->eta() << ", phi = " << part->phi()
+        << ", loose? " << ParticleSelectionHelpers::isLooseParticle(part)
+        << ", tight? " << ParticleSelectionHelpers::isTightParticle(part)
+        << endl;
     }
     HelperFunctions::appendVector(electrons_selected, electrons_tight);
     HelperFunctions::appendVector(electrons_selected, electrons_loose);
@@ -304,11 +325,17 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     for (auto const& part:electrons_tight) leptons_tight.push_back(dynamic_cast<ParticleObject*>(part));
     ParticleObjectHelpers::sortByGreaterPt(leptons_tight);
 
+    if (printObjInfo) IVYout << "Jet info for event " << ev << ":" << endl;
     double ak4jets_pt40_HT=0;
     auto const& ak4jets = jetHandler.getAK4Jets();
     std::vector<AK4JetObject*> ak4jets_tight_pt40;
     std::vector<AK4JetObject*> ak4jets_tight_pt25_btagged;
     for (auto const& jet:ak4jets){
+      if (printObjInfo) IVYout
+        << "\t- pt = " << jet->pt() << ", eta = " << jet->eta() << ", phi = " << jet->phi()
+        << " | btagged? " << jet->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTagged)
+        << " | tight & clean? " << ParticleSelectionHelpers::isTightJet(jet)
+        << endl;
       if (ParticleSelectionHelpers::isTightJet(jet) && jet->pt()>=25. && std::abs(jet->eta())<absEtaThr_ak4jets){
         if (jet->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTagged)) ak4jets_tight_pt25_btagged.push_back(jet);
         if (jet->pt()>=40.){
@@ -325,28 +352,29 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     // BEGIN PRESELECTION
     seltracker.accumulate("Full sample", wgt);
 
-    if (nak4jets_tight_pt25_btagged<2 || nak4jets_tight_pt40<2) continue;
+    if (applyPreselection && (nak4jets_tight_pt25_btagged<2 || nak4jets_tight_pt40<2)) continue;
     seltracker.accumulate("Pass Nj and Nb", wgt);
 
-    if (eventmet->pt()<50.) continue;
+    if (applyPreselection && eventmet->pt()<50.) continue;
     seltracker.accumulate("Pass pTmiss", wgt);
 
-    if (ak4jets_pt40_HT<300.) continue;
+    if (applyPreselection && ak4jets_pt40_HT<300.) continue;
     seltracker.accumulate("Pass HT", wgt);
 
-    if (nleptons_selected<2 || nleptons_selected>=5 || nleptons_tight<2) continue;
+    if (nleptons_tight<2) continue; // Skims are required to apply this selection, so no additional test on applyPreselection.
+    if (applyPreselection && (nleptons_selected<2 || nleptons_selected>=5)) continue;
     seltracker.accumulate("Has >=2 and <=4 leptons, >=2 of which are tight", wgt);
 
-    if (leptons_tight.front()->pt()<25. || leptons_tight.at(1)->pt()<20.) continue;
+    if (applyPreselection && (leptons_tight.front()->pt()<25. || leptons_tight.at(1)->pt()<20.)) continue;
     seltracker.accumulate("Pass pT1 and pT2", wgt);
 
-    if (nleptons_tight>=3 && leptons_tight.at(2)->pt()<20.) continue;
+    if (applyPreselection && (nleptons_tight>=3 && leptons_tight.at(2)->pt()<20.)) continue;
     seltracker.accumulate("Pass pT3 if >=3 tight leptons", wgt);
 
     // Construct all possible dilepton pairs
     int nQ = 0;
     for (auto const& part:leptons_tight) nQ += (part->pdgId()>0 ? -1 : 1);
-    if (std::abs(nQ)>=(6-static_cast<int>(nleptons_tight))) continue; // This req. necessarily vetoes Nleps>=5 because the actual number of same-sign leptons will always be >=3.
+    if (applyPreselection && (std::abs(nQ)>=(6-static_cast<int>(nleptons_tight)))) continue; // This req. necessarily vetoes Nleps>=5 because the actual number of same-sign leptons will always be >=3.
     seltracker.accumulate("Pass 3-lepton same charge veto", wgt);
 
     dileptonHandler.constructDileptons(&muons_selected, &electrons_selected);
@@ -370,6 +398,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       bool isTight = dilepton->nTightDaughters()==2;
       bool isSF = dilepton->isSF();
       bool is_LowMass = dilepton->m()<12.;
+      bool is_ZClose = std::abs(dilepton->m()-91.2)<15.;
       bool is_DYClose = std::abs(dilepton->m()-91.2)<15. || is_LowMass;
       if (isSS && isSF && is_LowMass && std::abs(dilepton->getDaughter(0)->pdgId())==11){
         fail_vetos = true;
@@ -377,7 +406,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       }
       if (isSS && isTight && !dilepton_SS_tight) dilepton_SS_tight = dilepton;
       if (!isSS && isSF && is_DYClose){
-        if (isTight && !dilepton_OS_DYCand_tight) dilepton_OS_DYCand_tight = dilepton;
+        if (isTight && is_ZClose && !dilepton_OS_DYCand_tight) dilepton_OS_DYCand_tight = dilepton;
         else{
           fail_vetos = true;
           break;
@@ -385,10 +414,10 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       }
     }
 
-    if (fail_vetos) continue;
+    if (applyPreselection && fail_vetos) continue;
     seltracker.accumulate("Pass dilepton vetos", wgt);
 
-    if (!dilepton_SS_tight) continue;
+    if (applyPreselection && !dilepton_SS_tight) continue;
     seltracker.accumulate("Has at least one tight SS dilepton", wgt);
 
     // Put event filters to the last because data has unique event tracking enabled.
@@ -396,7 +425,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     //if (!eventFilter.test2018HEMFilter(&simEventHandler, nullptr, nullptr, &ak4jets)) continue; // Test for 2018 partial HEM failure
     //if (!eventFilter.test2018HEMFilter(&simEventHandler, &electrons, nullptr, nullptr)) continue; // Test for 2018 partial HEM failure
     seltracker.accumulate("Pass HEM veto", wgt);
-    if (!eventFilter.passMETFilters()) continue; // Test for MET filters
+    if (applyPreselection && !eventFilter.passMETFilters()) continue; // Test for MET filters
     seltracker.accumulate("Pass MET filters", wgt);
     if (!eventFilter.isUniqueDataEvent()) continue; // Test if the data event is unique (i.e., dorky). Does not do anything in the MC.
     seltracker.accumulate("Pass unique event check", wgt);
@@ -405,7 +434,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     // That would mean, however, that trigger bits need to be interpreted from NanoAOD.
     // Well, good luck with juggling between different years...
     float event_weight_triggers_dilepton = eventFilter.getTriggerWeight(hltnames_Dilepton);
-    if (event_weight_triggers_dilepton==0.) continue; // Test if any triggers passed at all
+    if (applyPreselection && event_weight_triggers_dilepton==0.) continue; // Test if any triggers passed at all
     seltracker.accumulate("Pass any trigger", wgt);
 
     // Accumulate any ME weights and K factors that might be present
@@ -446,6 +475,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       << *ptr_EventNumber << ","
       << ev << ","
       << eventmet->pt() << ","
+      << eventmet->phi() << ","
       << nleptons_selected << ","
       << nleptons_tight << ","
       << (dilepton_SS_tight ? "SS" : "!SS") << ","

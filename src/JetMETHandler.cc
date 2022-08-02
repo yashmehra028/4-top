@@ -273,72 +273,72 @@ bool JetMETHandler::wrapTree(BaseTree* tree){
   bool const isData = SampleHelpers::checkSampleIsData(tree->sampleIdentifier, &theDP);
   if (isData){
     if (theDP == "2016B"){
-      pfmet_XYcorr_xCoeffA = -0.0214894; pfmet_XYcorr_xCoeffB = 0.188255;
-      pfmet_XYcorr_yCoeffA = 0.0876624; pfmet_XYcorr_yCoeffB = -0.812885;
+      pfmet_XYcorr_xCoeffA = -0.0214894; pfmet_XYcorr_xCoeffB = -0.188255;
+      pfmet_XYcorr_yCoeffA = 0.0876624; pfmet_XYcorr_yCoeffB = 0.812885;
     }
     else if (theDP == "2016C"){
-      pfmet_XYcorr_xCoeffA = -0.032209; pfmet_XYcorr_xCoeffB = -0.067288;
-      pfmet_XYcorr_yCoeffA = 0.113917; pfmet_XYcorr_yCoeffB = -0.743906;
+      pfmet_XYcorr_xCoeffA = -0.032209; pfmet_XYcorr_xCoeffB = 0.067288;
+      pfmet_XYcorr_yCoeffA = 0.113917; pfmet_XYcorr_yCoeffB = 0.743906;
     }
     else if (theDP == "2016D"){
-      pfmet_XYcorr_xCoeffA = -0.0293663; pfmet_XYcorr_xCoeffB = -0.21106;
-      pfmet_XYcorr_yCoeffA = 0.11331; pfmet_XYcorr_yCoeffB = -0.815787;
+      pfmet_XYcorr_xCoeffA = -0.0293663; pfmet_XYcorr_xCoeffB = 0.21106;
+      pfmet_XYcorr_yCoeffA = 0.11331; pfmet_XYcorr_yCoeffB = 0.815787;
     }
     else if (theDP == "2016E"){
-      pfmet_XYcorr_xCoeffA = -0.0132046; pfmet_XYcorr_xCoeffB = -0.20073;
-      pfmet_XYcorr_yCoeffA = 0.134809; pfmet_XYcorr_yCoeffB = -0.679068;
+      pfmet_XYcorr_xCoeffA = -0.0132046; pfmet_XYcorr_xCoeffB = 0.20073;
+      pfmet_XYcorr_yCoeffA = 0.134809; pfmet_XYcorr_yCoeffB = 0.679068;
     }
     else if (theDP == "2016F_APV"){
-      pfmet_XYcorr_xCoeffA = -0.0543566; pfmet_XYcorr_xCoeffB = -0.816597;
-      pfmet_XYcorr_yCoeffA = 0.114225; pfmet_XYcorr_yCoeffB = -1.17266;
+      pfmet_XYcorr_xCoeffA = -0.0543566; pfmet_XYcorr_xCoeffB = 0.816597;
+      pfmet_XYcorr_yCoeffA = 0.114225; pfmet_XYcorr_yCoeffB = 1.17266;
     }
     else if (theDP == "2016F_NonAPV"){
-      pfmet_XYcorr_xCoeffA = 0.134616; pfmet_XYcorr_xCoeffB = 0.89965;
-      pfmet_XYcorr_yCoeffA = 0.0397736; pfmet_XYcorr_yCoeffB = -1.0385;
+      pfmet_XYcorr_xCoeffA = 0.134616; pfmet_XYcorr_xCoeffB = -0.89965;
+      pfmet_XYcorr_yCoeffA = 0.0397736; pfmet_XYcorr_yCoeffB = 1.0385;
     }
     else if (theDP == "2016G"){
-      pfmet_XYcorr_xCoeffA = 0.121809; pfmet_XYcorr_xCoeffB = 0.584893;
-      pfmet_XYcorr_yCoeffA = 0.0558974; pfmet_XYcorr_yCoeffB = -0.891234;
+      pfmet_XYcorr_xCoeffA = 0.121809; pfmet_XYcorr_xCoeffB = -0.584893;
+      pfmet_XYcorr_yCoeffA = 0.0558974; pfmet_XYcorr_yCoeffB = 0.891234;
     }
     else if (theDP == "2016H"){
-      pfmet_XYcorr_xCoeffA = 0.0868828; pfmet_XYcorr_xCoeffB = 0.703489;
-      pfmet_XYcorr_yCoeffA = 0.0888774; pfmet_XYcorr_yCoeffB = -0.902632;
+      pfmet_XYcorr_xCoeffA = 0.0868828; pfmet_XYcorr_xCoeffB = -0.703489;
+      pfmet_XYcorr_yCoeffA = 0.0888774; pfmet_XYcorr_yCoeffB = 0.902632;
     }
     else if (theDP == "2017B"){
-      pfmet_XYcorr_xCoeffA = -0.211161; pfmet_XYcorr_xCoeffB = -0.419333;
-      pfmet_XYcorr_yCoeffA = 0.251789; pfmet_XYcorr_yCoeffB = 1.28089;
+      pfmet_XYcorr_xCoeffA = -0.211161; pfmet_XYcorr_xCoeffB = 0.419333;
+      pfmet_XYcorr_yCoeffA = 0.251789; pfmet_XYcorr_yCoeffB = -1.28089;
     }
     else if (theDP == "2017C"){
-      pfmet_XYcorr_xCoeffA = -0.185184; pfmet_XYcorr_xCoeffB = 0.164009;
-      pfmet_XYcorr_yCoeffA = 0.200941; pfmet_XYcorr_yCoeffB = 0.56853;
+      pfmet_XYcorr_xCoeffA = -0.185184; pfmet_XYcorr_xCoeffB = -0.164009;
+      pfmet_XYcorr_yCoeffA = 0.200941; pfmet_XYcorr_yCoeffB = -0.56853;
     }
     else if (theDP == "2017D"){
-      pfmet_XYcorr_xCoeffA = -0.201606; pfmet_XYcorr_xCoeffB = -0.426502;
-      pfmet_XYcorr_yCoeffA = 0.188208; pfmet_XYcorr_yCoeffB = 0.58313;
+      pfmet_XYcorr_xCoeffA = -0.201606; pfmet_XYcorr_xCoeffB = 0.426502;
+      pfmet_XYcorr_yCoeffA = 0.188208; pfmet_XYcorr_yCoeffB = -0.58313;
     }
     else if (theDP == "2017E"){
-      pfmet_XYcorr_xCoeffA = -0.162472; pfmet_XYcorr_xCoeffB = -0.176329;
-      pfmet_XYcorr_yCoeffA = 0.138076; pfmet_XYcorr_yCoeffB = 0.250239;
+      pfmet_XYcorr_xCoeffA = -0.162472; pfmet_XYcorr_xCoeffB = 0.176329;
+      pfmet_XYcorr_yCoeffA = 0.138076; pfmet_XYcorr_yCoeffB = -0.250239;
     }
     else if (theDP == "2017F"){
-      pfmet_XYcorr_xCoeffA = -0.210639; pfmet_XYcorr_xCoeffB = -0.72934;
-      pfmet_XYcorr_yCoeffA = 0.198626; pfmet_XYcorr_yCoeffB = -1.028;
+      pfmet_XYcorr_xCoeffA = -0.210639; pfmet_XYcorr_xCoeffB = 0.72934;
+      pfmet_XYcorr_yCoeffA = 0.198626; pfmet_XYcorr_yCoeffB = 1.028;
     }
     else if (theDP == "2018A"){
-      pfmet_XYcorr_xCoeffA = 0.263733; pfmet_XYcorr_xCoeffB = 1.91115;
+      pfmet_XYcorr_xCoeffA = 0.263733; pfmet_XYcorr_xCoeffB = -1.91115;
       pfmet_XYcorr_yCoeffA = 0.0431304; pfmet_XYcorr_yCoeffB = 0.112043;
     }
     else if (theDP == "2018B"){
-      pfmet_XYcorr_xCoeffA = 0.400466; pfmet_XYcorr_xCoeffB = 3.05914;
-      pfmet_XYcorr_yCoeffA = 0.146125; pfmet_XYcorr_yCoeffB = 0.533233;
+      pfmet_XYcorr_xCoeffA = 0.400466; pfmet_XYcorr_xCoeffB = -3.05914;
+      pfmet_XYcorr_yCoeffA = 0.146125; pfmet_XYcorr_yCoeffB = -0.533233;
     }
     else if (theDP == "2018C"){
-      pfmet_XYcorr_xCoeffA = 0.430911; pfmet_XYcorr_xCoeffB = 1.42865;
-      pfmet_XYcorr_yCoeffA = 0.0620083; pfmet_XYcorr_yCoeffB = 1.46021;
+      pfmet_XYcorr_xCoeffA = 0.430911; pfmet_XYcorr_xCoeffB = -1.42865;
+      pfmet_XYcorr_yCoeffA = 0.0620083; pfmet_XYcorr_yCoeffB = -1.46021;
     }
     else if (theDP == "2018D"){
-      pfmet_XYcorr_xCoeffA = 0.457327; pfmet_XYcorr_xCoeffB = 1.56856;
-      pfmet_XYcorr_yCoeffA = 0.0684071; pfmet_XYcorr_yCoeffB = 0.928372;
+      pfmet_XYcorr_xCoeffA = 0.457327; pfmet_XYcorr_xCoeffB = -1.56856;
+      pfmet_XYcorr_yCoeffA = 0.0684071; pfmet_XYcorr_yCoeffB = -0.928372;
     }
     else{
       IVYerr << "JetMETHandler::wrapTree: Data period " << theDP << " is undefined for the data MET corrections." << endl;
@@ -350,22 +350,22 @@ bool JetMETHandler::wrapTree(BaseTree* tree){
     case 2016:
     {
       if (SampleHelpers::getDataPeriod().Contains("NonAPV")){
-        pfmet_XYcorr_xCoeffA = -0.153497; pfmet_XYcorr_xCoeffB = 0.231751;
-        pfmet_XYcorr_yCoeffA = 0.00731978; pfmet_XYcorr_yCoeffB = -0.243323;
+        pfmet_XYcorr_xCoeffA = -0.153497; pfmet_XYcorr_xCoeffB = -0.231751;
+        pfmet_XYcorr_yCoeffA = 0.00731978; pfmet_XYcorr_yCoeffB = 0.243323;
       }
       else{
-        pfmet_XYcorr_xCoeffA = -0.188743; pfmet_XYcorr_xCoeffB = -0.136539;
-        pfmet_XYcorr_yCoeffA = 0.0127927; pfmet_XYcorr_yCoeffB = -0.117747;
+        pfmet_XYcorr_xCoeffA = -0.188743; pfmet_XYcorr_xCoeffB = 0.136539;
+        pfmet_XYcorr_yCoeffA = 0.0127927; pfmet_XYcorr_yCoeffB = 0.117747;
       }
       break;
     }
     case 2017:
-      pfmet_XYcorr_xCoeffA = -0.300155; pfmet_XYcorr_xCoeffB = -1.90608;
-      pfmet_XYcorr_yCoeffA = 0.300213; pfmet_XYcorr_yCoeffB = 2.02232;
+      pfmet_XYcorr_xCoeffA = -0.300155; pfmet_XYcorr_xCoeffB = 1.90608;
+      pfmet_XYcorr_yCoeffA = 0.300213; pfmet_XYcorr_yCoeffB = -2.02232;
       break;
     case 2018:
-      pfmet_XYcorr_xCoeffA = 0.183518; pfmet_XYcorr_xCoeffB = -0.546754;
-      pfmet_XYcorr_yCoeffA = 0.192263; pfmet_XYcorr_yCoeffB = 0.42121;
+      pfmet_XYcorr_xCoeffA = 0.183518; pfmet_XYcorr_xCoeffB = 0.546754;
+      pfmet_XYcorr_yCoeffA = 0.192263; pfmet_XYcorr_yCoeffB = -0.42121;
       break;
     default:
       IVYerr << "JetMETHandler::wrapTree: Year " << SampleHelpers::getDataYear() << " is undefined for the MC MET corrections." << endl;
