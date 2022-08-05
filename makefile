@@ -32,13 +32,20 @@ LIBRULE              = $(LIBDIR)$(LIB)
 IVYCOREDIR              = $(BASEINCLUDE)IvyFramework/IvyDataTools/
 IVYCORELIBDIR           = $(IVYCOREDIR)lib/
 IVYCOREINCDIR           = $(IVYCOREDIR)interface/
-IVYCORECXXFLAGS =  -I$(IVYCOREINCDIR)/ -L$(IVYCORELIBDIR)
+IVYCORECXXFLAGS =  -I$(IVYCOREINCDIR) -L$(IVYCORELIBDIR)
 IVYCORELIBS =  -lIvyFrameworkIvyDataTools
+
+# XGBOOST essentials
+XGBOOSTLIBDIR = ${XGBOOST_PATH}/lib/
+XGBOOSTINCDIR = $(XGBOOSTLIBDIR)../include/
+RABITINCDIR = $(XGBOOSTLIBDIR)../rabit/include/
+XGBOOSTCXXFLAGS = -I$(XGBOOSTINCDIR) -I$(RABITINCDIR) -L$(XGBOOSTLIBDIR)
+XGBOOSTLIBS =  -lxgboost
 
 
 # Here begins compilation...
-EXTCXXFLAGS   = $(IVYCORECXXFLAGS)
-EXTLIBS       = $(IVYCORELIBS)
+EXTCXXFLAGS   = $(IVYCORECXXFLAGS) $(XGBOOSTCXXFLAGS)
+EXTLIBS       = $(IVYCORELIBS) $(XGBOOSTLIBS)
 
 ROOTCFLAGS    = $(shell root-config --cflags) -Lrootlib
 ROOTLIBS     = $(shell root-config --libs) -lMathMore -lGenVector -Lrootlib

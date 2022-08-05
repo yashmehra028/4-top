@@ -30,6 +30,12 @@ if [[ -z "${CMSSW_BASE+x}" ]]; then
   exit 1
 fi
 
+xgboost_cfg=${CMSSW_BASE}/config/toolbox/${SCRAM_ARCH}/tools/selected/py2-xgboost.xml
+xgboost_version="$(grep -e 'tool name' ${xgboost_cfg} | grep 'py2-xgboost')"
+xgboost_version="${xgboost_version##*=\"}"
+xgboost_version="${xgboost_version%%\"*}"
+xgboost_path="/cvmfs/cms.cern.ch/${SCRAM_ARCH}/external/py2-xgboost/${xgboost_version}/lib/python3.6/site-packages/xgboost"
+
 printenv() {
   if [[ -d ${CMSSW_BASE}/src/IvyFramework/IvyDataTools ]]; then
     envopts="env standalone"
@@ -37,7 +43,22 @@ printenv() {
     eval $(${CMSSW_BASE}/src/IvyFramework/IvyDataTools/setup.sh ${envopts})
   fi
 
+  if [[ -z "${XGBOOST_PATH+x}" ]]; then
+    echo "export XGBOOST_PATH=${xgboost_path}"
+    export XGBOOST_PATH=${xgboost_path}
+  fi
+
   libappend="${PKGDIR}/lib"
+  end=""
+  if [[ ! -z "${LD_LIBRARY_PATH+x}" ]]; then
+    end=":${LD_LIBRARY_PATH}"
+  fi
+  if [[ "${end}" != *"$libappend"* ]]; then
+    echo "export LD_LIBRARY_PATH=${libappend}${end}"
+    export LD_LIBRARY_PATH=${libappend}${end}
+  fi
+
+  libappend="${xgboost_path}/lib"
   end=""
   if [[ ! -z "${LD_LIBRARY_PATH+x}" ]]; then
     end=":${LD_LIBRARY_PATH}"
@@ -62,6 +83,8 @@ doenv() {
     envopts="env standalone"
     eval $(${CMSSW_BASE}/src/IvyFramework/IvyDataTools/setup.sh ${envopts})
   fi
+
+  export XGBOOST_PATH=${xgboost_path}
 }
 printenvinstr () {
   echo
