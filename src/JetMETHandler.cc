@@ -21,7 +21,7 @@ AK4JET_COMMON_VARIABLES
 AK4JET_LOWPT_VARIABLE(float, rawPt) \
 AK4JET_LOWPT_VARIABLE(float, eta) \
 AK4JET_LOWPT_VARIABLE(float, phi) \
-AK4JET_LOWPT_EXTRA_VARIABLES
+AK4JET_LOWPT_EXTRA_INPUT_VARIABLES
 #define JETMET_METXY_VERTEX_VARIABLES \
 JETMET_METXY_VERTEX_VARIABLE(int, npvs)
 
@@ -191,7 +191,7 @@ bool JetMETHandler::constructAK4Jets_LowPt(){
 
       // Set extras
 #define AK4JET_LOWPT_VARIABLE(TYPE, NAME) obj->extras_lowpt.NAME = *it_##NAME;
-      AK4JET_LOWPT_EXTRA_VARIABLES;
+      AK4JET_LOWPT_EXTRA_INPUT_VARIABLES;
 #undef AK4JET_LOWPT_VARIABLE
 
       // These jets always fail selection, so there is no need to set bits

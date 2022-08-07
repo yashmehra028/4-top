@@ -30,3 +30,4 @@ executables
 /*.root
 **/tasks
 **/*.tar*
+data/external/*

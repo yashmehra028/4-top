@@ -77,14 +77,14 @@ cd ${CMSSW_BASE}/src
 if [[ ! -d IvyFramework/IvyDataTools ]]; then
   git clone git@github.com:IvyFramework/IvyDataTools.git IvyFramework/IvyDataTools
 fi
-if [[ ! -d NanoTools ]]; then
-  git clone git@github.com:cmstas/NanoTools.git
+if [[ ! -d ProjectMetis ]]; then
+  git clone git@github.com:usarica/ProjectMetis.git
 fi
 if [[ ! -d tttt ]]; then
   git clone git@github.com:joseph-crowley/tttt.git
 fi
-if [[ ! -d ProjectMetis ]]; then
-  git clone git@github.com:usarica/ProjectMetis.git
-fi
+
+# Download external content
+./tttt/downloadExternal.sh
 
 )

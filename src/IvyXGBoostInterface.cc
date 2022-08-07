@@ -2,7 +2,7 @@
 #include <limits>
 #include "IvyFramework/IvyDataTools/interface/HostHelpersCore.h"
 #include "IvyFramework/IvyDataTools/interface/IvyStreamHelpers.hh"
-#include "XGBoostInterface.h"
+#include "IvyXGBoostInterface.h"
 
 
 using namespace std;
@@ -13,7 +13,7 @@ using namespace IvyStreamHelpers;
 { int err_call = (CALL); if (err_call!=0){ IVYerr << "Call '" << #CALL << "' return error code " << err_call << ". XGBoost last error: " << XGBGetLastError() << endl; } }
 
 
-XGBoostInterface::XGBoostInterface() :
+IvyXGBoostInterface::IvyXGBoostInterface() :
   IvyMLWrapper(),
   booster(nullptr),
   nColumns(0),
@@ -21,28 +21,28 @@ XGBoostInterface::XGBoostInterface() :
   defval(0)
 {}
 
-XGBoostInterface::~XGBoostInterface(){
+IvyXGBoostInterface::~IvyXGBoostInterface(){
   SAFE_XGBOOST(XGBoosterFree(*booster));
   delete booster;
 }
 
-bool XGBoostInterface::build(TString fname, std::vector<TString> const& varnames, IvyMLDataType_t missing_entry_val, unsigned long long nCols){
+bool IvyXGBoostInterface::build(TString fname, std::vector<TString> const& varnames, IvyMLDataType_t missing_entry_val, unsigned long long nCols){
   HostHelpers::ExpandEnvironmentVariables(fname);
   if (!HostHelpers::FileExists(fname)){
-    IVYerr << "XGBoostInterface::build: File " << fname << " does not exist." << endl;
+    IVYerr << "IvyXGBoostInterface::build: File " << fname << " does not exist." << endl;
     assert(0);
   }
 
   if (booster){
-    IVYerr << "XGBoostInterface::build: Booster is already built." << endl;
+    IVYerr << "IvyXGBoostInterface::build: Booster is already built." << endl;
     return false;
   }
   if (nCols==0){
-    IVYerr << "XGBoostInterface::build: Number of columns (" << nCols << ") is invalid." << endl;
+    IVYerr << "IvyXGBoostInterface::build: Number of columns (" << nCols << ") is invalid." << endl;
     return false;
   }
   if (varnames.size()%nCols != 0){
-    IVYerr << "XGBoostInterface::build: Number of variables (" << varnames.size() << ") is not divisible by the number of columns (" << nCols << ")." << endl;
+    IVYerr << "IvyXGBoostInterface::build: Number of variables (" << varnames.size() << ") is not divisible by the number of columns (" << nCols << ")." << endl;
     return false;
   }
 
@@ -58,11 +58,11 @@ bool XGBoostInterface::build(TString fname, std::vector<TString> const& varnames
   return true;
 }
 
-bool XGBoostInterface::eval(std::unordered_map<TString, IvyMLDataType_t> const& vars, std::vector<double>& res){
+bool IvyXGBoostInterface::eval(std::unordered_map<TString, IvyMLDataType_t> const& vars, std::vector<double>& res){
   for (auto const& vv:vars){
     auto it_var = variables.find(vv.first);
     if (it_var==variables.end()){
-      IVYerr << "XGBoostInterface::eval: Variable " << vv.first << " is not in the set of input data collection." << endl;
+      IVYerr << "IvyXGBoostInterface::eval: Variable " << vv.first << " is not in the set of input data collection." << endl;
       return false;
     }
     it_var->second = vv.second;
