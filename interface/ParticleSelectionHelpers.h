@@ -26,6 +26,7 @@ SELECTION_TYPE(Fakeable)
 #undef SELECTION_TYPE
 #undef SELECTION_TYPES
 
+  void setUseFakeableIdForJetCleaning(bool flag);
   template<typename T> bool isParticleForJetCleaning(T const* part);
   template<typename T> bool isParticleForIsotrackCleaning(T const* part);
   template<typename T> bool isParticleForTriggerChecking(T const* part);
@@ -50,8 +51,8 @@ SELECTION_TYPE(Tight)
 }
 
 template<typename T> bool ParticleSelectionHelpers::isParticleForJetCleaning(T const* part){ return isLooseParticle(part); }
-template bool ParticleSelectionHelpers::isParticleForJetCleaning<MuonObject>(MuonObject const*);
-template bool ParticleSelectionHelpers::isParticleForJetCleaning<ElectronObject>(ElectronObject const*);
+template<> bool ParticleSelectionHelpers::isParticleForJetCleaning<MuonObject>(MuonObject const*);
+template<> bool ParticleSelectionHelpers::isParticleForJetCleaning<ElectronObject>(ElectronObject const*);
 template bool ParticleSelectionHelpers::isParticleForJetCleaning<PhotonObject>(PhotonObject const*);
 
 template<typename T> bool ParticleSelectionHelpers::isParticleForIsotrackCleaning(T const* part){ return isLooseParticle(part); }

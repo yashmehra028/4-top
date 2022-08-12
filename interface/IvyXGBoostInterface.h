@@ -11,6 +11,7 @@ protected:
   unsigned long long nColumns;
   unsigned long long nRows;
   IvyMLDataType_t defval;
+  std::vector<TString> variable_names;
   std::map<TString, float> variables;
 
 public:
@@ -19,9 +20,12 @@ public:
 
   bool build(TString fname, std::vector<TString> const& varnames, IvyMLDataType_t missing_entry_val, unsigned long long nCols=1);
 
-  bool eval(std::unordered_map<TString, IvyMLDataType_t> const& vals, std::vector<double>& res);
+  std::vector<TString> const& getVariableNames() const{ return variable_names; }
 
   BoosterHandle* const& getBooster() const{ return booster; }
+
+  template<typename T> bool eval(std::unordered_map<TString, IvyMLDataType_t> const& vars, std::vector<T>& res);
+  template<typename T> bool eval(std::unordered_map<TString, IvyMLDataType_t> const& vars, T& res);
 
 };
 

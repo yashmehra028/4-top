@@ -1,16 +1,6 @@
-#include <cassert>
 #include <limits>
 #include "IvyFramework/IvyDataTools/interface/HostHelpersCore.h"
-#include "IvyFramework/IvyDataTools/interface/IvyStreamHelpers.hh"
-#include "IvyXGBoostInterface.h"
-
-
-using namespace std;
-using namespace IvyStreamHelpers;
-
-
-#define SAFE_XGBOOST(CALL) \
-{ int err_call = (CALL); if (err_call!=0){ IVYerr << "Call '" << #CALL << "' return error code " << err_call << ". XGBoost last error: " << XGBGetLastError() << endl; } }
+#include "IvyXGBoostInterface.hpp"
 
 
 IvyXGBoostInterface::IvyXGBoostInterface() :
@@ -50,44 +40,15 @@ bool IvyXGBoostInterface::build(TString fname, std::vector<TString> const& varna
   nColumns = nCols;
   nRows = varnames.size()/nColumns;
 
-  for (auto const& vv:varnames) variables[vv] = defval;
+  variable_names = varnames;
+  for (auto const& vv:variable_names) variables[vv] = defval;
+
   booster = new BoosterHandle;
   SAFE_XGBOOST(XGBoosterCreate(nullptr, 0, booster));
-  SAFE_XGBOOST(XGBoosterLoadModel(booster, fname.Data()));
 
-  return true;
-}
+  IVYout << "IvyXGBoostInterface::build: A new xgboost booster is created. Loading the model in " << fname << "..." << endl;
 
-bool IvyXGBoostInterface::eval(std::unordered_map<TString, IvyMLDataType_t> const& vars, std::vector<double>& res){
-  for (auto const& vv:vars){
-    auto it_var = variables.find(vv.first);
-    if (it_var==variables.end()){
-      IVYerr << "IvyXGBoostInterface::eval: Variable " << vv.first << " is not in the set of input data collection." << endl;
-      return false;
-    }
-    it_var->second = vv.second;
-  }
-
-  IvyMLDataType_t* data_arr = new IvyMLDataType_t[nColumns*nRows];
-  IvyMLDataType_t* data_arr_ptr = &(data_arr[0]);
-  for (auto& vv:variables){
-    *data_arr_ptr = vv.second;
-    data_arr_ptr++;
-  };
-
-  bst_ulong nout = 0;
-  const float* score;
-  DMatrixHandle dvalues;
-  SAFE_XGBOOST(XGDMatrixCreateFromMat(data_arr, nColumns, nRows, defval, &dvalues));
-  SAFE_XGBOOST(XGBoosterPredict(booster, dvalues, 0, 0, &nout, &score));
-  SAFE_XGBOOST(XGDMatrixFree(dvalues));
-
-  res.clear();
-  res.reserve(nout);
-  for (bst_ulong rr=0; rr<nout; rr++) res.push_back(score[rr]);
-
-  delete[] data_arr;
-  for (auto& vv:variables) vv.second = defval;
+  SAFE_XGBOOST(XGBoosterLoadModel(*booster, fname.Data()));
 
   return true;
 }

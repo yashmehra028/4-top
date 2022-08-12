@@ -78,6 +78,20 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   bool runSyncExercise = false;
   extra_arguments.getNamedVal("run_sync", runSyncExercise);
 
+  std::string muon_id_name;
+  extra_arguments.getNamedVal("muon_id", muon_id_name);
+  if (muon_id_name!=""){
+    IVYout << "Switching to muon id " << muon_id_name << endl;
+    MuonSelectionHelpers::setSelectionTypeByName(muon_id_name);
+  }
+  std::string electron_id_name;
+  extra_arguments.getNamedVal("electron_id", electron_id_name);
+  if (electron_id_name!=""){
+    IVYout << "Switching to electron id " << electron_id_name << endl;
+    ElectronSelectionHelpers::setSelectionTypeByName(electron_id_name);
+  }
+
+
   // Flag to control whether any preselection other than nleps>=2 to be applied
   bool const applyPreselection = !runSyncExercise;
 
@@ -218,7 +232,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   TString stroutput_sync = coutput_main + "/" + Form("sync_%s.csv", proc.data());
   if (runSyncExercise){
     foutput_sync.open(stroutput_sync.Data(), std::ios_base::out);
-    foutput_sync << "Event#,#inFile,MET,MET_phi,Nlooseleptons,Ntightleptons,Goodsspair?,HT,Njets,Nbjets,SR/CR" << endl;
+    foutput_sync << "Event#,#inFile,MET,MET_phi,Nlooseleptons,Nfakeableleptons,Ntightleptons,Goodsspair?,HT,Njets,Nbjets,SR/CR" << endl;
   }
 
   // Keep track of sums of weights
@@ -269,51 +283,90 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     // ParticleDisambiguator then cleans all geometrically overlapping jets by resetting their selection bits, which makes them unusable.
     particleDisambiguator.disambiguateParticles(&muonHandler, &electronHandler, nullptr, &jetHandler);
 
-    bool const printObjInfo = runSyncExercise && (ev==3 || ev==15 || ev==30 || ev==31 || ev==32 || ev==41);
+    bool const printObjInfo = runSyncExercise
+      &&
+      HelperFunctions::checkListVariable(std::vector<int>{3, 15, 30, 31, 32, 41, 153, 154, 197, 215, 284, 615}, ev);
 
     if (printObjInfo) IVYout << "Lepton info for event " << ev << ":" << endl;
 
     auto const& muons = muonHandler.getProducts();
     std::vector<MuonObject*> muons_selected;
     std::vector<MuonObject*> muons_tight;
+    std::vector<MuonObject*> muons_fakeable;
     std::vector<MuonObject*> muons_loose;
     for (auto const& part:muons){
       if (part->pt()<5.) continue;
-      if (ParticleSelectionHelpers::isTightParticle(part)) muons_tight.push_back(part);
-      else if (ParticleSelectionHelpers::isLooseParticle(part)) muons_loose.push_back(part);
+
+      bool is_tight = false;
+      bool is_fakeable = false;
+      bool is_loose = false;
+
+      if (ParticleSelectionHelpers::isTightParticle(part)){
+        muons_tight.push_back(part);
+        is_loose = is_fakeable = is_tight = true;
+      }
+      else if (ParticleSelectionHelpers::isFakeableParticle(part)){
+        muons_fakeable.push_back(part);
+        is_loose = is_fakeable = true;
+      }
+      else if (ParticleSelectionHelpers::isLooseParticle(part)){
+        muons_loose.push_back(part);
+        is_loose = true;
+      }
 
       if (printObjInfo) IVYout
         << "\t- PDG id = " << part->pdgId()
         << ", pt = " << part->pt() << ", eta = " << part->eta() << ", phi = " << part->phi()
-        << ", loose? " << ParticleSelectionHelpers::isLooseParticle(part)
-        << ", tight? " << ParticleSelectionHelpers::isTightParticle(part)
+        << ", loose? " << is_loose
+        << ", fakeable? " << is_fakeable
+        << ", tight? " << is_tight
         << endl;
     }
     HelperFunctions::appendVector(muons_selected, muons_tight);
+    HelperFunctions::appendVector(muons_selected, muons_fakeable);
     HelperFunctions::appendVector(muons_selected, muons_loose);
 
     auto const& electrons = electronHandler.getProducts();
     std::vector<ElectronObject*> electrons_selected;
     std::vector<ElectronObject*> electrons_tight;
+    std::vector<ElectronObject*> electrons_fakeable;
     std::vector<ElectronObject*> electrons_loose;
     for (auto const& part:electrons){
       if (part->pt()<7.) continue;
-      if (ParticleSelectionHelpers::isTightParticle(part)) electrons_tight.push_back(part);
-      else if (ParticleSelectionHelpers::isLooseParticle(part)) electrons_loose.push_back(part);
+
+      bool is_tight = false;
+      bool is_fakeable = false;
+      bool is_loose = false;
+
+      if (ParticleSelectionHelpers::isTightParticle(part)){
+        electrons_tight.push_back(part);
+        is_loose = is_fakeable = is_tight = true;
+      }
+      else if (ParticleSelectionHelpers::isFakeableParticle(part)){
+        electrons_fakeable.push_back(part);
+        is_loose = is_fakeable = true;
+      }
+      else if (ParticleSelectionHelpers::isLooseParticle(part)){
+        electrons_loose.push_back(part);
+        is_loose = true;
+      }
 
       if (printObjInfo) IVYout
         << "\t- PDG id = " << part->pdgId()
         << ", pt = " << part->pt() << ", eta = " << part->eta() << ", phi = " << part->phi()
-        << ", loose? " << ParticleSelectionHelpers::isLooseParticle(part)
-        << ", tight? " << ParticleSelectionHelpers::isTightParticle(part)
+        << ", loose? " << is_loose
+        << ", fakeable? " << is_fakeable
+        << ", tight? " << is_tight
         << endl;
     }
     HelperFunctions::appendVector(electrons_selected, electrons_tight);
+    HelperFunctions::appendVector(electrons_selected, electrons_fakeable);
     HelperFunctions::appendVector(electrons_selected, electrons_loose);
 
     unsigned int const nleptons_tight = muons_tight.size() + electrons_tight.size();
+    unsigned int const nleptons_fakeable = muons_fakeable.size() + electrons_fakeable.size();
     unsigned int const nleptons_loose = muons_loose.size() + electrons_loose.size();
-    unsigned int const nleptons_selected = nleptons_tight + nleptons_loose;
+    unsigned int const nleptons_selected = nleptons_tight + nleptons_fakeable + nleptons_loose;
 
     std::vector<ParticleObject*> leptons_selected; leptons_selected.reserve(nleptons_selected);
     for (auto const& part:muons_selected) leptons_selected.push_back(dynamic_cast<ParticleObject*>(part));
@@ -477,6 +530,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       << eventmet->pt() << ","
       << eventmet->phi() << ","
       << nleptons_selected << ","
+      << nleptons_fakeable + nleptons_tight << ","
       << nleptons_tight << ","
       << (dilepton_SS_tight ? "SS" : "!SS") << ","
       << ak4jets_pt40_HT << ","
@@ -567,6 +621,8 @@ int main(int argc, char** argv){
       HelperFunctions::castStringToValue(value, tmpval);
       extra_arguments.setNamedVal(wish, tmpval);
     }
+    else if (wish=="muon_id") extra_arguments.setNamedVal(wish, value);
+    else if (wish=="electron_id") extra_arguments.setNamedVal(wish, value);
     else if (wish=="xsec"){
       if (xsec<0.) xsec = 1;
       xsec *= std::stod(value);
@@ -598,6 +654,12 @@ int main(int argc, char** argv){
     IVYout << "- BR: BR value. Mandatory in the MC.\n";
     IVYout << "- input_files: Input files to run. Optional. Default is to run on all files\n";
     IVYout << "- run_sync: Turn on synchronization output. Optional. Default is to run without synchronization output.\n";
+    IVYout
+      << "- muon_id: Can be 'Cutbased_Run2', 'TopMVA_Run2', or 'TopMVAv2_Run2'.\n"
+      << "  Default is whatever is in MuonSelectionHelpers (currently 'Cutbased_Run2') if no value is given.\n";
+    IVYout
+      << "- electron_id: Can be 'Cutbased_Run2', 'TopMVA_Run2', or 'TopMVAv2_Run2'.\n"
+      << "  Default is whatever is in ElectronSelectionHelpers (currently 'Cutbased_Run2') if no value is given.\n";
 
     IVYout << endl;
     return (has_help ? 0 : 1);

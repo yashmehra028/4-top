@@ -55,7 +55,9 @@ ElectronObject& ElectronObject::operator=(const ElectronObject& other){
 ElectronObject::~ElectronObject(){}
 
 IvyParticle::LorentzVector_t::Scalar ElectronObject::ptrel() const{
-  AK4JetObject* mother = nullptr;
+  constexpr bool useNanoVars = true;
+  if (!useNanoVars){
+    AK4JetObject* mother = nullptr;
   for (auto const& mom:mothers){
     mother = dynamic_cast<AK4JetObject*>(mom);
     if (mother) break;
@@ -65,14 +67,23 @@ IvyParticle::LorentzVector_t::Scalar ElectronObject::ptrel() const{
   TVector3 p3_jet = mother->p4_TLV().Vect();
   TVector3 p3_diff = p3_jet - p3_part;
   return std::abs(p3_diff.Cross(p3_part).Mag()/p3_diff.Mag());
+  }
+  else{
+    return this->extras.jetPtRelv2;
+  }
 }
 IvyParticle::LorentzVector_t::Scalar ElectronObject::ptratio() const{
-  AK4JetObject* mother = nullptr;
+  constexpr bool useNanoVars = true;
+  if (!useNanoVars){
+    AK4JetObject* mother = nullptr;
   for (auto const& mom:mothers){
     mother = dynamic_cast<AK4JetObject*>(mom);
     if (mother) break;
   }
   if (!mother) return 0.;
   return this->pt() / mother->pt();
+  }
+  else{
+    return 1./(this->extras.jetRelIso + 1.);
+  }
 }
-

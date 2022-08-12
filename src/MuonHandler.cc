@@ -90,7 +90,10 @@ bool MuonHandler::constructMuonObjects(){
       obj->setUniqueIdentifier(ip);
 
       // Set selection bits
-      MuonSelectionHelpers::setSelectionBits(*obj);
+      //MuonSelectionHelpers::setSelectionBits(*obj); // Do not set them here. Migrated to ParticleDisambiguator.
+
+      // Compute external MVA scores if needed
+      MuonSelectionHelpers::storeMVAScores(*obj);
 
       if (this->verbosity>=MiscUtils::DEBUG) IVYout << "\t- Success!" << endl;
 

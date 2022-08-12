@@ -28,7 +28,7 @@ namespace AK4JetSelectionHelpers{
 
   constexpr float deltaRThr = 0.4;
 
-  constexpr int jetIdThr = 0;
+  constexpr int jetIdBitPos = 1;
 
   // Deep flavor cutoffs - medium
   // Found here: https://twiki.cern.ch/twiki/bin/viewauth/CMS/BtagRecommendation

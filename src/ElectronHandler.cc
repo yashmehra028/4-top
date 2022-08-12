@@ -90,7 +90,10 @@ bool ElectronHandler::constructElectronObjects(){
       obj->setUniqueIdentifier(ip);
 
       // Set selection bits
-      ElectronSelectionHelpers::setSelectionBits(*obj);
+      //ElectronSelectionHelpers::setSelectionBits(*obj); // Do not set them here. Migrated to ParticleDisambiguator.
+
+      // Compute external MVA scores if needed
+      ElectronSelectionHelpers::storeMVAScores(*obj);
 
       if (this->verbosity>=MiscUtils::DEBUG) IVYout << "\t- Success!" << endl;
 

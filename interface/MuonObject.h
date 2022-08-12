@@ -7,10 +7,16 @@
 #define MUON_EXTRA_VARIABLES \
 MUON_VARIABLE(bool, looseId) \
 MUON_VARIABLE(bool, mediumId) \
+MUON_VARIABLE(unsigned char, jetNDauCharged) \
+MUON_VARIABLE(float, segmentComp) \
 MUON_VARIABLE(float, miniPFRelIso_all) \
+MUON_VARIABLE(float, miniPFRelIso_chg) \
+MUON_VARIABLE(float, pfRelIso03_all) \
 MUON_VARIABLE(float, dxy) \
 MUON_VARIABLE(float, dz) \
 MUON_VARIABLE(float, sip3d) \
+MUON_VARIABLE(float, jetPtRelv2) \
+MUON_VARIABLE(float, jetRelIso) \
 MUON_VARIABLE(float, ptErr)
 
 

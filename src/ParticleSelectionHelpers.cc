@@ -6,6 +6,12 @@
 #include "HelperFunctions.h"
 
 
+
+namespace ParticleSelectionHelpers{
+  bool useFakeableIdForJetCleaning = false;
+}
+
+
 #define SELECTION_TYPES \
 SELECTION_TYPE(Loose) \
 SELECTION_TYPE(Tight)
@@ -75,6 +81,16 @@ SELECTION_TYPES;
 
 #undef SELECTION_TYPE
 #undef SELECTION_TYPES
+
+
+void ParticleSelectionHelpers::setUseFakeableIdForJetCleaning(bool flag){ useFakeableIdForJetCleaning=flag; }
+
+template<> bool ParticleSelectionHelpers::isParticleForJetCleaning<MuonObject>(MuonObject const* part){
+  return (isTightParticle(part) || (useFakeableIdForJetCleaning && isFakeableParticle(part)));
+}
+template<> bool ParticleSelectionHelpers::isParticleForJetCleaning<ElectronObject>(ElectronObject const* part){
+  return (isTightParticle(part) || (useFakeableIdForJetCleaning && isFakeableParticle(part)));
+}
 
 
 template<> bool ParticleSelectionHelpers::isJetForHEMVeto<AK4JetObject>(AK4JetObject const* jet){

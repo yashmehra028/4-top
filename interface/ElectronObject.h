@@ -5,8 +5,22 @@
 
 
 #define ELECTRON_EXTRA_VARIABLES \
+ELECTRON_VARIABLE(bool, convVeto) \
+ELECTRON_VARIABLE(unsigned char, lostHits) \
+ELECTRON_VARIABLE(unsigned char, jetNDauCharged) \
+ELECTRON_VARIABLE(int, tightCharge) \
+ELECTRON_VARIABLE(float, hoe) \
+ELECTRON_VARIABLE(float, eInvMinusPInv) \
+ELECTRON_VARIABLE(float, sieie) \
+ELECTRON_VARIABLE(float, dxy) \
+ELECTRON_VARIABLE(float, dz) \
+ELECTRON_VARIABLE(float, sip3d) \
 ELECTRON_VARIABLE(float, mvaFall17V2noIso) \
 ELECTRON_VARIABLE(float, miniPFRelIso_all) \
+ELECTRON_VARIABLE(float, miniPFRelIso_chg) \
+ELECTRON_VARIABLE(float, pfRelIso03_all) \
+ELECTRON_VARIABLE(float, jetPtRelv2) \
+ELECTRON_VARIABLE(float, jetRelIso) \
 ELECTRON_VARIABLE(float, deltaEtaSC)
 
 

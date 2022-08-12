@@ -1,11 +1,15 @@
 #ifndef PARTICLEOBJECT_H
 #define PARTICLEOBJECT_H
 
+#include <unordered_map>
 #include <IvyFramework/IvyDataTools/interface/IvyDataTypes.h>
 #include <IvyFramework/IvyDataTools/interface/IvyParticle.h>
 
 
 class ParticleObject : public IvyParticle{
+protected:
+  std::unordered_map<int, float> mvascore_ext_map;
+
 public:
   ParticleObject();
   ParticleObject(int id_);
@@ -18,6 +22,9 @@ public:
 
   virtual LorentzVector_t::Scalar ptrel() const{ return 0; }
   virtual LorentzVector_t::Scalar ptratio() const{ return 0; }
+
+  void setExternalMVAScore(int const& key, float const& val);
+  bool getExternalMVAScore(int const& key, float& val) const;
 
 };
 

@@ -22,7 +22,7 @@ using namespace IvyStreamHelpers;
 
 
 bool AK4JetSelectionHelpers::testJetId(AK4JetObject const& part){
-  return (part.extras.jetId>jetIdThr);
+  return HelperFunctions::test_bit(part.extras.jetId, jetIdBitPos);
 }
 bool AK4JetSelectionHelpers::testId(AK4JetObject const& part){
   return part.testSelectionBit(kJetIdOnly); // Could add PU jet ID here as well...
