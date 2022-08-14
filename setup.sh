@@ -43,22 +43,13 @@ printenv() {
     eval $(${CMSSW_BASE}/src/IvyFramework/IvyDataTools/setup.sh ${envopts})
   fi
 
-  if [[ -z "${XGBOOST_PATH+x}" ]]; then
-    echo "export XGBOOST_PATH=${xgboost_path}"
-    export XGBOOST_PATH=${xgboost_path}
+  if [[ -d ${CMSSW_BASE}/src/IvyFramework/IvyMLTools ]]; then
+    envopts="env xgboost_path=${xgboost_path}"
+    ${CMSSW_BASE}/src/IvyFramework/IvyMLTools/setup.sh ${envopts}
+    eval $(${CMSSW_BASE}/src/IvyFramework/IvyMLTools/setup.sh ${envopts})
   fi
 
   libappend="${PKGDIR}/lib"
-  end=""
-  if [[ ! -z "${LD_LIBRARY_PATH+x}" ]]; then
-    end=":${LD_LIBRARY_PATH}"
-  fi
-  if [[ "${end}" != *"$libappend"* ]]; then
-    echo "export LD_LIBRARY_PATH=${libappend}${end}"
-    export LD_LIBRARY_PATH=${libappend}${end}
-  fi
-
-  libappend="${xgboost_path}/lib"
   end=""
   if [[ ! -z "${LD_LIBRARY_PATH+x}" ]]; then
     end=":${LD_LIBRARY_PATH}"
@@ -84,7 +75,10 @@ doenv() {
     eval $(${CMSSW_BASE}/src/IvyFramework/IvyDataTools/setup.sh ${envopts})
   fi
 
-  export XGBOOST_PATH=${xgboost_path}
+  if [[ -d ${CMSSW_BASE}/src/IvyFramework/IvyMLTools ]]; then
+    envopts="env xgboost_path=${xgboost_path}"
+    eval $(${CMSSW_BASE}/src/IvyFramework/IvyMLTools/setup.sh ${envopts})
+  fi
 }
 printenvinstr () {
   echo
@@ -132,8 +126,9 @@ fi
 doenv
 
 
-# Compile IvyDataTools
+# Run IvyFramework commands
 ${CMSSW_BASE}/src/IvyFramework/IvyDataTools/setup.sh standalone "${setupArgs[@]}" 1> /dev/null || exit $?
+${CMSSW_BASE}/src/IvyFramework/IvyMLTools/setup.sh "xgboost_path=${xgboost_path}" "${setupArgs[@]}" 1> /dev/null || exit $?
 
 # Compile this repository
 make "${setupArgs[@]}"

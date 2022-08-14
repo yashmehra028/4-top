@@ -3,7 +3,7 @@
 
 #include <vector>
 #include "ElectronObject.h"
-#include "IvyXGBoostInterface.h"
+#include "IvyFramework/IvyMLTools/interface/IvyXGBoostInterface.h"
 
 
 namespace ElectronSelectionHelpers{

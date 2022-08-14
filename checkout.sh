@@ -77,6 +77,9 @@ cd ${CMSSW_BASE}/src
 if [[ ! -d IvyFramework/IvyDataTools ]]; then
   git clone git@github.com:IvyFramework/IvyDataTools.git IvyFramework/IvyDataTools
 fi
+if [[ ! -d IvyFramework/IvyMLTools ]]; then
+  git clone git@github.com:IvyFramework/IvyMLTools.git IvyFramework/IvyMLTools
+fi
 if [[ ! -d ProjectMetis ]]; then
   git clone git@github.com:usarica/ProjectMetis.git
 fi

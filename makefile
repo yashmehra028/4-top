@@ -35,6 +35,12 @@ IVYCOREINCDIR           = $(IVYCOREDIR)interface/
 IVYCORECXXFLAGS =  -I$(IVYCOREINCDIR) -L$(IVYCORELIBDIR)
 IVYCORELIBS =  -lIvyFrameworkIvyDataTools
 
+IVYMLTOOLSDIR              = $(BASEINCLUDE)IvyFramework/IvyMLTools/
+IVYMLTOOLSLIBDIR           = $(IVYMLTOOLSDIR)lib/
+IVYMLTOOLSINCDIR           = $(IVYMLTOOLSDIR)interface/
+IVYMLTOOLSCXXFLAGS =  -I$(IVYMLTOOLSINCDIR) -L$(IVYMLTOOLSLIBDIR)
+IVYMLTOOLSLIBS =  -lIvyFrameworkIvyMLTools
+
 # XGBOOST essentials
 XGBOOSTLIBDIR = ${XGBOOST_PATH}/lib/
 XGBOOSTINCDIR = $(XGBOOSTLIBDIR)../include/
@@ -44,8 +50,8 @@ XGBOOSTLIBS =  -lxgboost
 
 
 # Here begins compilation...
-EXTCXXFLAGS   = $(IVYCORECXXFLAGS) $(XGBOOSTCXXFLAGS)
-EXTLIBS       = $(IVYCORELIBS) $(XGBOOSTLIBS)
+EXTCXXFLAGS   = $(IVYCORECXXFLAGS) $(XGBOOSTCXXFLAGS) $(IVYMLTOOLSCXXFLAGS)
+EXTLIBS       = $(IVYCORELIBS) $(XGBOOSTLIBS) $(IVYMLTOOLSLIBS)
 
 ROOTCFLAGS    = $(shell root-config --cflags) -Lrootlib
 ROOTLIBS     = $(shell root-config --libs) -lMathMore -lGenVector -Lrootlib
@@ -55,7 +61,7 @@ ARCH         := $(shell root-config --arch)
 CXX           = g++
 CXXINC        = -I$(ROOFITSYS)/include/ -I$(BASEINCLUDE) -I$(INCLUDEDIR)
 CXXDEFINES    = -D_COMPILE_STANDALONE_
-CXXFLAGS      = -fPIC -g -O2 $(ROOTCFLAGS) $(CXXDEFINES) -I$(CXXINC) $(EXTCXXFLAGS)
+CXXFLAGS      = -fPIC -g -O2 $(ROOTCFLAGS) $(CXXDEFINES) $(CXXINC) $(EXTCXXFLAGS)
 LINKERFLAGS   = -Wl,-rpath=$(LIBDIR),-soname,$(LIB)
 
 NLIBS         = $(ROOTLIBS)

@@ -4,7 +4,7 @@
 #include <vector>
 #include <memory>
 #include "MuonObject.h"
-#include "IvyXGBoostInterface.h"
+#include "IvyFramework/IvyMLTools/interface/IvyXGBoostInterface.h"
 
 
 namespace MuonSelectionHelpers{
