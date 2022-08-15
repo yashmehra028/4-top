@@ -11,6 +11,10 @@ AK4JET_VARIABLE(int, partonFlavour)
 #define AK4JET_COMMON_VARIABLES \
 AK4JET_VARIABLE(int, jetId) \
 AK4JET_VARIABLE(int, puId) \
+AK4JET_VARIABLE(int, electronIdx1) \
+AK4JET_VARIABLE(int, electronIdx2) \
+AK4JET_VARIABLE(int, muonIdx1) \
+AK4JET_VARIABLE(int, muonIdx2) \
 AK4JET_VARIABLE(float, area) \
 AK4JET_VARIABLE(float, muonSubtrFactor) \
 AK4JET_VARIABLE(float, muEF) \

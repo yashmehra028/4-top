@@ -136,6 +136,9 @@ bool JetMETHandler::constructAK4Jets(){
       }
 #undef AK4JET_VARIABLE
 
+      // Set particle index as its unique identifier
+      obj->setUniqueIdentifier(ip);
+
       // Set the selection bits
       AK4JetSelectionHelpers::setSelectionBits(*obj);
 
@@ -193,6 +196,9 @@ bool JetMETHandler::constructAK4Jets_LowPt(){
 #define AK4JET_LOWPT_VARIABLE(TYPE, NAME) obj->extras_lowpt.NAME = *it_##NAME;
       AK4JET_LOWPT_EXTRA_INPUT_VARIABLES;
 #undef AK4JET_LOWPT_VARIABLE
+
+      // Set particle index as its unique identifier
+      obj->setUniqueIdentifier(ip);
 
       // These jets always fail selection, so there is no need to set bits
 

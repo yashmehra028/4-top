@@ -285,7 +285,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
     bool const printObjInfo = runSyncExercise
       &&
-      HelperFunctions::checkListVariable(std::vector<int>{3, 15, 30, 31, 32, 41, 153, 154, 197, 215, 284, 615}, ev);
+      HelperFunctions::checkListVariable(std::vector<int>{3, 15, 30, 31, 32, 41, 153, 154, 162, 197, 215, 284, 615}, ev);
 
     if (printObjInfo) IVYout << "Lepton info for event " << ev << ":" << endl;
 
@@ -317,6 +317,8 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       if (printObjInfo) IVYout
         << "\t- PDG id = " << part->pdgId()
         << ", pt = " << part->pt() << ", eta = " << part->eta() << ", phi = " << part->phi()
+        << ", array index = " << part->getUniqueIdentifier()
+        << ", matched jet index = " << (dynamic_cast<AK4JetObject*>(part->getMother(0)) ? static_cast<int>(part->getMother(0)->getUniqueIdentifier()) : -1)
         << ", loose? " << is_loose
         << ", fakeable? " << is_fakeable
         << ", tight? " << is_tight
@@ -354,6 +356,8 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       if (printObjInfo) IVYout
         << "\t- PDG id = " << part->pdgId()
         << ", pt = " << part->pt() << ", eta = " << part->eta() << ", phi = " << part->phi()
+        << ", array index = " << part->getUniqueIdentifier()
+        << ", matched jet index = " << (dynamic_cast<AK4JetObject*>(part->getMother(0)) ? static_cast<int>(part->getMother(0)->getUniqueIdentifier()) : -1)
         << ", loose? " << is_loose
         << ", fakeable? " << is_fakeable
         << ", tight? " << is_tight
@@ -386,8 +390,14 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     for (auto const& jet:ak4jets){
       if (printObjInfo) IVYout
         << "\t- pt = " << jet->pt() << ", eta = " << jet->eta() << ", phi = " << jet->phi()
+        << ", array index = " << jet->getUniqueIdentifier()
         << " | btagged? " << jet->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTagged)
         << " | tight & clean? " << ParticleSelectionHelpers::isTightJet(jet)
+        << " ("
+        << "jetId = " << jet->extras.jetId
+        << ", electron indices = " << std::vector<int>{ jet->extras.electronIdx1, jet->extras.electronIdx2 }
+        << ", muon indices = " << std::vector<int>{ jet->extras.muonIdx1, jet->extras.muonIdx2 }
+        << ")"
         << endl;
       if (ParticleSelectionHelpers::isTightJet(jet) && jet->pt()>=25. && std::abs(jet->eta())<absEtaThr_ak4jets){
         if (jet->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTagged)) ak4jets_tight_pt25_btagged.push_back(jet);
@@ -498,28 +508,30 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     constexpr int idx_CRW = 15;
     int iCRZ = (dilepton_OS_DYCand_tight ? 1 : 0);
     int icat = 0;
-    if (nleptons_tight==2){
-      switch (nak4jets_tight_pt25_btagged){
-      case 2:
-        if (nak4jets_tight_pt40<6) icat = idx_CRW;
-        else icat = 1 + std::min(nak4jets_tight_pt40, static_cast<unsigned int>(8))-6;
-        break;
-      case 3:
-        if (nak4jets_tight_pt40>=5) icat = 4 + std::min(nak4jets_tight_pt40, static_cast<unsigned int>(8))-5;
-        break;
-      default: // Nb>=4
-        if (nak4jets_tight_pt40>=5) icat = 8;
-        break;
+    if (nak4jets_tight_pt25_btagged>=2){
+      if (nleptons_tight==2){
+        switch (nak4jets_tight_pt25_btagged){
+        case 2:
+          if (nak4jets_tight_pt40<6) icat = idx_CRW;
+          else icat = 1 + std::min(nak4jets_tight_pt40, static_cast<unsigned int>(8))-6;
+          break;
+        case 3:
+          if (nak4jets_tight_pt40>=5) icat = 4 + std::min(nak4jets_tight_pt40, static_cast<unsigned int>(8))-5;
+          break;
+        default: // Nb>=4
+          if (nak4jets_tight_pt40>=5) icat = 8;
+          break;
+        }
       }
-    }
-    else{
-      switch (nak4jets_tight_pt25_btagged){
-      case 2:
-        if (nak4jets_tight_pt40>=5) icat = 9 + std::min(nak4jets_tight_pt40, static_cast<unsigned int>(7))-5;
-        break;
-      default: // Nb>=3
-        if (nak4jets_tight_pt40>=4) icat = 12 + std::min(nak4jets_tight_pt40, static_cast<unsigned int>(6))-4;
-        break;
+      else{
+        switch (nak4jets_tight_pt25_btagged){
+        case 2:
+          if (nak4jets_tight_pt40>=5) icat = 9 + std::min(nak4jets_tight_pt40, static_cast<unsigned int>(7))-5;
+          break;
+        default: // Nb>=3
+          if (nak4jets_tight_pt40>=4) icat = 12 + std::min(nak4jets_tight_pt40, static_cast<unsigned int>(6))-4;
+          break;
+        }
       }
     }
     if (icat>=0) hCat->Fill(static_cast<double>(icat-1)+0.5, static_cast<double>(iCRZ)+0.5, wgt);
