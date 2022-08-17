@@ -13,6 +13,7 @@ namespace ElectronSelectionHelpers{
   constexpr bool apply_triggerSafety = true;
 
   SelectionType selection_type = kCutbased_Run2;
+  bool applyMVALooseFakeableNoIsoWPs = false; // For Cutbased_Run2 ID
 
   // Just test if this selection is cut- or MVA-based
   bool isMVASelection(SelectionType const& type);
@@ -31,7 +32,9 @@ namespace ElectronSelectionHelpers{
   bool testLooseId_IsoTrig(ElectronObject const& part);
   bool testLooseIso(ElectronObject const& part);
 
-  bool testFakeableId(ElectronObject const& part);
+  bool testFakeableId_Common(ElectronObject const& part);
+  bool testFakeableId_NoIsoTrig(ElectronObject const& part);
+  bool testFakeableId_IsoTrig(ElectronObject const& part);
   bool testFakeableIso(ElectronObject const& part);
 
   bool testTightId(ElectronObject const& part);
@@ -42,6 +45,8 @@ namespace ElectronSelectionHelpers{
   bool testPreselectionLoose_NoIsoTrig(ElectronObject const& part);
   bool testPreselectionLoose_IsoTrig(ElectronObject const& part);
   bool testPreselectionLoose(ElectronObject const& part);
+  bool testPreselectionFakeable_NoIsoTrig(ElectronObject const& part);
+  bool testPreselectionFakeable_IsoTrig(ElectronObject const& part);
   bool testPreselectionFakeable(ElectronObject const& part);
   bool testPreselectionTight(ElectronObject const& part);
 }
@@ -50,6 +55,8 @@ namespace ElectronSelectionHelpers{
 using namespace std;
 using namespace IvyStreamHelpers;
 
+
+void ElectronSelectionHelpers::setApplyMVALooseFakeableNoIsoWPs(bool flag){ applyMVALooseFakeableNoIsoWPs = flag; }
 
 bool ElectronSelectionHelpers::isMVASelection(SelectionType const& type){
   switch (type){
@@ -247,7 +254,6 @@ bool ElectronSelectionHelpers::testLooseId_IsoTrig(ElectronObject const& part){
   if (!testLooseId_Common(part)) return false;
 
   double const part_pt = part.pt();
-  double const part_eta = std::abs(part.eta());
   double const part_etaSC = std::abs(part.etaSC());
 
   switch (selection_type){
@@ -293,7 +299,6 @@ bool ElectronSelectionHelpers::testLooseId_NoIsoTrig(ElectronObject const& part)
   if (!testLooseId_Common(part)) return false;
 
   double const part_pt = part.pt();
-  double const part_eta = std::abs(part.eta());
   double const part_etaSC = std::abs(part.etaSC());
 
   switch (selection_type){
@@ -336,63 +341,35 @@ bool ElectronSelectionHelpers::testLooseId_NoIsoTrig(ElectronObject const& part)
     return false;
   }
 }
-bool ElectronSelectionHelpers::testFakeableId(ElectronObject const& part){
+bool ElectronSelectionHelpers::testFakeableId_Common(ElectronObject const& part){
   double const part_pt = part.pt();
-  double const part_eta = std::abs(part.eta());
   double const part_etaSC = std::abs(part.etaSC());
 
   switch (selection_type){
   case kCutbased_Run2:
   {
-    // have pt categories 0, 1, 2. unsigned char is 8 bit int. 
-    // if pt is too small or eta is too large for tracking
-    if (part_pt < ptThr_cat1 || part_etaSC >= etaThr_cat2) return false;
-    if (
-      !(
-        part.extras.lostHits<=maxMissingHits_fakeable_tight
-        &&
-        std::abs(part.extras.dxy)<dxyThr
-        &&
-        std::abs(part.extras.dz)<dzThr
-        &&
-        std::abs(part.extras.sip3d)<sip3dThr
-        &&
-        part.extras.convVeto
-        &&
-        part.extras.tightCharge==2
-        &&
-        part_pt>=20.
-        )
-      ) return false;
-
-
-    unsigned char ptcat = 1*(part_pt >= ptThr_cat1) + 1*(part_pt >= ptThr_cat2);
-    unsigned char etacat = 1*(part_etaSC >= etaThr_cat0) + 1*(part_etaSC >= etaThr_cat1);
-
-    // See AN2018_062_v17 lines 298-303 for description of mva discriminant
-    // Note that for electrons, pt<etaThr_cat0 = 10 GeV always returns false.
-    double wpcutCoeffA = 99;
-    double wpcutCoeffB = 0;
-    switch (ptcat){
-    case 1:
-      wpcutCoeffB = (etacat == 0 ? 0.112 : (etacat == 1 ? 0.060 : 0.087));
-    case 2:
-      wpcutCoeffA = (etacat == 0 ? 4.277 : (etacat == 1 ? 3.152 : 2.359));
-      break;
-    default:
-      return false;
-    }
-    double wpcut = wpcutCoeffA + wpcutCoeffB * (part_pt - ptThr_cat2);
-
-    float const raw_mva = convert_BDTscore_raw(part.extras.mvaFall17V2noIso);
-    return raw_mva >= wpcut;
+    return (
+      part.extras.lostHits<=maxMissingHits_fakeable_tight
+      &&
+      std::abs(part.extras.dxy)<dxyThr
+      &&
+      std::abs(part.extras.dz)<dzThr
+      &&
+      std::abs(part.extras.sip3d)<sip3dThr
+      &&
+      part.extras.convVeto
+      &&
+      part.extras.tightCharge==2
+      &&
+      part_pt>=20.
+      );
   }
   case kTopMVA_Run2:
   case kTopMVAv2_Run2:
   {
     float mvascore = -999;
     if (!part.getExternalMVAScore(selection_type, mvascore)){
-      IVYerr << "ElectronSelectionHelpers::testFakeableId: MVA score is not yet computed for selection type " << selection_type << "." << endl;
+      IVYerr << "ElectronSelectionHelpers::testFakeableId_Common: MVA score is not yet computed for selection type " << selection_type << "." << endl;
       assert(0);
     }
     return (
@@ -418,7 +395,93 @@ bool ElectronSelectionHelpers::testFakeableId(ElectronObject const& part){
       );
   }
   default:
-    IVYerr << "ElectronSelectionHelpers::testFakeableId: Selection type " << selection_type << " is not implemented." << endl;
+    IVYerr << "ElectronSelectionHelpers::testFakeableId_Common: Selection type " << selection_type << " is not implemented." << endl;
+    assert(0);
+    return false;
+  }
+}
+bool ElectronSelectionHelpers::testFakeableId_IsoTrig(ElectronObject const& part){
+  if (!testFakeableId_Common(part)) return false;
+
+  double const part_pt = part.pt();
+  double const part_etaSC = std::abs(part.etaSC());
+
+  switch (selection_type){
+  case kCutbased_Run2:
+  {
+    // have pt categories 0, 1, 2. unsigned char is 8 bit int. 
+    // if pt is too small or eta is too large for tracking
+    if (part_pt < ptThr_cat1 || part_etaSC >= etaThr_cat2) return false;
+
+    unsigned char ptcat = 1*(part_pt >= ptThr_cat1) + 1*(part_pt >= ptThr_cat2);
+    unsigned char etacat = 1*(part_etaSC >= etaThr_cat0) + 1*(part_etaSC >= etaThr_cat1);
+
+    // See AN2018_062_v17 lines 298-303 for description of mva discriminant
+    // Note that for electrons, pt<etaThr_cat0 = 10 GeV always returns false.
+    double wpcutCoeffA = 99;
+    double wpcutCoeffB = 0;
+    switch (ptcat){
+    case 1:
+      wpcutCoeffB = (etacat == 0 ? 0.066 : (etacat == 1 ? 0.033 : 0.053));
+    case 2:
+      wpcutCoeffA = (etacat == 0 ? 1.204 : (etacat == 1 ? 0.084 : -0.123));
+      break;
+    default:
+      return false;
+    }
+    double wpcut = wpcutCoeffA + wpcutCoeffB * (part_pt - ptThr_cat2);
+
+    float const raw_mva = convert_BDTscore_raw(part.extras.mvaFall17V2noIso);
+    return raw_mva >= wpcut;
+  }
+  case kTopMVA_Run2:
+  case kTopMVAv2_Run2:
+    return true; // Already handled in the common function
+  default:
+    IVYerr << "ElectronSelectionHelpers::testFakeableId_IsoTrig: Selection type " << selection_type << " is not implemented." << endl;
+    assert(0);
+    return false;
+  }
+}
+bool ElectronSelectionHelpers::testFakeableId_NoIsoTrig(ElectronObject const& part){
+  if (!testFakeableId_Common(part)) return false;
+
+  double const part_pt = part.pt();
+  double const part_etaSC = std::abs(part.etaSC());
+
+  switch (selection_type){
+  case kCutbased_Run2:
+  {
+    // have pt categories 0, 1, 2. unsigned char is 8 bit int. 
+    // if pt is too small or eta is too large for tracking
+    if (part_pt < ptThr_cat1 || part_etaSC >= etaThr_cat2) return false;
+
+    unsigned char ptcat = 1*(part_pt >= ptThr_cat1) + 1*(part_pt >= ptThr_cat2);
+    unsigned char etacat = 1*(part_etaSC >= etaThr_cat0) + 1*(part_etaSC >= etaThr_cat1);
+
+    // See AN2018_062_v17 lines 298-303 for description of mva discriminant
+    // Note that for electrons, pt<etaThr_cat0 = 10 GeV always returns false.
+    double wpcutCoeffA = 99;
+    double wpcutCoeffB = 0;
+    switch (ptcat){
+    case 1:
+      wpcutCoeffB = (etacat == 0 ? 0.062 : (etacat == 1 ? 0.038 : 0.042));
+    case 2:
+      wpcutCoeffA = (etacat == 0 ? -0.106 : (etacat == 1 ? -0.769 : -1.461));
+      break;
+    default:
+      return false;
+    }
+    double wpcut = wpcutCoeffA + wpcutCoeffB * (part_pt - ptThr_cat2);
+
+    float const raw_mva = convert_BDTscore_raw(part.extras.mvaFall17V2noIso);
+    return raw_mva >= wpcut;
+  }
+  case kTopMVA_Run2:
+  case kTopMVAv2_Run2:
+    return true; // Already handled in the common function
+  default:
+    IVYerr << "ElectronSelectionHelpers::testFakeableId_IsoTrig: Selection type " << selection_type << " is not implemented." << endl;
     assert(0);
     return false;
   }
@@ -595,20 +658,38 @@ bool ElectronSelectionHelpers::testPreselectionLoose_NoIsoTrig(ElectronObject co
 }
 bool ElectronSelectionHelpers::testPreselectionLoose(ElectronObject const& part){
   return (
-    part.testSelectionBit(kPreselectionLoose_NoIsoTrig)
+    (applyMVALooseFakeableNoIsoWPs && part.testSelectionBit(kPreselectionLoose_NoIsoTrig))
     ||
-    part.testSelectionBit(kPreselectionLoose_IsoTrig)
+    (!applyMVALooseFakeableNoIsoWPs && part.testSelectionBit(kPreselectionLoose_IsoTrig))
     );
 }
-bool ElectronSelectionHelpers::testPreselectionFakeable(ElectronObject const& part){
+bool ElectronSelectionHelpers::testPreselectionFakeable_IsoTrig(ElectronObject const& part){
   return (
     part.testSelectionBit(kKinOnly)
     &&
     testTriggerSafety(part)
     &&
-    testFakeableId(part)
+    testFakeableId_IsoTrig(part)
     &&
     testFakeableIso(part)
+    );
+}
+bool ElectronSelectionHelpers::testPreselectionFakeable_NoIsoTrig(ElectronObject const& part){
+  return (
+    part.testSelectionBit(kKinOnly)
+    &&
+    testTriggerSafety(part)
+    &&
+    testFakeableId_NoIsoTrig(part)
+    &&
+    testFakeableIso(part)
+    );
+}
+bool ElectronSelectionHelpers::testPreselectionFakeable(ElectronObject const& part){
+  return (
+    (applyMVALooseFakeableNoIsoWPs && part.testSelectionBit(kPreselectionFakeable_NoIsoTrig))
+    ||
+    (!applyMVALooseFakeableNoIsoWPs && part.testSelectionBit(kPreselectionFakeable_IsoTrig))
     );
 }
 bool ElectronSelectionHelpers::testPreselectionTight(ElectronObject const& part){
@@ -631,6 +712,8 @@ void ElectronSelectionHelpers::setSelectionBits(ElectronObject& part){
   part.setSelectionBit(kPreselectionLoose_NoIsoTrig, testPreselectionLoose_NoIsoTrig(part));
   part.setSelectionBit(kPreselectionLoose_IsoTrig, testPreselectionLoose_IsoTrig(part));
   part.setSelectionBit(kPreselectionLoose, testPreselectionLoose(part));
+  part.setSelectionBit(kPreselectionFakeable_NoIsoTrig, testPreselectionFakeable_NoIsoTrig(part));
+  part.setSelectionBit(kPreselectionFakeable_IsoTrig, testPreselectionFakeable_IsoTrig(part));
   part.setSelectionBit(kPreselectionFakeable, testPreselectionFakeable(part));
   part.setSelectionBit(kPreselectionTight, testPreselectionTight(part));
 }

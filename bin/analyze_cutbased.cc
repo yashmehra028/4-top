@@ -70,6 +70,9 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
   TDirectory* curdir = gDirectory;
 
+  constexpr bool cleanJetsFromFakeableObjects = true;
+  ParticleSelectionHelpers::setUseFakeableIdForJetCleaning(cleanJetsFromFakeableObjects);
+
   float const absEtaThr_ak4jets = (SampleHelpers::getDataYear()<=2016 ? AK4JetSelectionHelpers::etaThr_btag_Phase0Tracker : AK4JetSelectionHelpers::etaThr_btag_Phase1Tracker);
 
   // Turn on synchronization exercise options
@@ -116,6 +119,10 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       TriggerHelpers::kMuEle_PFHT
   };
   std::vector<std::string> const hltnames_Dilepton = TriggerHelpers::getHLTMenus(requiredTriggers_Dilepton);
+
+  // Related to triggers is how we apply loose and fakeable IDs in electrons.
+  // This setting should vary for 2016 when analyzing fake rates instead of the signal or SR-like control regions.
+  if (ElectronSelectionHelpers::selection_type == ElectronSelectionHelpers::kCutbased_Run2) ElectronSelectionHelpers::setApplyMVALooseFakeableNoIsoWPs((SampleHelpers::getDataYear()==2016));
 
   // Declare handlers
   GenInfoHandler genInfoHandler;
@@ -285,7 +292,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
     bool const printObjInfo = runSyncExercise
       &&
-      HelperFunctions::checkListVariable(std::vector<int>{3, 15, 30, 31, 32, 41, 153, 154, 162, 197, 215, 284, 615}, ev);
+      HelperFunctions::checkListVariable(std::vector<int>{3, 15, 30, 31, 32, 41, 153, 154, 162, 197, 215, 284, 317, 360, 572, 615, 747, 1019, 1119, 1129}, ev);
 
     if (printObjInfo) IVYout << "Lepton info for event " << ev << ":" << endl;
 
@@ -323,6 +330,15 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         << ", fakeable? " << is_fakeable
         << ", tight? " << is_tight
         << endl;
+      /*
+#define MUON_VARIABLE(TYPE, NAME) << "\t- " << #NAME << ": " << static_cast<double>(part->extras.NAME) << "\n"
+      if (printObjInfo) IVYout
+        << "\t- ptrel = " << part->ptrel() << "\n"
+        << "\t- ptratio = " << part->ptratio() << "\n"
+        MUON_EXTRA_VARIABLES
+        << endl;
+#undef MUON_VARIABLE
+      */
     }
     HelperFunctions::appendVector(muons_selected, muons_tight);
     HelperFunctions::appendVector(muons_selected, muons_fakeable);
@@ -362,6 +378,16 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         << ", fakeable? " << is_fakeable
         << ", tight? " << is_tight
         << endl;
+      /*
+#define ELECTRON_VARIABLE(TYPE, NAME) << "\t- " << #NAME << ": " << static_cast<double>(part->extras.NAME) << "\n"
+      if (printObjInfo) IVYout
+        << "\t- ptrel = " << part->ptrel() << "\n"
+        << "\t- ptratio = " << part->ptratio() << "\n"
+        << "\t- MVA transformed = " << 0.5 * std::log((1. + part->extras.mvaFall17V2noIso)/(1. - part->extras.mvaFall17V2noIso)) << "\n"
+        ELECTRON_EXTRA_VARIABLES
+        << endl;
+#undef ELECTRON_VARIABLE
+      */
     }
     HelperFunctions::appendVector(electrons_selected, electrons_tight);
     HelperFunctions::appendVector(electrons_selected, electrons_fakeable);
@@ -534,7 +560,29 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         }
       }
     }
-    if (icat>=0) hCat->Fill(static_cast<double>(icat-1)+0.5, static_cast<double>(iCRZ)+0.5, wgt);
+    if (icat>=0){
+      hCat->Fill(static_cast<double>(icat-1)+0.5, static_cast<double>(iCRZ)+0.5, wgt);
+      if (printObjInfo){
+        if (dilepton_OS_DYCand_tight) IVYout
+          << "OS Z candidate found to have "
+          << "pt = " << dilepton_OS_DYCand_tight->pt()
+          << ", mass = " << dilepton_OS_DYCand_tight->mass()
+          << ", daughter array indices = ["
+          << (std::abs(dilepton_OS_DYCand_tight->getDaughter(0)->pdgId())==13 ? "muon" : "electron") << " " << dilepton_OS_DYCand_tight->getDaughter(0)->getUniqueIdentifier()
+          << ", " << (std::abs(dilepton_OS_DYCand_tight->getDaughter(1)->pdgId())==13 ? "muon" : "electron") << " " << dilepton_OS_DYCand_tight->getDaughter(1)->getUniqueIdentifier()
+          << "]"
+          << endl;
+        if (dilepton_SS_tight) IVYout
+          << "SS(TT) candidate found to have "
+          << "pt = " << dilepton_SS_tight->pt()
+          << ", mass = " << dilepton_SS_tight->mass()
+          << ", daughter array indices = ["
+          << (std::abs(dilepton_SS_tight->getDaughter(0)->pdgId())==13 ? "muon" : "electron") << " " << dilepton_SS_tight->getDaughter(0)->getUniqueIdentifier()
+          << ", " << (std::abs(dilepton_SS_tight->getDaughter(1)->pdgId())==13 ? "muon" : "electron") << " " << dilepton_SS_tight->getDaughter(1)->getUniqueIdentifier()
+          << "]"
+          << endl;
+      }
+    }
 
     if (runSyncExercise) foutput_sync
       << *ptr_EventNumber << ","

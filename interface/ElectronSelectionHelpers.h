@@ -13,6 +13,8 @@ namespace ElectronSelectionHelpers{
     kPreselectionLoose_IsoTrig,
     kPreselectionLoose_NoIsoTrig,
     kPreselectionLoose,
+    kPreselectionFakeable_IsoTrig,
+    kPreselectionFakeable_NoIsoTrig,
     kPreselectionFakeable,
     kPreselectionTight,
 
@@ -70,6 +72,8 @@ namespace ElectronSelectionHelpers{
   constexpr float sieieThr_endcap_TriggerSafety = 0.031;
   constexpr float hoverEThr_TriggerSafety = 0.08;
   constexpr float absEinvminusPinvThr_TriggerSafety = 0.01; // BE CAREFUL! THIS IS UNSIGNED AND COMPARISON IS <!
+
+  void setApplyMVALooseFakeableNoIsoWPs(bool flag); // Relevant to Cutbased_Run2 ID for now
 
   /*****************************/
   /* MVA ID Run 2 requirements */
