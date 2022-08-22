@@ -15,10 +15,10 @@ using namespace IvyStreamHelpers;
 
 
 #define VECTOR_ITERATOR_HANDLER_DIRECTIVES \
-ISOTRACK_VARIABLE(float, pt) \
-ISOTRACK_VARIABLE(float, eta) \
-ISOTRACK_VARIABLE(float, phi) \
-ISOTRACK_VARIABLE(int, pdgId) \
+ISOTRACK_VARIABLE(float, pt, 0) \
+ISOTRACK_VARIABLE(float, eta, 0) \
+ISOTRACK_VARIABLE(float, phi, 0) \
+ISOTRACK_VARIABLE(int, pdgId, -9000) \
 ISOTRACK_EXTRA_VARIABLES
 
 
@@ -27,7 +27,7 @@ const std::string IsotrackHandler::colName = GlobalCollectionNames::colName_isot
 IsotrackHandler::IsotrackHandler() : IvyBase()
 {
   this->addConsumed<GlobalCollectionNames::collsize_t>(Form("n%s", IsotrackHandler::colName.data()));
-#define ISOTRACK_VARIABLE(TYPE, NAME) this->addConsumed<TYPE* const>(IsotrackHandler::colName + "_" + #NAME);
+#define ISOTRACK_VARIABLE(TYPE, NAME, DEFVAL) this->addConsumed<TYPE* const>(IsotrackHandler::colName + "_" + #NAME);
   VECTOR_ITERATOR_HANDLER_DIRECTIVES;
 #undef ISOTRACK_VARIABLE
 }
@@ -39,13 +39,13 @@ bool IsotrackHandler::constructIsotracks(std::vector<MuonObject*> const* muons, 
   if (!currentTree) return false;
 
   GlobalCollectionNames::collsize_t nProducts;
-#define ISOTRACK_VARIABLE(TYPE, NAME) TYPE* const* arr_##NAME;
+#define ISOTRACK_VARIABLE(TYPE, NAME, DEFVAL) TYPE* const* arr_##NAME;
   VECTOR_ITERATOR_HANDLER_DIRECTIVES;
 #undef ISOTRACK_VARIABLE
 
   // Beyond this point starts checks and selection
   bool allVariablesPresent = this->getConsumedValue(Form("n%s", IsotrackHandler::colName.data()), nProducts);
-#define ISOTRACK_VARIABLE(TYPE, NAME) allVariablesPresent &= this->getConsumed<TYPE* const>(IsotrackHandler::colName + "_" + #NAME, arr_##NAME);
+#define ISOTRACK_VARIABLE(TYPE, NAME, DEFVAL) allVariablesPresent &= this->getConsumed<TYPE* const>(IsotrackHandler::colName + "_" + #NAME, arr_##NAME);
   VECTOR_ITERATOR_HANDLER_DIRECTIVES;
 #undef ISOTRACK_VARIABLE
 
@@ -59,7 +59,7 @@ bool IsotrackHandler::constructIsotracks(std::vector<MuonObject*> const* muons, 
   if (nProducts==0) return true; // Construction is successful, it is just that no muons exist.
 
   productList.reserve(nProducts);
-#define ISOTRACK_VARIABLE(TYPE, NAME) TYPE* it_##NAME = &((*arr_##NAME)[0]);
+#define ISOTRACK_VARIABLE(TYPE, NAME, DEFVAL) TYPE* it_##NAME = &((*arr_##NAME)[0]);
   VECTOR_ITERATOR_HANDLER_DIRECTIVES;
 #undef ISOTRACK_VARIABLE
   {
@@ -73,7 +73,7 @@ bool IsotrackHandler::constructIsotracks(std::vector<MuonObject*> const* muons, 
       ProductType_t*& obj = productList.back();
 
       // Set extras
-#define ISOTRACK_VARIABLE(TYPE, NAME) obj->extras.NAME = *it_##NAME;
+#define ISOTRACK_VARIABLE(TYPE, NAME, DEFVAL) obj->extras.NAME = *it_##NAME;
       ISOTRACK_EXTRA_VARIABLES;
 #undef ISOTRACK_VARIABLE
 
@@ -83,7 +83,7 @@ bool IsotrackHandler::constructIsotracks(std::vector<MuonObject*> const* muons, 
       if (this->verbosity>=MiscUtils::DEBUG) IVYout << "\t- Success!" << endl;
 
       ip++;
-#define ISOTRACK_VARIABLE(TYPE, NAME) if (it_##NAME) it_##NAME++;
+#define ISOTRACK_VARIABLE(TYPE, NAME, DEFVAL) if (it_##NAME) it_##NAME++;
       VECTOR_ITERATOR_HANDLER_DIRECTIVES;
 #undef ISOTRACK_VARIABLE
     }
@@ -128,7 +128,7 @@ void IsotrackHandler::bookBranches(BaseTree* tree){
   if (!tree) return;
 
   tree->bookBranch<GlobalCollectionNames::collsize_t>(Form("n%s", IsotrackHandler::colName.data()), 0);
-#define ISOTRACK_VARIABLE(TYPE, NAME) tree->bookArrayBranch<TYPE>(IsotrackHandler::colName + "_" + #NAME, 0, GlobalCollectionNames::colMaxSize_isotracks);
+#define ISOTRACK_VARIABLE(TYPE, NAME, DEFVAL) tree->bookArrayBranch<TYPE>(IsotrackHandler::colName + "_" + #NAME, DEFVAL, GlobalCollectionNames::colMaxSize_isotracks);
   VECTOR_ITERATOR_HANDLER_DIRECTIVES
 #undef ISOTRACK_VARIABLE
 }

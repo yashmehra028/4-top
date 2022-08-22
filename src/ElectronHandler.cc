@@ -11,11 +11,11 @@ using namespace IvyStreamHelpers;
 
 
 #define ELECTRON_MOMENTUM_VARIABLES \
-ELECTRON_VARIABLE(float, pt) \
-ELECTRON_VARIABLE(float, eta) \
-ELECTRON_VARIABLE(float, phi) \
-ELECTRON_VARIABLE(float, mass) \
-ELECTRON_VARIABLE(int, pdgId)
+ELECTRON_VARIABLE(float, pt, 0) \
+ELECTRON_VARIABLE(float, eta, 0) \
+ELECTRON_VARIABLE(float, phi, 0) \
+ELECTRON_VARIABLE(float, mass, 0) \
+ELECTRON_VARIABLE(int, pdgId, -9000)
 
 
 const std::string ElectronHandler::colName = GlobalCollectionNames::colName_electrons;
@@ -24,7 +24,7 @@ ElectronHandler::ElectronHandler() :
   IvyBase()
 {
   this->addConsumed<GlobalCollectionNames::collsize_t>(Form("n%s", ElectronHandler::colName.data()));
-#define ELECTRON_VARIABLE(TYPE, NAME) this->addConsumed<TYPE* const>(ElectronHandler::colName + "_" + #NAME);
+#define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) this->addConsumed<TYPE* const>(ElectronHandler::colName + "_" + #NAME);
   ELECTRON_MOMENTUM_VARIABLES;
   ELECTRON_EXTRA_VARIABLES;
 #undef ELECTRON_VARIABLE
@@ -45,14 +45,14 @@ bool ElectronHandler::constructElectrons(){
 
 bool ElectronHandler::constructElectronObjects(){
   GlobalCollectionNames::collsize_t nProducts;
-#define ELECTRON_VARIABLE(TYPE, NAME) TYPE* const* arr_##NAME = nullptr;
+#define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) TYPE* const* arr_##NAME = nullptr;
   ELECTRON_MOMENTUM_VARIABLES;
   ELECTRON_EXTRA_VARIABLES;
 #undef ELECTRON_VARIABLE
 
   // Beyond this point starts checks and selection
   bool allVariablesPresent = this->getConsumedValue(Form("n%s", ElectronHandler::colName.data()), nProducts);
-#define ELECTRON_VARIABLE(TYPE, NAME) allVariablesPresent &= this->getConsumed<TYPE* const>(ElectronHandler::colName + "_" + #NAME, arr_##NAME);
+#define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) allVariablesPresent &= this->getConsumed<TYPE* const>(ElectronHandler::colName + "_" + #NAME, arr_##NAME);
   ELECTRON_MOMENTUM_VARIABLES;
   ELECTRON_EXTRA_VARIABLES;
 #undef ELECTRON_VARIABLE
@@ -67,7 +67,7 @@ bool ElectronHandler::constructElectronObjects(){
   if (nProducts==0) return true; // Construction is successful, it is just that no electrons exist.
 
   productList.reserve(nProducts);
-#define ELECTRON_VARIABLE(TYPE, NAME) TYPE* it_##NAME = &((*arr_##NAME)[0]);
+#define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) TYPE* it_##NAME = &((*arr_##NAME)[0]);
   ELECTRON_MOMENTUM_VARIABLES;
   ELECTRON_EXTRA_VARIABLES
 #undef ELECTRON_VARIABLE
@@ -82,7 +82,7 @@ bool ElectronHandler::constructElectronObjects(){
       ElectronObject*& obj = productList.back();
 
       // Set extras
-#define ELECTRON_VARIABLE(TYPE, NAME) obj->extras.NAME = *it_##NAME;
+#define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) obj->extras.NAME = *it_##NAME;
       ELECTRON_EXTRA_VARIABLES;
 #undef ELECTRON_VARIABLE
 
@@ -98,7 +98,7 @@ bool ElectronHandler::constructElectronObjects(){
       if (this->verbosity>=MiscUtils::DEBUG) IVYout << "\t- Success!" << endl;
 
       ip++;
-#define ELECTRON_VARIABLE(TYPE, NAME) if (it_##NAME) it_##NAME++;
+#define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) if (it_##NAME) it_##NAME++;
       ELECTRON_MOMENTUM_VARIABLES;
       ELECTRON_EXTRA_VARIABLES;
 #undef ELECTRON_VARIABLE
@@ -114,7 +114,7 @@ void ElectronHandler::bookBranches(BaseTree* tree){
   if (!tree) return;
 
   tree->bookBranch<GlobalCollectionNames::collsize_t>(Form("n%s", ElectronHandler::colName.data()), 0);
-#define ELECTRON_VARIABLE(TYPE, NAME) tree->bookArrayBranch<TYPE>(ElectronHandler::colName + "_" + #NAME, 0, GlobalCollectionNames::colMaxSize_electrons);
+#define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) tree->bookArrayBranch<TYPE>(ElectronHandler::colName + "_" + #NAME, DEFVAL, GlobalCollectionNames::colMaxSize_electrons);
   ELECTRON_MOMENTUM_VARIABLES;
   ELECTRON_EXTRA_VARIABLES;
 #undef ELECTRON_VARIABLE

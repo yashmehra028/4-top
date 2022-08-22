@@ -5,6 +5,7 @@
 #include "SamplesCore.h"
 #include "MuonSelectionHelpers.h"
 #include "AK4JetObject.h"
+#include "AK4JetSelectionHelpers.h"
 #include "IvyFramework/IvyDataTools/interface/HelperFunctions.h"
 
 
@@ -131,7 +132,7 @@ void MuonSelectionHelpers::loadMVA(){
 void MuonSelectionHelpers::storeMVAScores(MuonObject& part){
   for (auto const& pp:seltype_mvareader_map){ if (isMVASelection(pp.first)) part.setExternalMVAScore(static_cast<int>(pp.first), computeMVAScore(part, pp.first)); }
 }
-float MuonSelectionHelpers::computeMVAScore(MuonObject& part, SelectionType const& type){
+float MuonSelectionHelpers::computeMVAScore(MuonObject const& part, SelectionType const& type){
   float res = -999;
   if (!isMVASelection(type) || part.getExternalMVAScore(static_cast<int>(type), res)) return res;
 
@@ -159,10 +160,10 @@ float MuonSelectionHelpers::computeMVAScore(MuonObject& part, SelectionType cons
         if (mother) score = static_cast<IvyMLWrapper::IvyMLDataType_t>(mother->extras.btagDeepFlavB);
         input_vars[vname] = score;
       }
-#define MUON_VARIABLE(TYPE, NAME) else if (vname==#NAME) input_vars[vname] = static_cast<IvyMLWrapper::IvyMLDataType_t>(part.extras.NAME);
+#define MUON_VARIABLE(TYPE, NAME, DEFVAL) else if (vname==#NAME) input_vars[vname] = static_cast<IvyMLWrapper::IvyMLDataType_t>(part.extras.NAME);
       MUON_EXTRA_VARIABLES
 #undef MUON_VARIABLE
-else{
+      else{
         IVYerr << "MuonSelectionHelpers::evalMVA: Input variable name " << vname << " does not match to a corresponding variable. Please fix the implementation." << endl;
         assert(0);
       }
@@ -207,6 +208,7 @@ bool MuonSelectionHelpers::testLooseId(MuonObject const& part){
 }
 bool MuonSelectionHelpers::testFakeableId(MuonObject const& part){
   double const part_pt = part.pt();
+
   switch (selection_type){
   case kCutbased_Run2:
     return (
@@ -224,6 +226,23 @@ bool MuonSelectionHelpers::testFakeableId(MuonObject const& part){
       );
   case kTopMVA_Run2:
   case kTopMVAv2_Run2:
+  {
+    float mvascore = -999;
+    if (!part.getExternalMVAScore(selection_type, mvascore)){
+      IVYerr << "MuonSelectionHelpers::testFakeableId: MVA score is not yet computed for selection type " << selection_type << "." << endl;
+      assert(0);
+    }
+
+    float const ptratio = part.ptratio();
+
+    float bscore = 0;
+    AK4JetObject* mother = nullptr;
+    for (auto const& mom:part.getMothers()){
+      mother = dynamic_cast<AK4JetObject*>(mom);
+      if (mother) break;
+    }
+    if (mother) bscore = mother->extras.btagDeepFlavB;
+
     return (
       part.extras.mediumId
       &&
@@ -232,7 +251,13 @@ bool MuonSelectionHelpers::testFakeableId(MuonObject const& part){
       std::abs(part.extras.dz)<dzThr_TopMVAany_Run2_UL
       &&
       std::abs(part.extras.sip3d)<sip3dThr_TopMVAany_Run2_UL
+      && (
+        mvascore>(selection_type==kTopMVA_Run2 ? wp_medium_TopMVA_Run2_UL : wp_medium_TopMVAv2_Run2_UL)
+        ||
+        (bscore<AK4JetSelectionHelpers::getBtaggingWP() && ptratio>=isoThr_TopMVAany_Run2_UL_Fakeable_ALT_I2)
+        )
       );
+  }
   default:
     IVYerr << "MuonSelectionHelpers::testFakeableId: Selection type " << selection_type << " is not implemented." << endl;
     assert(0);
@@ -241,6 +266,7 @@ bool MuonSelectionHelpers::testFakeableId(MuonObject const& part){
 }
 bool MuonSelectionHelpers::testTightId(MuonObject const& part){
   double const part_pt = part.pt();
+
   switch (selection_type){
   case kCutbased_Run2:
     return (
@@ -258,6 +284,13 @@ bool MuonSelectionHelpers::testTightId(MuonObject const& part){
       );
   case kTopMVA_Run2:
   case kTopMVAv2_Run2:
+  {
+    float mvascore = -999;
+    if (!part.getExternalMVAScore(selection_type, mvascore)){
+      IVYerr << "MuonSelectionHelpers::testFakeableId: MVA score is not yet computed for selection type " << selection_type << "." << endl;
+      assert(0);
+    }
+
     return (
       part.extras.mediumId
       &&
@@ -266,9 +299,12 @@ bool MuonSelectionHelpers::testTightId(MuonObject const& part){
       std::abs(part.extras.dz)<dzThr_TopMVAany_Run2_UL
       &&
       std::abs(part.extras.sip3d)<sip3dThr_TopMVAany_Run2_UL
+      &&
+      mvascore>(selection_type==kTopMVA_Run2 ? wp_medium_TopMVA_Run2_UL : wp_medium_TopMVAv2_Run2_UL)
       );
+  }
   default:
-    IVYerr << "MuonSelectionHelpers::testFakeableId: Selection type " << selection_type << " is not implemented." << endl;
+    IVYerr << "MuonSelectionHelpers::testTightId: Selection type " << selection_type << " is not implemented." << endl;
     assert(0);
     return false;
   }
@@ -280,7 +316,7 @@ bool MuonSelectionHelpers::testLooseIso(MuonObject const& part){
     return (part.extras.miniPFRelIso_all < isoThr_loose_I1);
   case kTopMVA_Run2:
   case kTopMVAv2_Run2:
-    return (part.extras.miniPFRelIso_all < isoThr_TopMVAany_I1);
+    return (part.extras.miniPFRelIso_all < isoThr_TopMVAany_Run2_UL_I1);
   default:
     IVYerr << "MuonSelectionHelpers::testLooseIso: Selection type " << selection_type << " is not implemented." << endl;
     assert(0);
@@ -296,7 +332,7 @@ bool MuonSelectionHelpers::testFakableIso(MuonObject const& part){
     return (part.extras.miniPFRelIso_all < isoThr_loose_I1);
   case kTopMVA_Run2:
   case kTopMVAv2_Run2:
-    return (part.extras.miniPFRelIso_all < isoThr_TopMVAany_I1);
+    return (part.extras.miniPFRelIso_all < isoThr_TopMVAany_Run2_UL_I1);
   default:
     IVYerr << "MuonSelectionHelpers::testFakableIso: Selection type " << selection_type << " is not implemented." << endl;
     assert(0);
@@ -322,7 +358,7 @@ bool MuonSelectionHelpers::testTightIso(MuonObject const& part){
   }
   case kTopMVA_Run2:
   case kTopMVAv2_Run2:
-    return (part.extras.miniPFRelIso_all < isoThr_TopMVAany_I1);
+    return (part.extras.miniPFRelIso_all < isoThr_TopMVAany_Run2_UL_I1);
   default:
     IVYerr << "MuonSelectionHelpers::testTightIso: Selection type " << selection_type << " is not implemented." << endl;
     assert(0);

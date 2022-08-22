@@ -11,10 +11,10 @@ using namespace IvyStreamHelpers;
 
 
 #define PHOTON_MOMENTUM_VARIABLES \
-PHOTON_VARIABLE(float, pt) \
-PHOTON_VARIABLE(float, eta) \
-PHOTON_VARIABLE(float, phi) \
-PHOTON_VARIABLE(float, mass)
+PHOTON_VARIABLE(float, pt, 0) \
+PHOTON_VARIABLE(float, eta, 0) \
+PHOTON_VARIABLE(float, phi, 0) \
+PHOTON_VARIABLE(float, mass, 0)
 
 
 const std::string PhotonHandler::colName = GlobalCollectionNames::colName_photons;
@@ -23,7 +23,7 @@ PhotonHandler::PhotonHandler() :
   IvyBase()
 {
   this->addConsumed<GlobalCollectionNames::collsize_t>(Form("n%s", PhotonHandler::colName.data()));
-#define PHOTON_VARIABLE(TYPE, NAME) this->addConsumed<TYPE* const>(PhotonHandler::colName + "_" + #NAME);
+#define PHOTON_VARIABLE(TYPE, NAME, DEFVAL) this->addConsumed<TYPE* const>(PhotonHandler::colName + "_" + #NAME);
   PHOTON_MOMENTUM_VARIABLES;
   PHOTON_EXTRA_VARIABLES;
 #undef PHOTON_VARIABLE
@@ -44,14 +44,14 @@ bool PhotonHandler::constructPhotons(){
 
 bool PhotonHandler::constructPhotonObjects(){
   GlobalCollectionNames::collsize_t nProducts;
-#define PHOTON_VARIABLE(TYPE, NAME) TYPE* const* arr_##NAME;
+#define PHOTON_VARIABLE(TYPE, NAME, DEFVAL) TYPE* const* arr_##NAME;
   PHOTON_MOMENTUM_VARIABLES;
   PHOTON_EXTRA_VARIABLES;
 #undef PHOTON_VARIABLE
 
   // Beyond this point starts checks and selection
   bool allVariablesPresent = this->getConsumedValue(Form("n%s", PhotonHandler::colName.data()), nProducts);
-#define PHOTON_VARIABLE(TYPE, NAME) allVariablesPresent &= this->getConsumed<TYPE* const>(PhotonHandler::colName + "_" + #NAME, arr_##NAME);
+#define PHOTON_VARIABLE(TYPE, NAME, DEFVAL) allVariablesPresent &= this->getConsumed<TYPE* const>(PhotonHandler::colName + "_" + #NAME, arr_##NAME);
   PHOTON_MOMENTUM_VARIABLES;
   PHOTON_EXTRA_VARIABLES;
 #undef PHOTON_VARIABLE
@@ -66,7 +66,7 @@ bool PhotonHandler::constructPhotonObjects(){
   if (nProducts==0) return true; // Construction is successful, it is just that no photons exist.
 
   productList.reserve(nProducts);
-#define PHOTON_VARIABLE(TYPE, NAME) TYPE* it_##NAME = &((*arr_##NAME)[0]);
+#define PHOTON_VARIABLE(TYPE, NAME, DEFVAL) TYPE* it_##NAME = &((*arr_##NAME)[0]);
   PHOTON_MOMENTUM_VARIABLES;
   PHOTON_EXTRA_VARIABLES
 #undef PHOTON_VARIABLE
@@ -81,7 +81,7 @@ bool PhotonHandler::constructPhotonObjects(){
       PhotonObject*& obj = productList.back();
 
       // Set extras
-#define PHOTON_VARIABLE(TYPE, NAME) obj->extras.NAME = *it_##NAME;
+#define PHOTON_VARIABLE(TYPE, NAME, DEFVAL) obj->extras.NAME = *it_##NAME;
       PHOTON_EXTRA_VARIABLES;
 #undef PHOTON_VARIABLE
 
@@ -94,7 +94,7 @@ bool PhotonHandler::constructPhotonObjects(){
       if (this->verbosity>=MiscUtils::DEBUG) IVYout << "\t- Success!" << endl;
 
       ip++;
-#define PHOTON_VARIABLE(TYPE, NAME) if (it_##NAME) it_##NAME++;
+#define PHOTON_VARIABLE(TYPE, NAME, DEFVAL) if (it_##NAME) it_##NAME++;
       PHOTON_MOMENTUM_VARIABLES;
       PHOTON_EXTRA_VARIABLES;
 #undef PHOTON_VARIABLE
@@ -110,7 +110,7 @@ void PhotonHandler::bookBranches(BaseTree* tree){
   if (!tree) return;
 
   tree->bookBranch<GlobalCollectionNames::collsize_t>(Form("n%s", PhotonHandler::colName.data()), 0);
-#define PHOTON_VARIABLE(TYPE, NAME) tree->bookArrayBranch<TYPE>(PhotonHandler::colName + "_" + #NAME, 0, GlobalCollectionNames::colMaxSize_photons);
+#define PHOTON_VARIABLE(TYPE, NAME, DEFVAL) tree->bookArrayBranch<TYPE>(PhotonHandler::colName + "_" + #NAME, DEFVAL, GlobalCollectionNames::colMaxSize_photons);
   PHOTON_MOMENTUM_VARIABLES;
   PHOTON_EXTRA_VARIABLES;
 #undef PHOTON_VARIABLE

@@ -5,28 +5,29 @@
 
 
 #define ELECTRON_EXTRA_VARIABLES \
-ELECTRON_VARIABLE(bool, convVeto) \
-ELECTRON_VARIABLE(unsigned char, lostHits) \
-ELECTRON_VARIABLE(unsigned char, jetNDauCharged) \
-ELECTRON_VARIABLE(int, tightCharge) \
-ELECTRON_VARIABLE(float, hoe) \
-ELECTRON_VARIABLE(float, eInvMinusPInv) \
-ELECTRON_VARIABLE(float, sieie) \
-ELECTRON_VARIABLE(float, dxy) \
-ELECTRON_VARIABLE(float, dz) \
-ELECTRON_VARIABLE(float, sip3d) \
-ELECTRON_VARIABLE(float, mvaFall17V2noIso) \
-ELECTRON_VARIABLE(float, miniPFRelIso_all) \
-ELECTRON_VARIABLE(float, miniPFRelIso_chg) \
-ELECTRON_VARIABLE(float, pfRelIso03_all) \
-ELECTRON_VARIABLE(float, jetPtRelv2) \
-ELECTRON_VARIABLE(float, jetRelIso) \
-ELECTRON_VARIABLE(float, deltaEtaSC)
+ELECTRON_VARIABLE(bool, convVeto, 0) \
+ELECTRON_VARIABLE(bool, mvaFall17V2noIso_WPL, 0) \
+ELECTRON_VARIABLE(unsigned char, lostHits, 0) \
+ELECTRON_VARIABLE(unsigned char, jetNDauCharged, 0) \
+ELECTRON_VARIABLE(int, tightCharge, 0) \
+ELECTRON_VARIABLE(float, hoe, 0) \
+ELECTRON_VARIABLE(float, eInvMinusPInv, 0) \
+ELECTRON_VARIABLE(float, sieie, 0) \
+ELECTRON_VARIABLE(float, dxy, 0) \
+ELECTRON_VARIABLE(float, dz, 0) \
+ELECTRON_VARIABLE(float, sip3d, 0) \
+ELECTRON_VARIABLE(float, mvaFall17V2noIso, 0) \
+ELECTRON_VARIABLE(float, miniPFRelIso_all, 0) \
+ELECTRON_VARIABLE(float, miniPFRelIso_chg, 0) \
+ELECTRON_VARIABLE(float, pfRelIso03_all, 0) \
+ELECTRON_VARIABLE(float, jetPtRelv2, 0) \
+ELECTRON_VARIABLE(float, jetRelIso, 0) \
+ELECTRON_VARIABLE(float, deltaEtaSC, 0)
 
 
 class ElectronVariables{
 public:
-#define ELECTRON_VARIABLE(TYPE, NAME) TYPE NAME;
+#define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) TYPE NAME;
   ELECTRON_EXTRA_VARIABLES;
 #undef ELECTRON_VARIABLE
 

@@ -4,17 +4,17 @@
 
 
 AK4JetVariables::AK4JetVariables(){
-#define AK4JET_VARIABLE(TYPE, NAME) this->NAME=0;
+#define AK4JET_VARIABLE(TYPE, NAME, DEFVAL) this->NAME=DEFVAL;
   AK4JET_EXTRA_VARIABLES;
 #undef AK4JET_VARIABLE
 }
 AK4JetVariables::AK4JetVariables(AK4JetVariables const& other){
-#define AK4JET_VARIABLE(TYPE, NAME) this->NAME=other.NAME;
+#define AK4JET_VARIABLE(TYPE, NAME, DEFVAL) this->NAME=other.NAME;
   AK4JET_EXTRA_VARIABLES;
 #undef AK4JET_VARIABLE
 }
 void AK4JetVariables::swap(AK4JetVariables& other){
-#define AK4JET_VARIABLE(TYPE, NAME) std::swap(this->NAME, other.NAME);
+#define AK4JET_VARIABLE(TYPE, NAME, DEFVAL) std::swap(this->NAME, other.NAME);
   AK4JET_EXTRA_VARIABLES;
 #undef AK4JET_VARIABLE
 }
@@ -25,17 +25,17 @@ AK4JetVariables& AK4JetVariables::operator=(const AK4JetVariables& other){
 }
 
 AK4JetLowPtVariables::AK4JetLowPtVariables(){
-#define AK4JET_LOWPT_VARIABLE(TYPE, NAME) this->NAME=0;
+#define AK4JET_LOWPT_VARIABLE(TYPE, NAME, DEFVAL) this->NAME=DEFVAL;
   AK4JET_LOWPT_EXTRA_VARIABLES;
 #undef AK4JET_LOWPT_VARIABLE
 }
 AK4JetLowPtVariables::AK4JetLowPtVariables(AK4JetLowPtVariables const& other){
-#define AK4JET_LOWPT_VARIABLE(TYPE, NAME) this->NAME=other.NAME;
+#define AK4JET_LOWPT_VARIABLE(TYPE, NAME, DEFVAL) this->NAME=other.NAME;
   AK4JET_LOWPT_EXTRA_VARIABLES;
 #undef AK4JET_LOWPT_VARIABLE
 }
 void AK4JetLowPtVariables::swap(AK4JetLowPtVariables& other){
-#define AK4JET_LOWPT_VARIABLE(TYPE, NAME) std::swap(this->NAME, other.NAME);
+#define AK4JET_LOWPT_VARIABLE(TYPE, NAME, DEFVAL) std::swap(this->NAME, other.NAME);
   AK4JET_LOWPT_EXTRA_VARIABLES;
 #undef AK4JET_LOWPT_VARIABLE
 }

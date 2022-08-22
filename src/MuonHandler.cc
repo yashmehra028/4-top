@@ -11,11 +11,11 @@ using namespace IvyStreamHelpers;
 
 
 #define MUON_MOMENTUM_VARIABLES \
-MUON_VARIABLE(float, pt) \
-MUON_VARIABLE(float, eta) \
-MUON_VARIABLE(float, phi) \
-MUON_VARIABLE(float, mass) \
-MUON_VARIABLE(int, pdgId)
+MUON_VARIABLE(float, pt, 0) \
+MUON_VARIABLE(float, eta, 0) \
+MUON_VARIABLE(float, phi, 0) \
+MUON_VARIABLE(float, mass, 0) \
+MUON_VARIABLE(int, pdgId, -9000)
 
 
 const std::string MuonHandler::colName = GlobalCollectionNames::colName_muons;
@@ -24,7 +24,7 @@ MuonHandler::MuonHandler() :
   IvyBase()
 {
   this->addConsumed<GlobalCollectionNames::collsize_t>(Form("n%s", MuonHandler::colName.data()));
-#define MUON_VARIABLE(TYPE, NAME) this->addConsumed<TYPE* const>(MuonHandler::colName + "_" + #NAME);
+#define MUON_VARIABLE(TYPE, NAME, DEFVAL) this->addConsumed<TYPE* const>(MuonHandler::colName + "_" + #NAME);
   MUON_MOMENTUM_VARIABLES;
   MUON_EXTRA_VARIABLES;
 #undef MUON_VARIABLE
@@ -45,14 +45,14 @@ bool MuonHandler::constructMuons(){
 
 bool MuonHandler::constructMuonObjects(){
   GlobalCollectionNames::collsize_t nProducts;
-#define MUON_VARIABLE(TYPE, NAME) TYPE* const* arr_##NAME;
+#define MUON_VARIABLE(TYPE, NAME, DEFVAL) TYPE* const* arr_##NAME;
   MUON_MOMENTUM_VARIABLES;
   MUON_EXTRA_VARIABLES;
 #undef MUON_VARIABLE
 
   // Beyond this point starts checks and selection
   bool allVariablesPresent = this->getConsumedValue(Form("n%s", MuonHandler::colName.data()), nProducts);
-#define MUON_VARIABLE(TYPE, NAME) allVariablesPresent &= this->getConsumed<TYPE* const>(MuonHandler::colName + "_" + #NAME, arr_##NAME);
+#define MUON_VARIABLE(TYPE, NAME, DEFVAL) allVariablesPresent &= this->getConsumed<TYPE* const>(MuonHandler::colName + "_" + #NAME, arr_##NAME);
   MUON_MOMENTUM_VARIABLES;
   MUON_EXTRA_VARIABLES;
 #undef MUON_VARIABLE
@@ -67,7 +67,7 @@ bool MuonHandler::constructMuonObjects(){
   if (nProducts==0) return true; // Construction is successful, it is just that no muons exist.
 
   productList.reserve(nProducts);
-#define MUON_VARIABLE(TYPE, NAME) TYPE* it_##NAME = &((*arr_##NAME)[0]);
+#define MUON_VARIABLE(TYPE, NAME, DEFVAL) TYPE* it_##NAME = &((*arr_##NAME)[0]);
   MUON_MOMENTUM_VARIABLES;
   MUON_EXTRA_VARIABLES
 #undef MUON_VARIABLE
@@ -82,7 +82,7 @@ bool MuonHandler::constructMuonObjects(){
       MuonObject*& obj = productList.back();
 
       // Set extras
-#define MUON_VARIABLE(TYPE, NAME) obj->extras.NAME = *it_##NAME;
+#define MUON_VARIABLE(TYPE, NAME, DEFVAL) obj->extras.NAME = *it_##NAME;
       MUON_EXTRA_VARIABLES;
 #undef MUON_VARIABLE
 
@@ -98,7 +98,7 @@ bool MuonHandler::constructMuonObjects(){
       if (this->verbosity>=MiscUtils::DEBUG) IVYout << "\t- Success!" << endl;
 
       ip++;
-#define MUON_VARIABLE(TYPE, NAME) if (it_##NAME) it_##NAME++;
+#define MUON_VARIABLE(TYPE, NAME, DEFVAL) if (it_##NAME) it_##NAME++;
       MUON_MOMENTUM_VARIABLES;
       MUON_EXTRA_VARIABLES;
 #undef MUON_VARIABLE
@@ -114,7 +114,7 @@ void MuonHandler::bookBranches(BaseTree* tree){
   if (!tree) return;
 
   tree->bookBranch<GlobalCollectionNames::collsize_t>(Form("n%s", MuonHandler::colName.data()), 0);
-#define MUON_VARIABLE(TYPE, NAME) tree->bookArrayBranch<TYPE>(MuonHandler::colName + "_" + #NAME, 0, GlobalCollectionNames::colMaxSize_muons);
+#define MUON_VARIABLE(TYPE, NAME, DEFVAL) tree->bookArrayBranch<TYPE>(MuonHandler::colName + "_" + #NAME, DEFVAL, GlobalCollectionNames::colMaxSize_muons);
   MUON_MOMENTUM_VARIABLES;
   MUON_EXTRA_VARIABLES;
 #undef MUON_VARIABLE

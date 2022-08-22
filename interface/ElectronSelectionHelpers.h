@@ -82,7 +82,8 @@ namespace ElectronSelectionHelpers{
   constexpr float etaThrLow_Gap = 1.4442;
   constexpr float etaThrHigh_Gap = 1.566;
 
-  constexpr float isoThr_TopMVAany_I1 = 0.4;
+  constexpr float isoThr_TopMVAany_Run2_UL_I1 = 0.4;
+  constexpr float isoThr_TopMVAany_Run2_UL_Fakeable_ALT_I2 = 0.5;
 
   constexpr int maxMissingHits_TopMVAany_Run2_UL = 1;
   constexpr float dxyThr_TopMVAany_Run2_UL = 0.05;
@@ -104,7 +105,7 @@ namespace ElectronSelectionHelpers{
   constexpr float wp_tight_TopMVAv2_Run2_UL = 0.94;
 
   void storeMVAScores(ElectronObject& part);
-  float computeMVAScore(ElectronObject& part, SelectionType const& type);
+  float computeMVAScore(ElectronObject const& part, SelectionType const& type);
 
   /****************/
   /* Common stuff */

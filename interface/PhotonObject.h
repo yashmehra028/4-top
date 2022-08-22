@@ -7,14 +7,14 @@
 
 
 #define PHOTON_EXTRA_VARIABLES \
-PHOTON_VARIABLE(bool, isScEtaEB) \
-PHOTON_VARIABLE(bool, isScEtaEE) \
-PHOTON_VARIABLE(bool, cutBased)
+PHOTON_VARIABLE(bool, isScEtaEB, 0) \
+PHOTON_VARIABLE(bool, isScEtaEE, 0) \
+PHOTON_VARIABLE(bool, cutBased, 0)
 
 
 class PhotonVariables{
 public:
-#define PHOTON_VARIABLE(TYPE, NAME) TYPE NAME;
+#define PHOTON_VARIABLE(TYPE, NAME, DEFVAL) TYPE NAME;
   PHOTON_EXTRA_VARIABLES;
 #undef PHOTON_VARIABLE
 

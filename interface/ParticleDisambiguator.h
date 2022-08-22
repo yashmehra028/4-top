@@ -20,7 +20,8 @@ protected:
     std::vector<MuonObject*>*& muons,
     std::vector<ElectronObject*>*& electrons,
     std::vector<PhotonObject*>*& photons,
-    std::vector<AK4JetObject*>*& ak4jets
+    std::vector<AK4JetObject*>*& ak4jets,
+    std::vector<AK4JetObject*>*& ak4jets_masked
   );
 
 public:

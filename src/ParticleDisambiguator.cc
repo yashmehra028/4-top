@@ -7,14 +7,15 @@
 #include "ElectronSelectionHelpers.h"
 #include "PhotonSelectionHelpers.h"
 #include "ParticleSelectionHelpers.h"
-
+#include "ParticleObjectHelpers.h"
 
 
 void ParticleDisambiguator::disambiguateParticles(
   std::vector<MuonObject*>*& muons,
   std::vector<ElectronObject*>*& electrons,
   std::vector<PhotonObject*>*& photons,
-  std::vector<AK4JetObject*>*& ak4jets
+  std::vector<AK4JetObject*>*& ak4jets,
+  std::vector<AK4JetObject*>*& ak4jets_masked
 ){
   if (muons){
     for (auto*& part:(*muons)){
@@ -160,6 +161,8 @@ void ParticleDisambiguator::disambiguateParticles(
 
   // Now clean the jets at the final step
   if (ak4jets){
+    bool const hasMaskedJets = (ak4jets_masked!=nullptr);
+    std::vector<AK4JetObject*> ak4jets_new; ak4jets_new.reserve(ak4jets->size());
     for (auto*& jet:(*ak4jets)){
       bool doRemove = false;
       if (muons){
@@ -189,7 +192,15 @@ void ParticleDisambiguator::disambiguateParticles(
           }
         }
       }
-      if (doRemove) jet->resetSelectionBits();
+      if (!hasMaskedJets){ if (doRemove) jet->resetSelectionBits(); }
+      else{
+        if (doRemove) ak4jets_masked->push_back(jet);
+        else ak4jets_new.push_back(jet);
+      }
+    }
+    if (hasMaskedJets){
+      std::swap(ak4jets_new, *ak4jets);
+      ParticleObjectHelpers::sortByGreaterPt(*ak4jets_masked);
     }
   }
 }
@@ -204,6 +215,7 @@ void ParticleDisambiguator::disambiguateParticles(
   std::vector<ElectronObject*>* electrons = (electronHandle ? &(electronHandle->productList) : nullptr);
   std::vector<PhotonObject*>* photons = (photonHandle ? &(photonHandle->productList) : nullptr);
   std::vector<AK4JetObject*>* ak4jets = (jetHandle ? &(jetHandle->ak4jets) : nullptr);
+  std::vector<AK4JetObject*>* ak4jets_masked = (jetHandle ? &(jetHandle->ak4jets_masked) : nullptr);
 
-  disambiguateParticles(muons, electrons, photons, ak4jets);
+  disambiguateParticles(muons, electrons, photons, ak4jets, ak4jets_masked);
 }

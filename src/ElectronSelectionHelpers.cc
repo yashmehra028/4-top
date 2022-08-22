@@ -4,6 +4,7 @@
 #include "SamplesCore.h"
 #include "ElectronSelectionHelpers.h"
 #include "AK4JetObject.h"
+#include "AK4JetSelectionHelpers.h"
 #include "IvyFramework/IvyDataTools/interface/HelperFunctions.h"
 
 
@@ -131,9 +132,9 @@ void ElectronSelectionHelpers::loadMVA(){
       "sip3d",
       "log_abs_dxy", // = log(|dxy|)
       "log_abs_dz", // = log(|dz|)
-      "mvaFall17V2noIso",
-      "lostHits"
+      "mvaFall17V2noIso"
     };
+    if (selection_type==kTopMVAv2_Run2) varnames.push_back("lostHits");
     // No need to set missing_entry_val
   }
   else{
@@ -147,7 +148,7 @@ void ElectronSelectionHelpers::loadMVA(){
 void ElectronSelectionHelpers::storeMVAScores(ElectronObject& part){
   for (auto const& pp:seltype_mvareader_map){ if (isMVASelection(pp.first)) part.setExternalMVAScore(static_cast<int>(pp.first), computeMVAScore(part, pp.first)); }
 }
-float ElectronSelectionHelpers::computeMVAScore(ElectronObject& part, SelectionType const& type){
+float ElectronSelectionHelpers::computeMVAScore(ElectronObject const& part, SelectionType const& type){
   float res = -999;
   if (!isMVASelection(type) || part.getExternalMVAScore(static_cast<int>(type), res)) return res;
 
@@ -175,10 +176,10 @@ float ElectronSelectionHelpers::computeMVAScore(ElectronObject& part, SelectionT
         if (mother) score = static_cast<IvyMLWrapper::IvyMLDataType_t>(mother->extras.btagDeepFlavB);
         input_vars[vname] = score;
       }
-#define ELECTRON_VARIABLE(TYPE, NAME) else if (vname==#NAME) input_vars[vname] = static_cast<IvyMLWrapper::IvyMLDataType_t>(part.extras.NAME);
+#define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) else if (vname==#NAME) input_vars[vname] = static_cast<IvyMLWrapper::IvyMLDataType_t>(part.extras.NAME);
       ELECTRON_EXTRA_VARIABLES
 #undef ELECTRON_VARIABLE
-else{
+      else{
         IVYerr << "ElectronSelectionHelpers::evalMVA: Input variable name " << vname << " does not match to a corresponding variable. Please fix the implementation." << endl;
         assert(0);
       }
@@ -369,9 +370,20 @@ bool ElectronSelectionHelpers::testFakeableId_Common(ElectronObject const& part)
   {
     float mvascore = -999;
     if (!part.getExternalMVAScore(selection_type, mvascore)){
-      IVYerr << "ElectronSelectionHelpers::testFakeableId_Common: MVA score is not yet computed for selection type " << selection_type << "." << endl;
+      IVYerr << "MuonSelectionHelpers::testFakeableId: MVA score is not yet computed for selection type " << selection_type << "." << endl;
       assert(0);
     }
+
+    float const ptratio = part.ptratio();
+
+    float bscore = 0;
+    AK4JetObject* mother = nullptr;
+    for (auto const& mom:part.getMothers()){
+      mother = dynamic_cast<AK4JetObject*>(mom);
+      if (mother) break;
+    }
+    if (mother) bscore = mother->extras.btagDeepFlavB;
+
     return (
       part.extras.lostHits<=maxMissingHits_TopMVAany_Run2_UL
       &&
@@ -390,8 +402,11 @@ bool ElectronSelectionHelpers::testFakeableId_Common(ElectronObject const& part)
       part.extras.convVeto
       &&
       part.extras.tightCharge==2
-      &&
-      mvascore>wp_loose_TopMVA_Run2_UL
+      && (
+        mvascore>(selection_type==kTopMVA_Run2 ? wp_medium_TopMVA_Run2_UL : wp_medium_TopMVAv2_Run2_UL)
+        ||
+        (bscore<AK4JetSelectionHelpers::getBtaggingWP() && ptratio>=isoThr_TopMVAany_Run2_UL_Fakeable_ALT_I2 && part.extras.mvaFall17V2noIso_WPL)
+        )
       );
   }
   default:
@@ -544,6 +559,7 @@ bool ElectronSelectionHelpers::testTightId(ElectronObject const& part){
       IVYerr << "ElectronSelectionHelpers::testTightId: MVA score is not yet computed for selection type " << selection_type << "." << endl;
       assert(0);
     }
+
     return (
       part.extras.lostHits<=maxMissingHits_TopMVAany_Run2_UL
       &&
@@ -563,7 +579,7 @@ bool ElectronSelectionHelpers::testTightId(ElectronObject const& part){
       &&
       part.extras.tightCharge==2
       &&
-      mvascore>wp_medium_TopMVA_Run2_UL
+      mvascore>(selection_type==kTopMVA_Run2 ? wp_medium_TopMVA_Run2_UL : wp_medium_TopMVAv2_Run2_UL)
       );
   }
   default:
@@ -580,7 +596,7 @@ bool ElectronSelectionHelpers::testLooseIso(ElectronObject const& part){
     return (part.extras.miniPFRelIso_all < isoThr_loose_I1);
   case kTopMVA_Run2:
   case kTopMVAv2_Run2:
-    return (part.extras.miniPFRelIso_all < isoThr_TopMVAany_I1);
+    return (part.extras.miniPFRelIso_all < isoThr_TopMVAany_Run2_UL_I1);
   default:
     IVYerr << "ElectronSelectionHelpers::testLooseIso: Selection type " << selection_type << " is not implemented." << endl;
     assert(0);
@@ -596,7 +612,7 @@ bool ElectronSelectionHelpers::testFakeableIso(ElectronObject const& part){
     return (part.extras.miniPFRelIso_all < isoThr_loose_I1);
   case kTopMVA_Run2:
   case kTopMVAv2_Run2:
-    return (part.extras.miniPFRelIso_all < isoThr_TopMVAany_I1);
+    return (part.extras.miniPFRelIso_all < isoThr_TopMVAany_Run2_UL_I1);
   default:
     IVYerr << "ElectronSelectionHelpers::testFakeableIso: Selection type " << selection_type << " is not implemented." << endl;
     assert(0);
@@ -618,7 +634,7 @@ bool ElectronSelectionHelpers::testTightIso(ElectronObject const& part){
   }
   case kTopMVA_Run2:
   case kTopMVAv2_Run2:
-    return (part.extras.miniPFRelIso_all < isoThr_TopMVAany_I1);
+    return (part.extras.miniPFRelIso_all < isoThr_TopMVAany_Run2_UL_I1);
   default:
     IVYerr << "ElectronSelectionHelpers::testTightIso: Selection type " << selection_type << " is not implemented." << endl;
     assert(0);

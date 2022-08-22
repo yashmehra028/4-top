@@ -5,21 +5,21 @@
 
 
 #define ISOTRACK_EXTRA_VARIABLES \
-ISOTRACK_VARIABLE(bool, isPFcand) \
-ISOTRACK_VARIABLE(bool, isFromLostTrack) \
-ISOTRACK_VARIABLE(bool, isHighPurityTrack) \
-ISOTRACK_VARIABLE(int, fromPV) \
-ISOTRACK_VARIABLE(float, pfRelIso03_chg) \
-ISOTRACK_VARIABLE(float, pfRelIso03_all) \
-ISOTRACK_VARIABLE(float, miniPFRelIso_chg) \
-ISOTRACK_VARIABLE(float, miniPFRelIso_all) \
-ISOTRACK_VARIABLE(float, dxy) \
-ISOTRACK_VARIABLE(float, dz)
+ISOTRACK_VARIABLE(bool, isPFcand, 0) \
+ISOTRACK_VARIABLE(bool, isFromLostTrack, 0) \
+ISOTRACK_VARIABLE(bool, isHighPurityTrack, 0) \
+ISOTRACK_VARIABLE(int, fromPV, 0) \
+ISOTRACK_VARIABLE(float, pfRelIso03_chg, 0) \
+ISOTRACK_VARIABLE(float, pfRelIso03_all, 0) \
+ISOTRACK_VARIABLE(float, miniPFRelIso_chg, 0) \
+ISOTRACK_VARIABLE(float, miniPFRelIso_all, 0) \
+ISOTRACK_VARIABLE(float, dxy, 0) \
+ISOTRACK_VARIABLE(float, dz, 0)
 
 
 class IsotrackVariables{
 public:
-#define ISOTRACK_VARIABLE(TYPE, NAME) TYPE NAME;
+#define ISOTRACK_VARIABLE(TYPE, NAME, DEFVAL) TYPE NAME;
   ISOTRACK_EXTRA_VARIABLES;
 #undef ISOTRACK_VARIABLE
 

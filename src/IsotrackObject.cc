@@ -4,17 +4,17 @@
 
 
 IsotrackVariables::IsotrackVariables(){
-#define ISOTRACK_VARIABLE(TYPE, NAME) this->NAME=0;
+#define ISOTRACK_VARIABLE(TYPE, NAME, DEFVAL) this->NAME=DEFVAL;
   ISOTRACK_EXTRA_VARIABLES;
 #undef ISOTRACK_VARIABLE
 }
 IsotrackVariables::IsotrackVariables(IsotrackVariables const& other){
-#define ISOTRACK_VARIABLE(TYPE, NAME) this->NAME=other.NAME;
+#define ISOTRACK_VARIABLE(TYPE, NAME, DEFVAL) this->NAME=other.NAME;
   ISOTRACK_EXTRA_VARIABLES;
 #undef ISOTRACK_VARIABLE
 }
 void IsotrackVariables::swap(IsotrackVariables& other){
-#define ISOTRACK_VARIABLE(TYPE, NAME) std::swap(this->NAME, other.NAME);
+#define ISOTRACK_VARIABLE(TYPE, NAME, DEFVAL) std::swap(this->NAME, other.NAME);
   ISOTRACK_EXTRA_VARIABLES;
 #undef ISOTRACK_VARIABLE
 }

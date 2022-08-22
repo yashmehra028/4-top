@@ -37,6 +37,8 @@ namespace AK4JetSelectionHelpers{
   constexpr float deepFlavThr_2017 = 0.3040;
   constexpr float deepFlavThr_2018 = 0.2783;
 
+  float getBtaggingWP();
+
   void setSelectionBits(AK4JetObject& part);
 }
 

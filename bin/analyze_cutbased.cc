@@ -281,9 +281,9 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     jetHandler.constructJetMET(&simEventHandler);
 
     // !!!IMPORTANT!!!
-    // NEVER USE LEPTONS AND JETS IN AN ANALYSIS BEFORE SOME FORM OF DISAMBIGUATION BETWEEN THEM!
-    // Muon and electron handlers only apply mini. iso. reqs.
-    // In order to compute pTratio and pTrel, you need jets.
+    // NEVER USE LEPTONS AND JETS IN AN ANALYSIS BEFORE DISAMBIGUATING THEM!
+    // Muon and electron handlers do not apply any selection, so the selection bits are all 0.
+    // In order to compute pTratio and pTrel, you need jets!
     // ParticleDisambiguator does the matching, and assigns the overlapping jets (or closest ones) as 'mothers' of the leptons.
     // Once mothers are assigned, ParticleObject::ptratio and ptrel functions work as intended,
     // and you can apply the additional selections on these variables this way.
@@ -418,7 +418,8 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         << "\t- pt = " << jet->pt() << ", eta = " << jet->eta() << ", phi = " << jet->phi()
         << ", array index = " << jet->getUniqueIdentifier()
         << " | btagged? " << jet->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTagged)
-        << " | tight & clean? " << ParticleSelectionHelpers::isTightJet(jet)
+        << " | tight? " << ParticleSelectionHelpers::isTightJet(jet)
+        << " | clean? " << 1
         << " ("
         << "jetId = " << jet->extras.jetId
         << ", electron indices = " << std::vector<int>{ jet->extras.electronIdx1, jet->extras.electronIdx2 }
@@ -431,6 +432,22 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
           ak4jets_tight_pt40.push_back(jet);
           ak4jets_pt40_HT += jet->pt();
         }
+      }
+    }
+    if (printObjInfo){
+      for (auto const& jet:jetHandler.getMaskedAK4Jets()){
+        if (printObjInfo) IVYout
+          << "\t- pt = " << jet->pt() << ", eta = " << jet->eta() << ", phi = " << jet->phi()
+          << ", array index = " << jet->getUniqueIdentifier()
+          << " | btagged? " << jet->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTagged)
+          << " | tight? " << ParticleSelectionHelpers::isTightJet(jet)
+          << " | clean? " << 0
+          << " ("
+          << "jetId = " << jet->extras.jetId
+          << ", electron indices = " << std::vector<int>{ jet->extras.electronIdx1, jet->extras.electronIdx2 }
+          << ", muon indices = " << std::vector<int>{ jet->extras.muonIdx1, jet->extras.muonIdx2 }
+          << ")"
+          << endl;
       }
     }
     unsigned int const nak4jets_tight_pt40 = ak4jets_tight_pt40.size();

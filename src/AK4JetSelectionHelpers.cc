@@ -21,6 +21,22 @@ using namespace std;
 using namespace IvyStreamHelpers;
 
 
+float AK4JetSelectionHelpers::getBtaggingWP(){
+  auto const& dp = SampleHelpers::getDataPeriod();
+  auto const& dy = SampleHelpers::getDataYear();
+
+  float res = 1e9;
+  if (dy==2016) res = (SampleHelpers::isAPV2016Affected(dp) ? deepFlavThr_2016_APV : deepFlavThr_2016_NonAPV);
+  else if (dy==2017) res = deepFlavThr_2017;
+  else if (dy==2018) res = deepFlavThr_2018;
+  else{
+    IVYerr << "AK4JetSelectionHelpers::getBtaggingWP: Data period " << dp << " is not defined." << endl;
+    assert(0);
+  }
+
+  return res;
+}
+
 bool AK4JetSelectionHelpers::testJetId(AK4JetObject const& part){
   return HelperFunctions::test_bit(part.extras.jetId, jetIdBitPos);
 }
@@ -35,14 +51,7 @@ bool AK4JetSelectionHelpers::testBTag(AK4JetObject const& part){
   if (dy<=2016) etaThr = etaThr_btag_Phase0Tracker;
   else etaThr = etaThr_btag_Phase1Tracker;
 
-  float deepFlavThr = 1e9;
-  if (dy==2016) deepFlavThr = (SampleHelpers::isAPV2016Affected(dp) ? deepFlavThr_2016_APV : deepFlavThr_2016_NonAPV);
-  else if (dy==2017) deepFlavThr = deepFlavThr_2017;
-  else if (dy==2018) deepFlavThr = deepFlavThr_2018;
-  else{
-    IVYerr << "AK4JetSelectionHelpers::testB: Data period " << dp << " is not defined." << endl;
-    assert(0);
-  }
+  float const deepFlavThr = getBtaggingWP();
   return (part.extras.btagDeepFlavB>deepFlavThr && std::abs(part.eta())<etaThr);
 }
 bool AK4JetSelectionHelpers::testKin(AK4JetObject const& part){

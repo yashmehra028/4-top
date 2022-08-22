@@ -5,17 +5,17 @@
 
 
 PhotonVariables::PhotonVariables(){
-#define PHOTON_VARIABLE(TYPE, NAME) this->NAME=0;
+#define PHOTON_VARIABLE(TYPE, NAME, DEFVAL) this->NAME=DEFVAL;
   PHOTON_EXTRA_VARIABLES;
 #undef PHOTON_VARIABLE
 }
 PhotonVariables::PhotonVariables(PhotonVariables const& other){
-#define PHOTON_VARIABLE(TYPE, NAME) this->NAME=other.NAME;
+#define PHOTON_VARIABLE(TYPE, NAME, DEFVAL) this->NAME=other.NAME;
   PHOTON_EXTRA_VARIABLES;
 #undef PHOTON_VARIABLE
 }
 void PhotonVariables::swap(PhotonVariables& other){
-#define PHOTON_VARIABLE(TYPE, NAME) std::swap(this->NAME, other.NAME);
+#define PHOTON_VARIABLE(TYPE, NAME, DEFVAL) std::swap(this->NAME, other.NAME);
   PHOTON_EXTRA_VARIABLES;
 #undef PHOTON_VARIABLE
 }

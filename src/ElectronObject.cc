@@ -7,17 +7,17 @@
 
 
 ElectronVariables::ElectronVariables(){
-#define ELECTRON_VARIABLE(TYPE, NAME) this->NAME=0;
+#define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) this->NAME=DEFVAL;
   ELECTRON_EXTRA_VARIABLES;
 #undef ELECTRON_VARIABLE
 }
 ElectronVariables::ElectronVariables(ElectronVariables const& other){
-#define ELECTRON_VARIABLE(TYPE, NAME) this->NAME=other.NAME;
+#define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) this->NAME=other.NAME;
   ELECTRON_EXTRA_VARIABLES;
 #undef ELECTRON_VARIABLE
 }
 void ElectronVariables::swap(ElectronVariables& other){
-#define ELECTRON_VARIABLE(TYPE, NAME) std::swap(this->NAME, other.NAME);
+#define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) std::swap(this->NAME, other.NAME);
   ELECTRON_EXTRA_VARIABLES;
 #undef ELECTRON_VARIABLE
 }

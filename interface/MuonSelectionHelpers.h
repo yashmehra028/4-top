@@ -65,7 +65,8 @@ namespace MuonSelectionHelpers{
   /* MVA ID Run 2 requirements */
   /*****************************/
 
-  constexpr float isoThr_TopMVAany_I1 = 0.4;
+  constexpr float isoThr_TopMVAany_Run2_UL_I1 = 0.4;
+  constexpr float isoThr_TopMVAany_Run2_UL_Fakeable_ALT_I2 = 0.45;
 
   constexpr float dxyThr_TopMVAany_Run2_UL = 0.05;
   constexpr float dzThr_TopMVAany_Run2_UL = 0.1;
@@ -82,7 +83,7 @@ namespace MuonSelectionHelpers{
   constexpr float wp_tight_TopMVAv2_Run2_UL = 0.94;
 
   void storeMVAScores(MuonObject& part);
-  float computeMVAScore(MuonObject& part, SelectionType const& type);
+  float computeMVAScore(MuonObject const& part, SelectionType const& type);
 
   /****************/
   /* Common stuff */
