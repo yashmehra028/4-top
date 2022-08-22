@@ -84,7 +84,7 @@ if [[ ! -d ProjectMetis ]]; then
   git clone git@github.com:usarica/ProjectMetis.git
 fi
 if [[ ! -d tttt ]]; then
-  git clone git@github.com:joseph-crowley/tttt.git
+  git clone git@github.com:cmstas/tttt.git
 fi
 
 # Download external content
