@@ -38,6 +38,9 @@ namespace ElectronSelectionHelpers{
   bool testFakeableId_IsoTrig(ElectronObject const& part);
   bool testFakeableIso(ElectronObject const& part);
 
+  bool testMediumId(ElectronObject const& part);
+  bool testMediumIso(ElectronObject const& part);
+
   bool testTightId(ElectronObject const& part);
   bool testTightIso(ElectronObject const& part);
 
@@ -49,6 +52,7 @@ namespace ElectronSelectionHelpers{
   bool testPreselectionFakeable_NoIsoTrig(ElectronObject const& part);
   bool testPreselectionFakeable_IsoTrig(ElectronObject const& part);
   bool testPreselectionFakeable(ElectronObject const& part);
+  bool testPreselectionMedium(ElectronObject const& part);
   bool testPreselectionTight(ElectronObject const& part);
 }
 
@@ -132,7 +136,8 @@ void ElectronSelectionHelpers::loadMVA(){
       "sip3d",
       "log_abs_dxy", // = log(|dxy|)
       "log_abs_dz", // = log(|dz|)
-      "mvaFall17V2noIso"
+      "mvaFall17V2noIso",
+      "lostHits"
     };
     if (selection_type==kTopMVAv2_Run2) varnames.push_back("lostHits");
     // No need to set missing_entry_val
@@ -501,6 +506,51 @@ bool ElectronSelectionHelpers::testFakeableId_NoIsoTrig(ElectronObject const& pa
     return false;
   }
 }
+bool ElectronSelectionHelpers::testMediumId(ElectronObject const& part){
+  double const part_pt = part.pt();
+  double const part_eta = std::abs(part.eta());
+  double const part_etaSC = std::abs(part.etaSC());
+
+  switch (selection_type){
+  case kCutbased_Run2:
+    return testTightId(part);
+  case kTopMVA_Run2:
+  case kTopMVAv2_Run2:
+  {
+    float mvascore = -999;
+    if (!part.getExternalMVAScore(selection_type, mvascore)){
+      IVYerr << "ElectronSelectionHelpers::testMediumId: MVA score is not yet computed for selection type " << selection_type << "." << endl;
+      assert(0);
+    }
+
+    return (
+      part.extras.lostHits<=maxMissingHits_TopMVAany_Run2_UL
+      &&
+      std::abs(part.extras.dxy)<dxyThr_TopMVAany_Run2_UL
+      &&
+      std::abs(part.extras.dz)<dzThr_TopMVAany_Run2_UL
+      &&
+      std::abs(part.extras.sip3d)<sip3dThr_TopMVAany_Run2_UL
+      &&
+      part.extras.hoe<hoverEThr_TopMVAany_Run2_UL
+      &&
+      part.extras.eInvMinusPInv>min_EinvminusPinvThr_TopMVAany_Run2_UL
+      &&
+      part.extras.sieie<(part_etaSC<etaThr_cat1 ? sieieThr_barrel_TopMVAany_Run2_UL : sieieThr_endcap_TopMVAany_Run2_UL)
+      &&
+      part.extras.convVeto
+      &&
+      part.extras.tightCharge==2
+      &&
+      mvascore>(selection_type==kTopMVA_Run2 ? wp_mediumID_TopMVA_Run2_UL : wp_mediumID_TopMVAv2_Run2_UL)
+      );
+  }
+  default:
+    IVYerr << "ElectronSelectionHelpers::testMediumId: Selection type " << selection_type << " is not implemented." << endl;
+    assert(0);
+    return false;
+  }
+}
 bool ElectronSelectionHelpers::testTightId(ElectronObject const& part){
   double const part_pt = part.pt();
   double const part_eta = std::abs(part.eta());
@@ -619,6 +669,7 @@ bool ElectronSelectionHelpers::testFakeableIso(ElectronObject const& part){
     return false;
   }
 }
+bool ElectronSelectionHelpers::testMediumIso(ElectronObject const& part){ return testTightIso(part); }
 bool ElectronSelectionHelpers::testTightIso(ElectronObject const& part){
   double const ptratio = part.ptratio();
   double const ptrel = part.ptrel();
@@ -708,6 +759,17 @@ bool ElectronSelectionHelpers::testPreselectionFakeable(ElectronObject const& pa
     (!applyMVALooseFakeableNoIsoWPs && part.testSelectionBit(kPreselectionFakeable_IsoTrig))
     );
 }
+bool ElectronSelectionHelpers::testPreselectionMedium(ElectronObject const& part){
+  return (
+    part.testSelectionBit(kKinOnly)
+    &&
+    testTriggerSafety(part)
+    &&
+    testMediumId(part)
+    &&
+    testMediumIso(part)
+    );
+}
 bool ElectronSelectionHelpers::testPreselectionTight(ElectronObject const& part){
   return (
     part.testSelectionBit(kKinOnly)
@@ -731,5 +793,6 @@ void ElectronSelectionHelpers::setSelectionBits(ElectronObject& part){
   part.setSelectionBit(kPreselectionFakeable_NoIsoTrig, testPreselectionFakeable_NoIsoTrig(part));
   part.setSelectionBit(kPreselectionFakeable_IsoTrig, testPreselectionFakeable_IsoTrig(part));
   part.setSelectionBit(kPreselectionFakeable, testPreselectionFakeable(part));
+  part.setSelectionBit(kPreselectionMedium, testPreselectionMedium(part));
   part.setSelectionBit(kPreselectionTight, testPreselectionTight(part));
 }

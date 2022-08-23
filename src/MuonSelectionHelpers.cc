@@ -28,14 +28,17 @@ namespace MuonSelectionHelpers{
   bool testFakeableId(MuonObject const& part);
   bool testFakableIso(MuonObject const& part);
 
+  bool testMediumId(MuonObject const& part);
+  bool testMediumIso(MuonObject const& part);
+
   bool testTightId(MuonObject const& part);
   bool testTightIso(MuonObject const& part);
 
-  bool testTightCharge(MuonObject const& part);
   bool testKin(MuonObject const& part);
 
   bool testPreselectionLoose(MuonObject const& part);
   bool testPreselectionFakeable(MuonObject const& part);
+  bool testPreselectionMedium(MuonObject const& part);
   bool testPreselectionTight(MuonObject const& part);
 }
 
@@ -265,6 +268,39 @@ bool MuonSelectionHelpers::testFakeableId(MuonObject const& part){
     return false;
   }
 }
+bool MuonSelectionHelpers::testMediumId(MuonObject const& part){
+  double const part_pt = part.pt();
+
+  switch (selection_type){
+  case kCutbased_Run2:
+    return testTightId(part);
+  case kTopMVA_Run2:
+  case kTopMVAv2_Run2:
+  {
+    float mvascore = -999;
+    if (!part.getExternalMVAScore(selection_type, mvascore)){
+      IVYerr << "MuonSelectionHelpers::testFakeableId: MVA score is not yet computed for selection type " << selection_type << "." << endl;
+      assert(0);
+    }
+
+    return (
+      part.extras.mediumId
+      &&
+      std::abs(part.extras.dxy)<dxyThr_TopMVAany_Run2_UL
+      &&
+      std::abs(part.extras.dz)<dzThr_TopMVAany_Run2_UL
+      &&
+      std::abs(part.extras.sip3d)<sip3dThr_TopMVAany_Run2_UL
+      &&
+      mvascore>(selection_type==kTopMVA_Run2 ? wp_mediumID_TopMVA_Run2_UL : wp_mediumID_TopMVAv2_Run2_UL)
+      );
+  }
+  default:
+    IVYerr << "MuonSelectionHelpers::testMediumId: Selection type " << selection_type << " is not implemented." << endl;
+    assert(0);
+    return false;
+  }
+}
 bool MuonSelectionHelpers::testTightId(MuonObject const& part){
   double const part_pt = part.pt();
 
@@ -340,6 +376,7 @@ bool MuonSelectionHelpers::testFakableIso(MuonObject const& part){
     return false;
   }
 }
+bool MuonSelectionHelpers::testMediumIso(MuonObject const& part){ return testTightIso(part); }
 bool MuonSelectionHelpers::testTightIso(MuonObject const& part){
   double const ptratio = part.ptratio();
   double const ptrel = part.ptrel();
@@ -389,6 +426,15 @@ bool MuonSelectionHelpers::testPreselectionFakeable(MuonObject const& part){
     testFakableIso(part)
     );
 }
+bool MuonSelectionHelpers::testPreselectionMedium(MuonObject const& part){
+  return (
+    part.testSelectionBit(kKinOnly)
+    &&
+    testMediumId(part)
+    &&
+    testMediumIso(part)
+    );
+}
 bool MuonSelectionHelpers::testPreselectionTight(MuonObject const& part){
   return (
     part.testSelectionBit(kKinOnly)
@@ -406,5 +452,6 @@ void MuonSelectionHelpers::setSelectionBits(MuonObject& part){
 
   part.setSelectionBit(kPreselectionLoose, testPreselectionLoose(part));
   part.setSelectionBit(kPreselectionFakeable, testPreselectionFakeable(part));
+  part.setSelectionBit(kPreselectionMedium, testPreselectionMedium(part));
   part.setSelectionBit(kPreselectionTight, testPreselectionTight(part));
 }

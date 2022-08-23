@@ -10,8 +10,9 @@
 namespace ParticleSelectionHelpers{
 #define SELECTION_TYPES \
 SELECTION_TYPE(Loose) \
-SELECTION_TYPE(Tight) \
-SELECTION_TYPE(Fakeable)
+SELECTION_TYPE(Fakeable) \
+SELECTION_TYPE(Medium) \
+SELECTION_TYPE(Tight)
 
 #define SELECTION_TYPE(TYPE) \
   template<typename T> bool is##TYPE##Particle(T const* part); \

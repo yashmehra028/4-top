@@ -16,6 +16,7 @@ namespace ElectronSelectionHelpers{
     kPreselectionFakeable_IsoTrig,
     kPreselectionFakeable_NoIsoTrig,
     kPreselectionFakeable,
+    kPreselectionMedium,
     kPreselectionTight,
 
     nSelectionBits
@@ -98,11 +99,13 @@ namespace ElectronSelectionHelpers{
   constexpr float wp_loose_TopMVA_Run2_UL = 0.41;
   constexpr float wp_medium_TopMVA_Run2_UL = 0.64;
   constexpr float wp_tight_TopMVA_Run2_UL = 0.81;
+  constexpr float wp_mediumID_TopMVA_Run2_UL = 0.;
 
   constexpr float wp_vloose_TopMVAv2_Run2_UL = 0.59;
   constexpr float wp_loose_TopMVAv2_Run2_UL = 0.81;
   constexpr float wp_medium_TopMVAv2_Run2_UL = 0.90;
   constexpr float wp_tight_TopMVAv2_Run2_UL = 0.94;
+  constexpr float wp_mediumID_TopMVAv2_Run2_UL = 0.;
 
   void storeMVAScores(ElectronObject& part);
   float computeMVAScore(ElectronObject const& part, SelectionType const& type);
