@@ -158,6 +158,7 @@ float MuonSelectionHelpers::computeMVAScore(MuonObject const& part, SelectionTyp
           if (mother) break;
         }
         if (mother) score = static_cast<IvyMLWrapper::IvyMLDataType_t>(mother->extras.btagDeepFlavB);
+
         input_vars[vname] = score;
       }
 #define MUON_VARIABLE(TYPE, NAME, DEFVAL) else if (vname==#NAME) input_vars[vname] = static_cast<IvyMLWrapper::IvyMLDataType_t>(part.extras.NAME);

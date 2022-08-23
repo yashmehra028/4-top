@@ -41,6 +41,10 @@ void ParticleDisambiguator::disambiguateParticles(
       }
       if (ak4jet_chosen) part->addMother(ak4jet_chosen);
 
+      // Compute external MVA scores if needed
+      MuonSelectionHelpers::storeMVAScores(*part);
+
+      // Set the selection bits
       MuonSelectionHelpers::setSelectionBits(*part);
     }
   }
@@ -68,6 +72,10 @@ void ParticleDisambiguator::disambiguateParticles(
       }
       if (ak4jet_chosen) part->addMother(ak4jet_chosen);
 
+      // Compute external MVA scores if needed
+      ElectronSelectionHelpers::storeMVAScores(*part);
+
+      // Set the selection bits
       ElectronSelectionHelpers::setSelectionBits(*part);
     }
   }

@@ -92,9 +92,6 @@ bool ElectronHandler::constructElectronObjects(){
       // Set selection bits
       //ElectronSelectionHelpers::setSelectionBits(*obj); // Do not set them here. Migrated to ParticleDisambiguator.
 
-      // Compute external MVA scores if needed
-      ElectronSelectionHelpers::storeMVAScores(*obj);
-
       if (this->verbosity>=MiscUtils::DEBUG) IVYout << "\t- Success!" << endl;
 
       ip++;
