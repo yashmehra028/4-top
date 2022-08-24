@@ -136,8 +136,7 @@ void ElectronSelectionHelpers::loadMVA(){
       "sip3d",
       "log_abs_dxy", // = log(|dxy|)
       "log_abs_dz", // = log(|dz|)
-      "mvaFall17V2noIso",
-      "lostHits"
+      "mvaFall17V2noIso"
     };
     if (selection_type==kTopMVAv2_Run2) varnames.push_back("lostHits");
     // No need to set missing_entry_val
