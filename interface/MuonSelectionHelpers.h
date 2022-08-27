@@ -40,11 +40,9 @@ namespace MuonSelectionHelpers{
   constexpr float track_reco_qualityThr = 0.2; // Line 320 of AN2018_062_v17, pTerr/pT
 
   // Kinematic eta thresholds
-  // Last ECAL crystal in barrel is at |eta|=1.4442
-  // Gap region is between 1.4442 and 1.56, crossing is at 1.479. See ECALGeometrySpecifications.h.
   constexpr float etaThr_cat0 = 0.8; 
   constexpr float etaThr_cat1 = 1.479;
-  constexpr float etaThr_cat2 = 2.4; // line 316 in the AN2018_062_v17
+  constexpr float etaThr_cat2 = 2.4;
 
   // Isolation thresholds
   constexpr float isoThr_loose_I1 = 0.4;

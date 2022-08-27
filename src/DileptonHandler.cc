@@ -52,7 +52,11 @@ bool DileptonHandler::constructSSDileptons(
       for (ParticleObject* F1:lepMinusPlus[c][s]){
         for (ParticleObject* F2:lepMinusPlus[c][s]){
           if (F1==F2) continue;
-          if (ParticleObject::checkDeepDaughtership(F1, F2)) continue;
+          if (verbosity==MiscUtils::DEBUG) IVYout << "\t- Cdd of SSSF pair from " << F1->pdgId() << ", " << F2->pdgId() << endl;
+          if (ParticleObject::checkDeepDaughtership(F1, F2)){
+            if (verbosity==MiscUtils::DEBUG) IVYout << "\t\t- Cdd failed." << endl;
+            continue;
+          }
           if (verbosity==MiscUtils::DEBUG) IVYout << "\t- Found SSSF pair from " << F1->pdgId() << ", " << F2->pdgId() << endl;
           ParticleObject::LorentzVector_t pV = F1->p4() + F2->p4();
           DileptonObject* V = new DileptonObject(0, pV);
@@ -66,7 +70,11 @@ bool DileptonHandler::constructSSDileptons(
     for (int c=0; c<1; c++){ // Index only reaches 1 becuase e+mu+ and mu+e+ are the same collections.
       for (ParticleObject* F1:lepMinusPlus[c][s]){
         for (ParticleObject* F2:lepMinusPlus[1-c][s]){
-          if (ParticleObject::checkDeepDaughtership(F1, F2)) continue;
+          if (verbosity==MiscUtils::DEBUG) IVYout << "\t- Cdd of SSDF pair from " << F1->pdgId() << ", " << F2->pdgId() << endl;
+          if (ParticleObject::checkDeepDaughtership(F1, F2)){
+            if (verbosity==MiscUtils::DEBUG) IVYout << "\t\t- Cdd failed." << endl;
+            continue;
+          }
           if (verbosity==MiscUtils::DEBUG) IVYout << "\t- Found SSDF pair from " << F1->pdgId() << ", " << F2->pdgId() << endl;
           ParticleObject::LorentzVector_t pV = F1->p4() + F2->p4();
           DileptonObject* V = new DileptonObject(0, pV);
@@ -107,7 +115,11 @@ bool DileptonHandler::constructOSDileptons(
   for (int c=0; c<2; c++){
     for (ParticleObject* F1:lepMinusPlus[c][0]){
       for (ParticleObject* F2:lepMinusPlus[c][1]){
-        if (ParticleObject::checkDeepDaughtership(F1, F2)) continue;
+        if (verbosity==MiscUtils::DEBUG) IVYout << "\t- Cdd of OSSF pair from " << F1->pdgId() << ", " << F2->pdgId() << endl;
+        if (ParticleObject::checkDeepDaughtership(F1, F2)){
+          if (verbosity==MiscUtils::DEBUG) IVYout << "\t\t- Cdd failed." << endl;
+          continue;
+        }
         if (verbosity==MiscUtils::DEBUG) IVYout << "\t- Found OSSF pair from " << F1->pdgId() << ", " << F2->pdgId() << endl;
         ParticleObject::LorentzVector_t pV = F1->p4() + F2->p4();
         DileptonObject* V = new DileptonObject(23, pV);

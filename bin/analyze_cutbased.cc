@@ -70,6 +70,16 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
   TDirectory* curdir = gDirectory;
 
+  // This is the output directory.
+  // Output should always be recorded as if you are running the job locally.
+  // We will inform the Condor job later on that some files would need transfer if we are running on Condor.
+  TString coutput_main = ANALYSISPKGPATH + "test/output/Analysis_CutBased/" + strdate.data() + "/" + SampleHelpers::getDataPeriod();
+  HostHelpers::ExpandEnvironmentVariables(coutput_main);
+  gSystem->mkdir(coutput_main, true);
+  TString stroutput = coutput_main + "/" + proc.data() + ".root"; // This is the output file.
+  TString stroutput_log = coutput_main + "/log_" + proc.data() + ".out"; // This is the output file.
+  IVYout.open(stroutput_log.Data());
+
   constexpr bool cleanJetsFromFakeableObjects = true;
   ParticleSelectionHelpers::setUseFakeableIdForJetCleaning(cleanJetsFromFakeableObjects);
 
@@ -80,6 +90,12 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   extra_arguments.getNamedVal("input_files", input_files);
   bool runSyncExercise = false;
   extra_arguments.getNamedVal("run_sync", runSyncExercise);
+  bool writeSyncObjects = false;
+  bool forceApplyPreselection = false;
+  if (runSyncExercise){
+    extra_arguments.getNamedVal("write_sync_objects", writeSyncObjects);
+    extra_arguments.getNamedVal("force_sync_preselection", forceApplyPreselection);
+  }
 
   std::string muon_id_name;
   extra_arguments.getNamedVal("muon_id", muon_id_name);
@@ -96,15 +112,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
 
   // Flag to control whether any preselection other than nleps>=2 to be applied
-  bool const applyPreselection = !runSyncExercise;
-
-  // This is the output directory.
-  // Output should always be recorded as if you are running the job locally.
-  // We will inform the Condor job later on that some files would need transfer if we are running on Condor.
-  TString coutput_main = ANALYSISPKGPATH + "test/output/Analysis_CutBased/" + strdate.data() + "/" + SampleHelpers::getDataPeriod();
-  HostHelpers::ExpandEnvironmentVariables(coutput_main);
-  gSystem->mkdir(coutput_main, true);
-  TString stroutput = coutput_main + "/" + proc.data() + ".root"; // This is the output file.
+  bool const applyPreselection = !runSyncExercise || forceApplyPreselection;
 
   // Trigger configuration
   std::vector<TriggerHelpers::TriggerType> requiredTriggers_Dilepton{
@@ -159,7 +167,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   double sum_wgts = (isData ? 1 : 0);
   if (!isData){
     for (auto const& fname:SampleHelpers::lsdir(strinput.Data())){
-      if (runSyncExercise && fname!=input_files.data()) continue;
+      if (input_files!="" && fname!=input_files.data()) continue;
       if (fname.EndsWith(".root")){
         TFile* ftmp = TFile::Open(strinput + "/" + fname, "read");
         TH2D* hCounters = (TH2D*) ftmp->Get("Counters");
@@ -217,9 +225,13 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   isotrackHandler.wrapTree(tin);
 
   EventNumber_t* ptr_EventNumber = nullptr;
+  float* ptr_genmet_pt = nullptr;
   if (runSyncExercise){
     tin->bookBranch<EventNumber_t>("event", 0);
     tin->getValRef("event", ptr_EventNumber);
+
+    tin->bookBranch<float>("GenMET_pt", 0);
+    tin->getValRef("GenMET_pt", ptr_genmet_pt);
   }
 
   TFile* foutput = TFile::Open(stroutput, "recreate");
@@ -242,10 +254,21 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     foutput_sync << "Event#,#inFile,MET,MET_phi,Nlooseleptons,Nfakeableleptons,Ntightleptons,Goodsspair?,HT,Njets,Nbjets,SR/CR" << endl;
   }
 
+  TFile* foutput_sync_objects = nullptr;
+  BaseTree* tout_sync_objects = nullptr;
+  SimpleEntry rcd_sync_objects;
+  if (writeSyncObjects){
+    foutput_sync_objects = TFile::Open(coutput_main + "/" + Form("sync_objects_%s.root", proc.data()), "recreate");
+    tout_sync_objects = new BaseTree("SyncObjects");
+    tout_sync_objects->setAutoSave(0);
+    curdir->cd();
+  }
+
   // Keep track of sums of weights
   SelectionTracker seltracker;
 
   bool firstOutputEvent = true;
+  bool firstSyncObjectsOutputEvent = true;
   unsigned int n_traversed = 0;
   unsigned int n_recorded = 0;
   int nEntries = tin->getNEvents();
@@ -273,7 +296,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       wgt = genwgt * puwgt;
 
       // Add L1 prefiring weight for 2016 and 2017
-      //wgt *= simEventHandler.getL1PrefiringWeight(SystematicsHelpers::sNominal);
+      wgt *= simEventHandler.getL1PrefiringWeight(SystematicsHelpers::sNominal);
     }
 
     muonHandler.constructMuons();
@@ -292,7 +315,68 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
     bool const printObjInfo = runSyncExercise
       &&
-      HelperFunctions::checkListVariable(std::vector<int>{3, 15, 30, 31, 32, 41, 153, 154, 162, 197, 215, 284, 317, 360, 572, 615, 747, 1019, 1119, 1129}, ev);
+      HelperFunctions::checkListVariable(std::vector<int>{ 6994, 7046, 11794 }, ev);
+      //HelperFunctions::checkListVariable(std::vector<int>{ 1233, 1475, 1546, 1696, 2011, 2103, 2801, 2922, 3378, 3407, 3575, 3645, 5021, 5127, 6994, 7000, 7046, 7341, 7351, 8050, 9931, 10063, 10390, 10423, 10623, 10691, 10791, 10796, 11127, 11141, 11279, 11794, 12231, 12996, 13115, 13294, 13550, 14002, 14319, 15062, 15754, 16153, 16166, 16316, 16896, 16911, 17164 }, ev);
+      //HelperFunctions::checkListVariable(std::vector<int>{663, 1469, 3087, 3281}, ev);
+      //HelperFunctions::checkListVariable(std::vector<int>{204, 353, 438, 1419}, ev);
+      //HelperFunctions::checkListVariable(std::vector<int>{3, 15, 30, 31, 32, 41, 153, 154, 162, 197, 215, 284, 317, 360, 572, 615, 747, 1019, 1119, 1129}, ev);
+
+    // Muon sync. write variables
+#define SYNC_MUONS_BRANCH_VECTOR_COMMANDS \
+    SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, muons, is_loose) \
+    SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, muons, is_fakeable) \
+    SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, muons, is_medium) \
+    SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, muons, is_tight) \
+    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, pt) \
+    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, eta) \
+    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, phi) \
+    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, mass) \
+    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, ptrel_final) \
+    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, ptratio_final) \
+    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, bscore) \
+    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, extMVAscore) \
+    MUON_EXTRA_VARIABLES
+    // Electron sync. write variables
+#define SYNC_ELECTRONS_BRANCH_VECTOR_COMMANDS \
+    SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, electrons, is_loose) \
+    SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, electrons, is_fakeable) \
+    SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, electrons, is_medium) \
+    SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, electrons, is_tight) \
+    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, pt) \
+    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, eta) \
+    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, etaSC) \
+    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, phi) \
+    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, mass) \
+    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, ptrel_final) \
+    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, ptratio_final) \
+    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, mvaFall17V2noIso_raw) \
+    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, bscore) \
+    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, extMVAscore) \
+    ELECTRON_EXTRA_VARIABLES
+    // ak4jet sync. write variables
+#define SYNC_AK4JETS_BRANCH_VECTOR_COMMANDS \
+    SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, ak4jets, is_tight) \
+    SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, ak4jets, is_btagged) \
+    SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, ak4jets, is_clean) \
+    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, ak4jets, pt) \
+    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, ak4jets, eta) \
+    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, ak4jets, phi) \
+    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, ak4jets, mass) \
+    AK4JET_EXTRA_INPUT_VARIABLES
+    // All sync. write objects
+#define SYNC_ALLOBJS_BRANCH_VECTOR_COMMANDS \
+   SYNC_MUONS_BRANCH_VECTOR_COMMANDS \
+   SYNC_ELECTRONS_BRANCH_VECTOR_COMMANDS \
+   SYNC_AK4JETS_BRANCH_VECTOR_COMMANDS
+#define SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, COLLNAME, NAME) std::vector<TYPE> COLLNAME##_##NAME;
+#define MUON_VARIABLE(TYPE, NAME, DEFVAL) SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, muons, NAME)
+#define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, electrons, NAME)
+#define AK4JET_VARIABLE(TYPE, NAME, DEFVAL) SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, ak4jets, NAME)
+    SYNC_ALLOBJS_BRANCH_VECTOR_COMMANDS;
+#undef AK4JET_VARIABLE
+#undef ELECTRON_VARIABLE
+#undef MUON_VARIABLE
+#undef SYNC_OBJ_BRANCH_VECTOR_COMMAND
 
     if (printObjInfo) IVYout << "Lepton info for event " << ev << ":" << endl;
 
@@ -302,9 +386,16 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     std::vector<MuonObject*> muons_fakeable;
     std::vector<MuonObject*> muons_loose;
     for (auto const& part:muons){
-      if (part->pt()<5.) continue;
+      float pt = part->pt();
+
+      if (pt<5.) continue;
+
+      float eta = part->eta();
+      float phi = part->phi();
+      float mass = part->mass();
 
       bool is_tight = false;
+      bool is_medium = ParticleSelectionHelpers::isMediumParticle(part);
       bool is_fakeable = false;
       bool is_loose = false;
 
@@ -321,24 +412,48 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         is_loose = true;
       }
 
-      if (printObjInfo) IVYout
-        << "\t- PDG id = " << part->pdgId()
-        << ", pt = " << part->pt() << ", eta = " << part->eta() << ", phi = " << part->phi()
-        << ", array index = " << part->getUniqueIdentifier()
-        << ", matched jet index = " << (dynamic_cast<AK4JetObject*>(part->getMother(0)) ? static_cast<int>(part->getMother(0)->getUniqueIdentifier()) : -1)
-        << ", loose? " << is_loose
-        << ", fakeable? " << is_fakeable
-        << ", tight? " << is_tight
-        << endl;
-      /*
-#define MUON_VARIABLE(TYPE, NAME) << "\t- " << #NAME << ": " << static_cast<double>(part->extras.NAME) << "\n"
-      if (printObjInfo) IVYout
-        << "\t- ptrel = " << part->ptrel() << "\n"
-        << "\t- ptratio = " << part->ptratio() << "\n"
-        MUON_EXTRA_VARIABLES
-        << endl;
+      float ptrel_final = part->ptrel();
+      float ptratio_final = part->ptratio();
+
+      float extMVAscore=-99;
+      bool has_extMVAscore = part->getExternalMVAScore(MuonSelectionHelpers::selection_type, extMVAscore);
+
+      float bscore = 0;
+      AK4JetObject* mother = nullptr;
+      for (auto const& mom:part->getMothers()){
+        mother = dynamic_cast<AK4JetObject*>(mom);
+        if (mother) break;
+      }
+      if (mother) bscore = mother->extras.btagDeepFlavB;
+
+      if (printObjInfo){
+        IVYout
+          << "\t- PDG id = " << part->pdgId()
+          << ", pt = " << pt << ", eta = " << eta << ", phi = " << phi
+          << ", array index = " << part->getUniqueIdentifier()
+          << ", matched jet index = " << (mother ? static_cast<int>(mother->getUniqueIdentifier()) : -1)
+          << ", loose? " << is_loose
+          << ", fakeable? " << is_fakeable
+          << ", tight? " << is_tight
+          << endl;
+#define MUON_VARIABLE(TYPE, NAME, DEFVAL) << "\t\t- " << #NAME << ": " << static_cast<double>(part->extras.NAME) << "\n"
+        IVYout
+          MUON_EXTRA_VARIABLES
+          << "\t\t- b score = " << bscore << "\n"
+          << "\t\t- ptrel = " << ptrel_final << "\n"
+          << "\t\t- ptratio = " << ptratio_final
+          << endl;
 #undef MUON_VARIABLE
-      */
+        if (has_extMVAscore) IVYout << "\t\t- External MVA score = " << extMVAscore << endl;
+      }
+
+      if (writeSyncObjects){
+#define SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, COLLNAME, NAME) COLLNAME##_##NAME.push_back(NAME);
+#define MUON_VARIABLE(TYPE, NAME, DEFVAL) muons_##NAME.push_back(part->extras.NAME);
+        SYNC_MUONS_BRANCH_VECTOR_COMMANDS;
+#undef MUON_VARIABLE
+#undef SYNC_OBJ_BRANCH_VECTOR_COMMAND
+      }
     }
     HelperFunctions::appendVector(muons_selected, muons_tight);
     HelperFunctions::appendVector(muons_selected, muons_fakeable);
@@ -350,9 +465,17 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     std::vector<ElectronObject*> electrons_fakeable;
     std::vector<ElectronObject*> electrons_loose;
     for (auto const& part:electrons){
-      if (part->pt()<7.) continue;
+      float pt = part->pt();
+
+      if (pt<7.) continue;
+
+      float eta = part->eta();
+      float etaSC = part->etaSC();
+      float phi = part->phi();
+      float mass = part->mass();
 
       bool is_tight = false;
+      bool is_medium = ParticleSelectionHelpers::isMediumParticle(part);
       bool is_fakeable = false;
       bool is_loose = false;
 
@@ -369,25 +492,50 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         is_loose = true;
       }
 
-      if (printObjInfo) IVYout
-        << "\t- PDG id = " << part->pdgId()
-        << ", pt = " << part->pt() << ", eta = " << part->eta() << ", phi = " << part->phi()
-        << ", array index = " << part->getUniqueIdentifier()
-        << ", matched jet index = " << (dynamic_cast<AK4JetObject*>(part->getMother(0)) ? static_cast<int>(part->getMother(0)->getUniqueIdentifier()) : -1)
-        << ", loose? " << is_loose
-        << ", fakeable? " << is_fakeable
-        << ", tight? " << is_tight
-        << endl;
-      /*
-#define ELECTRON_VARIABLE(TYPE, NAME) << "\t- " << #NAME << ": " << static_cast<double>(part->extras.NAME) << "\n"
-      if (printObjInfo) IVYout
-        << "\t- ptrel = " << part->ptrel() << "\n"
-        << "\t- ptratio = " << part->ptratio() << "\n"
-        << "\t- MVA transformed = " << 0.5 * std::log((1. + part->extras.mvaFall17V2noIso)/(1. - part->extras.mvaFall17V2noIso)) << "\n"
-        ELECTRON_EXTRA_VARIABLES
-        << endl;
+      float mvaFall17V2noIso_raw = 0.5 * std::log((1. + part->extras.mvaFall17V2noIso)/(1. - part->extras.mvaFall17V2noIso));
+      float ptrel_final = part->ptrel();
+      float ptratio_final = part->ptratio();
+
+      float extMVAscore=-99;
+      bool has_extMVAscore = part->getExternalMVAScore(ElectronSelectionHelpers::selection_type, extMVAscore);
+
+      float bscore = 0;
+      AK4JetObject* mother = nullptr;
+      for (auto const& mom:part->getMothers()){
+        mother = dynamic_cast<AK4JetObject*>(mom);
+        if (mother) break;
+      }
+      if (mother) bscore = mother->extras.btagDeepFlavB;
+
+      if (printObjInfo){
+        IVYout
+          << "\t- PDG id = " << part->pdgId()
+          << ", pt = " << pt << ", eta = " << eta << ", phi = " << phi
+          << ", array index = " << part->getUniqueIdentifier()
+          << ", matched jet index = " << (mother ? static_cast<int>(mother->getUniqueIdentifier()) : -1)
+          << ", loose? " << is_loose
+          << ", fakeable? " << is_fakeable
+          << ", tight? " << is_tight
+          << endl;
+#define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) << "\t\t- " << #NAME << ": " << static_cast<double>(part->extras.NAME) << "\n"
+        IVYout
+          ELECTRON_EXTRA_VARIABLES
+          << "\t\t- Fall 17 v2 no-iso. MVA transformed = " << mvaFall17V2noIso_raw << "\n"
+          << "\t\t- b score = " << bscore << "\n"
+          << "\t\t- ptrel = " << ptrel_final << "\n"
+          << "\t\t- ptratio = " << ptratio_final
+          << endl;
 #undef ELECTRON_VARIABLE
-      */
+        if (has_extMVAscore) IVYout << "\t\t- External MVA score = " << extMVAscore << endl;
+      }
+
+      if (writeSyncObjects){
+#define SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, COLLNAME, NAME) COLLNAME##_##NAME.push_back(NAME);
+#define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) electrons_##NAME.push_back(part->extras.NAME);
+        SYNC_ELECTRONS_BRANCH_VECTOR_COMMANDS;
+#undef ELECTRON_VARIABLE
+#undef SYNC_OBJ_BRANCH_VECTOR_COMMAND
+      }
     }
     HelperFunctions::appendVector(electrons_selected, electrons_tight);
     HelperFunctions::appendVector(electrons_selected, electrons_fakeable);
@@ -414,46 +562,125 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     std::vector<AK4JetObject*> ak4jets_tight_pt40;
     std::vector<AK4JetObject*> ak4jets_tight_pt25_btagged;
     for (auto const& jet:ak4jets){
+      float pt = jet->pt();
+      float eta = jet->eta();
+      float phi = jet->phi();
+      float mass = jet->mass();
+
+      bool is_tight = ParticleSelectionHelpers::isTightJet(jet);
+      bool is_btagged = jet->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTagged);
+      constexpr bool is_clean = true;
+
       if (printObjInfo) IVYout
-        << "\t- pt = " << jet->pt() << ", eta = " << jet->eta() << ", phi = " << jet->phi()
+        << "\t- pt = " << pt << ", eta = " << eta << ", phi = " << phi
         << ", array index = " << jet->getUniqueIdentifier()
-        << " | btagged? " << jet->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTagged)
-        << " | tight? " << ParticleSelectionHelpers::isTightJet(jet)
-        << " | clean? " << 1
+        << " | btagged? " << is_btagged
+        << " | tight? " << is_tight
+        << " | clean? " << is_clean
         << " ("
         << "jetId = " << jet->extras.jetId
         << ", electron indices = " << std::vector<int>{ jet->extras.electronIdx1, jet->extras.electronIdx2 }
         << ", muon indices = " << std::vector<int>{ jet->extras.muonIdx1, jet->extras.muonIdx2 }
         << ")"
         << endl;
-      if (ParticleSelectionHelpers::isTightJet(jet) && jet->pt()>=25. && std::abs(jet->eta())<absEtaThr_ak4jets){
-        if (jet->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTagged)) ak4jets_tight_pt25_btagged.push_back(jet);
-        if (jet->pt()>=40.){
+
+      if (writeSyncObjects){
+#define SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, COLLNAME, NAME) COLLNAME##_##NAME.push_back(NAME);
+#define AK4JET_VARIABLE(TYPE, NAME, DEFVAL) ak4jets_##NAME.push_back(jet->extras.NAME);
+        SYNC_AK4JETS_BRANCH_VECTOR_COMMANDS;
+#undef AK4JET_VARIABLE
+#undef SYNC_OBJ_BRANCH_VECTOR_COMMAND
+      }
+
+      if (is_tight && pt>=25. && std::abs(eta)<absEtaThr_ak4jets){
+        if (is_btagged) ak4jets_tight_pt25_btagged.push_back(jet);
+        if (pt>=40.){
           ak4jets_tight_pt40.push_back(jet);
-          ak4jets_pt40_HT += jet->pt();
+          ak4jets_pt40_HT += pt;
         }
       }
     }
-    if (printObjInfo){
+    if (writeSyncObjects || printObjInfo){
       for (auto const& jet:jetHandler.getMaskedAK4Jets()){
+        float pt = jet->pt();
+        float eta = jet->eta();
+        float phi = jet->phi();
+        float mass = jet->mass();
+
+        bool is_tight = ParticleSelectionHelpers::isTightJet(jet);
+        bool is_btagged = jet->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTagged);
+        constexpr bool is_clean = false;
+
         if (printObjInfo) IVYout
-          << "\t- pt = " << jet->pt() << ", eta = " << jet->eta() << ", phi = " << jet->phi()
+          << "\t- pt = " << pt << ", eta = " << eta << ", phi = " << phi
           << ", array index = " << jet->getUniqueIdentifier()
-          << " | btagged? " << jet->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTagged)
-          << " | tight? " << ParticleSelectionHelpers::isTightJet(jet)
-          << " | clean? " << 0
+          << " | btagged? " << is_btagged
+          << " | tight? " << is_tight
+          << " | clean? " << is_clean
           << " ("
           << "jetId = " << jet->extras.jetId
           << ", electron indices = " << std::vector<int>{ jet->extras.electronIdx1, jet->extras.electronIdx2 }
           << ", muon indices = " << std::vector<int>{ jet->extras.muonIdx1, jet->extras.muonIdx2 }
           << ")"
           << endl;
+
+        if (writeSyncObjects){
+#define SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, COLLNAME, NAME) COLLNAME##_##NAME.push_back(NAME);
+#define AK4JET_VARIABLE(TYPE, NAME, DEFVAL) ak4jets_##NAME.push_back(jet->extras.NAME);
+          SYNC_AK4JETS_BRANCH_VECTOR_COMMANDS;
+#undef AK4JET_VARIABLE
+#undef SYNC_OBJ_BRANCH_VECTOR_COMMAND
+        }
       }
     }
     unsigned int const nak4jets_tight_pt40 = ak4jets_tight_pt40.size();
     unsigned int const nak4jets_tight_pt25_btagged = ak4jets_tight_pt25_btagged.size();
 
     auto const& eventmet = jetHandler.getPFMET();
+
+    // Write object sync. info.
+    if (writeSyncObjects){
+      rcd_sync_objects.setNamedVal("EventNumber", *ptr_EventNumber);
+      rcd_sync_objects.setNamedVal("GenMET_pt", *ptr_genmet_pt);
+      rcd_sync_objects.setNamedVal("PFMET_pt_final", eventmet->pt());
+      rcd_sync_objects.setNamedVal("PFMET_phi_final", eventmet->phi());
+
+#define SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, COLLNAME, NAME) rcd_sync_objects.setNamedVal(Form("%s_%s", #COLLNAME, #NAME), COLLNAME##_##NAME);
+#define MUON_VARIABLE(TYPE, NAME, DEFVAL) SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, muons, NAME)
+#define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, electrons, NAME)
+#define AK4JET_VARIABLE(TYPE, NAME, DEFVAL) SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, ak4jets, NAME)
+      SYNC_ALLOBJS_BRANCH_VECTOR_COMMANDS;
+#undef AK4JET_VARIABLE
+#undef ELECTRON_VARIABLE
+#undef MUON_VARIABLE
+#undef SYNC_OBJ_BRANCH_VECTOR_COMMAND
+
+      if (firstSyncObjectsOutputEvent){
+#define SIMPLE_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_sync_objects.named##name_t##s.begin(); itb!=rcd_sync_objects.named##name_t##s.end(); itb++) tout_sync_objects->putBranch(itb->first, itb->second);
+#define VECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_sync_objects.namedV##name_t##s.begin(); itb!=rcd_sync_objects.namedV##name_t##s.end(); itb++) tout_sync_objects->putBranch(itb->first, &(itb->second));
+#define DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_sync_objects.namedVV##name_t##s.begin(); itb!=rcd_sync_objects.namedVV##name_t##s.end(); itb++) tout_sync_objects->putBranch(itb->first, &(itb->second));
+        SIMPLE_DATA_OUTPUT_DIRECTIVES;
+        VECTOR_DATA_OUTPUT_DIRECTIVES;
+        DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVES;
+#undef SIMPLE_DATA_OUTPUT_DIRECTIVE
+#undef VECTOR_DATA_OUTPUT_DIRECTIVE
+#undef DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE
+      }
+
+      // Record whatever is in rcd_sync_objects into the tree.
+#define SIMPLE_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_sync_objects.named##name_t##s.begin(); itb!=rcd_sync_objects.named##name_t##s.end(); itb++) tout_sync_objects->setVal(itb->first, itb->second);
+#define VECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_sync_objects.namedV##name_t##s.begin(); itb!=rcd_sync_objects.namedV##name_t##s.end(); itb++) tout_sync_objects->setVal(itb->first, &(itb->second));
+#define DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_sync_objects.namedVV##name_t##s.begin(); itb!=rcd_sync_objects.namedVV##name_t##s.end(); itb++) tout_sync_objects->setVal(itb->first, &(itb->second));
+      SIMPLE_DATA_OUTPUT_DIRECTIVES;
+      VECTOR_DATA_OUTPUT_DIRECTIVES;
+      DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVES;
+#undef SIMPLE_DATA_OUTPUT_DIRECTIVE
+#undef VECTOR_DATA_OUTPUT_DIRECTIVE
+#undef DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE
+
+      tout_sync_objects->fill();
+      firstSyncObjectsOutputEvent = false;
+    }
 
     // BEGIN PRESELECTION
     seltracker.accumulate("Full sample", wgt);
@@ -496,6 +723,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     //seltracker.accumulate("nOS", wgt*static_cast<double>(ndileptons_OS));
     //seltracker.accumulate("nSS", wgt*static_cast<double>(ndileptons_SS));
 
+    if (printObjInfo) IVYout << "Dilepton info for event " << ev << ":" << endl;
     bool fail_vetos = false;
     DileptonObject* dilepton_SS_tight = nullptr;
     DileptonObject* dilepton_OS_DYCand_tight = nullptr;
@@ -506,16 +734,28 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       bool is_LowMass = dilepton->m()<12.;
       bool is_ZClose = std::abs(dilepton->m()-91.2)<15.;
       bool is_DYClose = std::abs(dilepton->m()-91.2)<15. || is_LowMass;
+      if (printObjInfo){
+        IVYout
+          << "\t- Dilepton: pt = " << dilepton->pt() << ", mass = " << dilepton->mass()
+          << ", daughter ids = { " << dilepton->getDaughter(0)->pdgId() << ", " << dilepton->getDaughter(1)->pdgId() << " }"
+          << '\n';
+        IVYout << "\t\t- isSS = " << isSS << '\n';
+        IVYout << "\t\t- isTight = " << isTight << '\n';
+        IVYout << "\t\t- isSF = " << isSF << '\n';
+        IVYout << "\t\t- is_LowMass = " << is_LowMass << '\n';
+        IVYout << "\t\t- is_ZClose = " << is_ZClose << '\n';
+        IVYout << "\t\t- is_DYClose = " << is_DYClose << endl;
+      }
       if (isSS && isSF && is_LowMass && std::abs(dilepton->getDaughter(0)->pdgId())==11){
         fail_vetos = true;
-        break;
+        if (applyPreselection) break;
       }
       if (isSS && isTight && !dilepton_SS_tight) dilepton_SS_tight = dilepton;
       if (!isSS && isSF && is_DYClose){
         if (isTight && is_ZClose && !dilepton_OS_DYCand_tight) dilepton_OS_DYCand_tight = dilepton;
         else{
           fail_vetos = true;
-          break;
+          if (applyPreselection) break;
         }
       }
     }
@@ -601,7 +841,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       }
     }
 
-    if (runSyncExercise) foutput_sync
+    if (runSyncExercise && (!applyPreselection || iCRZ==1 || icat>0)) foutput_sync
       << *ptr_EventNumber << ","
       << ev << ","
       << eventmet->pt() << ","
@@ -640,6 +880,12 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     IVYout << "\t- Failed: " << hCat->GetBinContent(0, 2) << " +- " << hCat->GetBinError(0, 2) << endl;
   }
 
+  if (tout_sync_objects){
+    tout_sync_objects->writeToFile(foutput_sync_objects);
+    delete tout_sync_objects;
+  }
+  if (foutput_sync_objects) foutput_sync_objects->Close();
+
   if (runSyncExercise){
     foutput_sync.close();
     SampleHelpers::splitFileAndAddForTransfer(stroutput_sync);
@@ -651,6 +897,8 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
   curdir->cd();
   delete tin;
+
+  IVYout.close();
 
   // Split large files, and add them to the transfer queue from Condor to the target site
   // Does nothing if you are running the program locally because your output is already in the desired location.
@@ -693,7 +941,7 @@ int main(int argc, char** argv){
       }
       extra_arguments.setNamedVal(wish, value);
     }
-    else if (wish=="run_sync"){
+    else if (wish=="run_sync" || wish=="write_sync_objects" || wish=="force_sync_preselection"){
       bool tmpval;
       HelperFunctions::castStringToValue(value, tmpval);
       extra_arguments.setNamedVal(wish, tmpval);
@@ -729,8 +977,10 @@ int main(int argc, char** argv){
     IVYout << "- output_tag: Version of the output. Mandatory.\n";
     IVYout << "- xsec: Cross section value. Mandatory in the MC.\n";
     IVYout << "- BR: BR value. Mandatory in the MC.\n";
-    IVYout << "- input_files: Input files to run. Optional. Default is to run on all files\n";
+    IVYout << "- input_files: Input files to run. Optional. Default is to run on all files.\n";
     IVYout << "- run_sync: Turn on synchronization output. Optional. Default is to run without synchronization output.\n";
+    IVYout << "- write_sync_objects: Create a file that contains the info. for all leptons and jets, and event identifiers. Ignored if run_sync=false. Optional. Default is to not produce such a file.\n";
+    IVYout << "- force_sync_preselection: When sync. mode is on, also apply SR/CR preselection.  Ignored if run_sync=false. Optional. Default is to run without preselection.\n";
     IVYout
       << "- muon_id: Can be 'Cutbased_Run2', 'TopMVA_Run2', or 'TopMVAv2_Run2'.\n"
       << "  Default is whatever is in MuonSelectionHelpers (currently 'Cutbased_Run2') if no value is given.\n";

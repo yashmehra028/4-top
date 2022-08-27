@@ -21,6 +21,12 @@ AK4JET_VARIABLE(float, muEF, 0) \
 AK4JET_VARIABLE(float, rawFactor, 0) \
 AK4JET_VARIABLE(float, btagDeepFlavB, 0)
 
+// These variables are a subset of AK4JET_COMMON_VARIABLES, so there is no need to define them twice in the extras.
+// Nevertheless, define them through a different command set (i.e., AK4JET_LOWPT_VARIABLE instead of AK4JET_VARIABLE).
+#define AK4JET_LOWPT_EXTRA_INPUT_VARIABLES \
+AK4JET_LOWPT_VARIABLE(float, area, 0) \
+AK4JET_LOWPT_VARIABLE(float, muonSubtrFactor, 0)
+
 #define AK4JET_EXTRA_INPUT_VARIABLES \
 AK4JET_GENINFO_VARIABLES \
 AK4JET_COMMON_VARIABLES
@@ -28,15 +34,6 @@ AK4JET_COMMON_VARIABLES
 #define AK4JET_EXTRA_VARIABLES \
 AK4JET_EXTRA_INPUT_VARIABLES \
 AK4JET_VARIABLE(float, JECL1Nominal, 1)
-
-
-#define AK4JET_LOWPT_EXTRA_INPUT_VARIABLES \
-AK4JET_LOWPT_VARIABLE(float, area, 0) \
-AK4JET_LOWPT_VARIABLE(float, muonSubtrFactor, 0)
-
-#define AK4JET_LOWPT_EXTRA_VARIABLES \
-AK4JET_LOWPT_EXTRA_INPUT_VARIABLES \
-AK4JET_LOWPT_VARIABLE(float, JECL1Nominal, 1)
 
 
 class AK4JetVariables{
@@ -52,24 +49,10 @@ public:
   void swap(AK4JetVariables& other);
 };
 
-class AK4JetLowPtVariables{
-public:
-#define AK4JET_LOWPT_VARIABLE(TYPE, NAME, DEFVAL) TYPE NAME;
-  AK4JET_LOWPT_EXTRA_VARIABLES;
-#undef AK4JET_LOWPT_VARIABLE
-
-  AK4JetLowPtVariables();
-  AK4JetLowPtVariables(AK4JetLowPtVariables const& other);
-  AK4JetLowPtVariables& operator=(const AK4JetLowPtVariables& other);
-
-  void swap(AK4JetLowPtVariables& other);
-};
-
 
 class AK4JetObject : public ParticleObject{
 public:
   AK4JetVariables extras;
-  AK4JetLowPtVariables extras_lowpt;
 
   AK4JetObject();
   AK4JetObject(LorentzVector_t const& mom_);

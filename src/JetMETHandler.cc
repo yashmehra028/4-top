@@ -191,7 +191,7 @@ bool JetMETHandler::constructAK4Jets_LowPt(){
       AK4JetObject*& obj = ak4jets_masked.back();
 
       // Set extras
-#define AK4JET_LOWPT_VARIABLE(TYPE, NAME, DEFVAL) obj->extras_lowpt.NAME = *it_##NAME;
+#define AK4JET_LOWPT_VARIABLE(TYPE, NAME, DEFVAL) obj->extras.NAME = *it_##NAME;
       AK4JET_LOWPT_EXTRA_INPUT_VARIABLES;
 #undef AK4JET_LOWPT_VARIABLE
 

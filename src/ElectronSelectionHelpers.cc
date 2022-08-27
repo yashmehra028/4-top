@@ -130,7 +130,7 @@ void ElectronSelectionHelpers::loadMVA(){
       "miniPFRelIso_chg",
       "miniPFRelIso_diff_all_chg", // = miniPFRelIso_all - miniPFRelIso_chg
       "jetPtRelv2",
-      "jetPtRatio", // = 1/jetRelIso+1
+      "jetPtRatio", // = 1/(jetRelIso+1)
       "pfRelIso03_all",
       "ak4jet:btagDeepFlavB", // B-tagging discriminant score
       "sip3d",

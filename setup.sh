@@ -84,13 +84,13 @@ printenvinstr () {
   echo
   echo "to use this repo, you must run:"
   echo
-  echo 'eval $(./setup.sh env)'
+  echo 'eval $('${BASH_SOURCE[0]}' env)'
   echo "or"
-  echo 'eval `./setup.sh env`'
+  echo 'eval `'${BASH_SOURCE[0]}' env`'
   echo
   echo "if you are using a bash-related shell, or you can do"
   echo
-  echo './setup.sh env'
+  echo ${BASH_SOURCE[0]}' env'
   echo
   echo "and change the commands according to your shell in order to do something equivalent to set up the environment variables."
   echo
