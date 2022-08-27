@@ -21,6 +21,9 @@ namespace MuonSelectionHelpers{
   std::unordered_map<SelectionType, std::shared_ptr<IvyXGBoostInterface> > seltype_mvareader_map;
   void loadMVA();
 
+  // Sliding b-tagging WP
+  float get_bscoreThr_TopMVAAny_Run2_UL_Fakeable_ALT(MuonObject const& part);
+
   // Common functions
   bool testLooseId(MuonObject const& part);
   bool testLooseIso(MuonObject const& part);
@@ -28,17 +31,17 @@ namespace MuonSelectionHelpers{
   bool testFakeableId(MuonObject const& part);
   bool testFakableIso(MuonObject const& part);
 
-  bool testMediumId(MuonObject const& part);
-  bool testMediumIso(MuonObject const& part);
-
   bool testTightId(MuonObject const& part);
   bool testTightIso(MuonObject const& part);
 
+  bool testKin_Skim(MuonObject const& part);
+  bool testKin_Loose(MuonObject const& part);
+  bool testKin_Fakeable(MuonObject const& part);
+  bool testKin_Tight(MuonObject const& part);
   bool testKin(MuonObject const& part);
 
   bool testPreselectionLoose(MuonObject const& part);
   bool testPreselectionFakeable(MuonObject const& part);
-  bool testPreselectionMedium(MuonObject const& part);
   bool testPreselectionTight(MuonObject const& part);
 }
 
@@ -183,6 +186,18 @@ float MuonSelectionHelpers::getIsolationDRmax(MuonObject const& part){
   return (10. / std::min(std::max(part.uncorrected_pt(), 50.), 200.));
 }
 
+float MuonSelectionHelpers::get_bscoreThr_TopMVAAny_Run2_UL_Fakeable_ALT(MuonObject const& part){
+  constexpr double cA = 0.02;
+  constexpr double cB = 0.015;
+  constexpr double ptA = 20.;
+  constexpr double ptB = 40.;
+  double const part_pt = part.pt();
+
+  if (part_pt<=ptA) return cA;
+  else if (part_pt>=ptB) return cB;
+  else return (cA + (cB - cA)*(part_pt - ptA)/(ptB - ptA));
+}
+
 bool MuonSelectionHelpers::testLooseId(MuonObject const& part){
   switch (selection_type){
   case kCutbased_Run2:
@@ -225,8 +240,6 @@ bool MuonSelectionHelpers::testFakeableId(MuonObject const& part){
       std::abs(part.extras.sip3d)<sip3dThr
       &&
       part.extras.ptErr/part_pt<track_reco_qualityThr
-      &&
-      part_pt>=20.
       );
   case kTopMVA_Run2:
   case kTopMVAv2_Run2:
@@ -258,45 +271,12 @@ bool MuonSelectionHelpers::testFakeableId(MuonObject const& part){
       && (
         mvascore>(selection_type==kTopMVA_Run2 ? wp_medium_TopMVA_Run2_UL : wp_medium_TopMVAv2_Run2_UL)
         ||
-        (bscore<AK4JetSelectionHelpers::getBtaggingWP() && ptratio>=isoThr_TopMVAany_Run2_UL_Fakeable_ALT_I2)
+        (bscore<get_bscoreThr_TopMVAAny_Run2_UL_Fakeable_ALT(part) && ptratio>=isoThr_TopMVAany_Run2_UL_Fakeable_ALT_I2)
         )
       );
   }
   default:
     IVYerr << "MuonSelectionHelpers::testFakeableId: Selection type " << selection_type << " is not implemented." << endl;
-    assert(0);
-    return false;
-  }
-}
-bool MuonSelectionHelpers::testMediumId(MuonObject const& part){
-  double const part_pt = part.pt();
-
-  switch (selection_type){
-  case kCutbased_Run2:
-    return testTightId(part);
-  case kTopMVA_Run2:
-  case kTopMVAv2_Run2:
-  {
-    float mvascore = -999;
-    if (!part.getExternalMVAScore(selection_type, mvascore)){
-      IVYerr << "MuonSelectionHelpers::testFakeableId: MVA score is not yet computed for selection type " << selection_type << "." << endl;
-      assert(0);
-    }
-
-    return (
-      part.extras.mediumId
-      &&
-      std::abs(part.extras.dxy)<dxyThr_TopMVAany_Run2_UL
-      &&
-      std::abs(part.extras.dz)<dzThr_TopMVAany_Run2_UL
-      &&
-      std::abs(part.extras.sip3d)<sip3dThr_TopMVAany_Run2_UL
-      &&
-      mvascore>(selection_type==kTopMVA_Run2 ? wp_mediumID_TopMVA_Run2_UL : wp_mediumID_TopMVAv2_Run2_UL)
-      );
-  }
-  default:
-    IVYerr << "MuonSelectionHelpers::testMediumId: Selection type " << selection_type << " is not implemented." << endl;
     assert(0);
     return false;
   }
@@ -316,8 +296,6 @@ bool MuonSelectionHelpers::testTightId(MuonObject const& part){
       std::abs(part.extras.sip3d)<sip3dThr
       &&
       part.extras.ptErr/part_pt<track_reco_qualityThr
-      &&
-      part_pt>=20.
       );
   case kTopMVA_Run2:
   case kTopMVAv2_Run2:
@@ -376,7 +354,6 @@ bool MuonSelectionHelpers::testFakableIso(MuonObject const& part){
     return false;
   }
 }
-bool MuonSelectionHelpers::testMediumIso(MuonObject const& part){ return testTightIso(part); }
 bool MuonSelectionHelpers::testTightIso(MuonObject const& part){
   double const ptratio = part.ptratio();
   double const ptrel = part.ptrel();
@@ -404,13 +381,66 @@ bool MuonSelectionHelpers::testTightIso(MuonObject const& part){
   }
 }
 
+bool MuonSelectionHelpers::testKin_Skim(MuonObject const& part){
+  return (part.pt() >= ptThr_skim && std::abs(part.eta()) < etaThr_cat2);
+}
+bool MuonSelectionHelpers::testKin_Loose(MuonObject const& part){
+  bool const pass_eta = (std::abs(part.eta()) < etaThr_cat2);
+  switch (selection_type){
+  case kCutbased_Run2:
+    return (part.pt() >= ptThr_loose && pass_eta);
+  case kTopMVA_Run2:
+  case kTopMVAv2_Run2:
+    return (part.pt() >= ptThr_TopMVAany_Run2_UL_loose && pass_eta);
+  default:
+    IVYerr << "MuonSelectionHelpers::testKin_Loose: Selection type " << selection_type << " is not implemented." << endl;
+    assert(0);
+    return false;
+  }
+}
+bool MuonSelectionHelpers::testKin_Fakeable(MuonObject const& part){
+  bool const pass_eta = (std::abs(part.eta()) < etaThr_cat2);
+  switch (selection_type){
+  case kCutbased_Run2:
+    return (part.pt() >= ptThr_fakeable && pass_eta);
+  case kTopMVA_Run2:
+  case kTopMVAv2_Run2:
+    return (part.pt() >= ptThr_TopMVAany_Run2_UL_fakeable && pass_eta);
+  default:
+    IVYerr << "MuonSelectionHelpers::testKin_Fakeable: Selection type " << selection_type << " is not implemented." << endl;
+    assert(0);
+    return false;
+  }
+}
+bool MuonSelectionHelpers::testKin_Tight(MuonObject const& part){
+  bool const pass_eta = (std::abs(part.eta()) < etaThr_cat2);
+  switch (selection_type){
+  case kCutbased_Run2:
+    return (part.pt() >= ptThr_tight && pass_eta);
+  case kTopMVA_Run2:
+  case kTopMVAv2_Run2:
+    return (part.pt() >= ptThr_TopMVAany_Run2_UL_tight && pass_eta);
+  default:
+    IVYerr << "MuonSelectionHelpers::testKin_Tight: Selection type " << selection_type << " is not implemented." << endl;
+    assert(0);
+    return false;
+  }
+}
 bool MuonSelectionHelpers::testKin(MuonObject const& part){
-  return (part.pt() >= ptThr_cat0 && std::abs(part.eta()) < etaThr_cat2);
+  return (
+    part.testSelectionBit(kKinOnly_Skim)
+    ||
+    part.testSelectionBit(kKinOnly_Loose)
+    ||
+    part.testSelectionBit(kKinOnly_Fakeable)
+    ||
+    part.testSelectionBit(kKinOnly_Tight)
+    );
 }
 
 bool MuonSelectionHelpers::testPreselectionLoose(MuonObject const& part){
   return (
-    part.testSelectionBit(kKinOnly)
+    part.testSelectionBit(kKinOnly_Loose)
     &&
     testLooseId(part)
     &&
@@ -419,25 +449,16 @@ bool MuonSelectionHelpers::testPreselectionLoose(MuonObject const& part){
 }
 bool MuonSelectionHelpers::testPreselectionFakeable(MuonObject const& part){
   return (
-    part.testSelectionBit(kKinOnly)
+    part.testSelectionBit(kKinOnly_Fakeable)
     &&
     testFakeableId(part)
     &&
     testFakableIso(part)
     );
 }
-bool MuonSelectionHelpers::testPreselectionMedium(MuonObject const& part){
-  return (
-    part.testSelectionBit(kKinOnly)
-    &&
-    testMediumId(part)
-    &&
-    testMediumIso(part)
-    );
-}
 bool MuonSelectionHelpers::testPreselectionTight(MuonObject const& part){
   return (
-    part.testSelectionBit(kKinOnly)
+    part.testSelectionBit(kKinOnly_Tight)
     &&
     testTightId(part)
     &&
@@ -448,10 +469,13 @@ bool MuonSelectionHelpers::testPreselectionTight(MuonObject const& part){
 void MuonSelectionHelpers::setSelectionBits(MuonObject& part){
   static_assert(std::numeric_limits<ParticleObject::SelectionBitsType_t>::digits >= nSelectionBits);
 
+  part.setSelectionBit(kKinOnly_Skim, testKin_Skim(part));
+  part.setSelectionBit(kKinOnly_Loose, testKin_Loose(part));
+  part.setSelectionBit(kKinOnly_Fakeable, testKin_Fakeable(part));
+  part.setSelectionBit(kKinOnly_Tight, testKin_Tight(part));
   part.setSelectionBit(kKinOnly, testKin(part));
 
   part.setSelectionBit(kPreselectionLoose, testPreselectionLoose(part));
   part.setSelectionBit(kPreselectionFakeable, testPreselectionFakeable(part));
-  part.setSelectionBit(kPreselectionMedium, testPreselectionMedium(part));
   part.setSelectionBit(kPreselectionTight, testPreselectionTight(part));
 }

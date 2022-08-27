@@ -325,7 +325,6 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 #define SYNC_MUONS_BRANCH_VECTOR_COMMANDS \
     SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, muons, is_loose) \
     SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, muons, is_fakeable) \
-    SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, muons, is_medium) \
     SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, muons, is_tight) \
     SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, pt) \
     SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, eta) \
@@ -340,7 +339,6 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 #define SYNC_ELECTRONS_BRANCH_VECTOR_COMMANDS \
     SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, electrons, is_loose) \
     SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, electrons, is_fakeable) \
-    SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, electrons, is_medium) \
     SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, electrons, is_tight) \
     SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, pt) \
     SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, eta) \
@@ -387,15 +385,11 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     std::vector<MuonObject*> muons_loose;
     for (auto const& part:muons){
       float pt = part->pt();
-
-      if (pt<5.) continue;
-
       float eta = part->eta();
       float phi = part->phi();
       float mass = part->mass();
 
       bool is_tight = false;
-      bool is_medium = ParticleSelectionHelpers::isMediumParticle(part);
       bool is_fakeable = false;
       bool is_loose = false;
 
@@ -466,16 +460,12 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     std::vector<ElectronObject*> electrons_loose;
     for (auto const& part:electrons){
       float pt = part->pt();
-
-      if (pt<7.) continue;
-
       float eta = part->eta();
       float etaSC = part->etaSC();
       float phi = part->phi();
       float mass = part->mass();
 
       bool is_tight = false;
-      bool is_medium = ParticleSelectionHelpers::isMediumParticle(part);
       bool is_fakeable = false;
       bool is_loose = false;
 

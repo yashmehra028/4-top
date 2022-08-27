@@ -8,6 +8,11 @@
 
 namespace ElectronSelectionHelpers{
   enum SelectionBits{
+    kKinOnly_Skim,
+    kKinOnly_Loose,
+    kKinOnly_Fakeable,
+    kKinOnly_Tight,
+
     kKinOnly,
 
     kPreselectionLoose_IsoTrig,
@@ -16,7 +21,6 @@ namespace ElectronSelectionHelpers{
     kPreselectionFakeable_IsoTrig,
     kPreselectionFakeable_NoIsoTrig,
     kPreselectionFakeable,
-    kPreselectionMedium,
     kPreselectionTight,
 
     nSelectionBits
@@ -32,11 +36,27 @@ namespace ElectronSelectionHelpers{
   void setSelectionTypeByName(TString stname);
 
 
+  /****************/
+  /* Common stuff */
+  /****************/
+  constexpr float ptThr_skim = 5.;
+  constexpr float etaThrLow_Gap = 1.4442;
+  constexpr float etaThrHigh_Gap = 1.566;
+
+  float getIsolationDRmax(ElectronObject const& part);
+
+  void setSelectionBits(ElectronObject& part);
+
+
   /***********************************/
   /* Cut-based ID Run 2 requirements */
   /***********************************/
 
   // Kinematic pT thresholds
+  constexpr float ptThr_loose = 7.;
+  constexpr float ptThr_fakeable = 20.;
+  constexpr float ptThr_tight = 20.;
+
   constexpr float ptThr_cat0 = 5.;
   constexpr float ptThr_cat1 = 10.;
   constexpr float ptThr_cat2 = 25.;
@@ -76,47 +96,40 @@ namespace ElectronSelectionHelpers{
 
   void setApplyMVALooseFakeableNoIsoWPs(bool flag); // Relevant to Cutbased_Run2 ID for now
 
+
   /*****************************/
   /* MVA ID Run 2 requirements */
   /*****************************/
-
-  constexpr float etaThrLow_Gap = 1.4442;
-  constexpr float etaThrHigh_Gap = 1.566;
+  constexpr float ptThr_TopMVAany_Run2_UL_loose = 10.;
+  constexpr float ptThr_TopMVAany_Run2_UL_fakeable = 10.;
+  constexpr float ptThr_TopMVAany_Run2_UL_tight = 10.;
 
   constexpr float isoThr_TopMVAany_Run2_UL_I1 = 0.4;
   constexpr float isoThr_TopMVAany_Run2_UL_Fakeable_ALT_I2 = 0.5;
+  constexpr float bscoreThr_TopMVAany_Run2_UL_Fakeable_ALT = 0.5;
 
   constexpr int maxMissingHits_TopMVAany_Run2_UL = 1;
   constexpr float dxyThr_TopMVAany_Run2_UL = 0.05;
   constexpr float dzThr_TopMVAany_Run2_UL = 0.1;
   constexpr float sip3dThr_TopMVAany_Run2_UL = 8.;
-  constexpr float sieieThr_barrel_TopMVAany_Run2_UL = 0.011;
-  constexpr float sieieThr_endcap_TopMVAany_Run2_UL = 0.03;
-  constexpr float hoverEThr_TopMVAany_Run2_UL = 0.1;
-  constexpr float min_EinvminusPinvThr_TopMVAany_Run2_UL = -0.04; // BE CAREFUL! THIS IS SIGNED AND COMPARISON IS >!
+  //constexpr float sieieThr_barrel_TopMVAany_Run2_UL = 0.011;
+  //constexpr float sieieThr_endcap_TopMVAany_Run2_UL = 0.03;
+  //constexpr float hoverEThr_TopMVAany_Run2_UL = 0.1;
+  //constexpr float min_EinvminusPinvThr_TopMVAany_Run2_UL = -0.04; // BE CAREFUL! THIS IS SIGNED AND COMPARISON IS >!
 
   constexpr float wp_vloose_TopMVA_Run2_UL = 0.20;
   constexpr float wp_loose_TopMVA_Run2_UL = 0.41;
   constexpr float wp_medium_TopMVA_Run2_UL = 0.64;
   constexpr float wp_tight_TopMVA_Run2_UL = 0.81;
-  constexpr float wp_mediumID_TopMVA_Run2_UL = 0.;
 
   constexpr float wp_vloose_TopMVAv2_Run2_UL = 0.59;
   constexpr float wp_loose_TopMVAv2_Run2_UL = 0.81;
   constexpr float wp_medium_TopMVAv2_Run2_UL = 0.90;
   constexpr float wp_tight_TopMVAv2_Run2_UL = 0.94;
-  constexpr float wp_mediumID_TopMVAv2_Run2_UL = 0.;
 
   void storeMVAScores(ElectronObject& part);
   float computeMVAScore(ElectronObject const& part, SelectionType const& type);
 
-  /****************/
-  /* Common stuff */
-  /****************/
-
-  float getIsolationDRmax(ElectronObject const& part);
-
-  void setSelectionBits(ElectronObject& part);
 }
 
 

@@ -30,8 +30,7 @@ SELECTION_TYPES;
 #undef SELECTION_TYPES
 
 #define SELECTION_TYPES \
-SELECTION_TYPE(Fakeable) \
-SELECTION_TYPE(Medium)
+SELECTION_TYPE(Fakeable)
 #define SELECTION_TYPE(TYPE) \
 template<> bool ParticleSelectionHelpers::is##TYPE##Particle(MuonObject const* part){ \
   return part->testSelectionBit(MuonSelectionHelpers::kPreselection##TYPE); \

@@ -11,7 +11,6 @@ namespace ParticleSelectionHelpers{
 #define SELECTION_TYPES \
 SELECTION_TYPE(Loose) \
 SELECTION_TYPE(Fakeable) \
-SELECTION_TYPE(Medium) \
 SELECTION_TYPE(Tight)
 
 #define SELECTION_TYPE(TYPE) \

@@ -4,7 +4,6 @@
 #include "SamplesCore.h"
 #include "ElectronSelectionHelpers.h"
 #include "AK4JetObject.h"
-#include "AK4JetSelectionHelpers.h"
 #include "IvyFramework/IvyDataTools/interface/HelperFunctions.h"
 
 
@@ -12,6 +11,7 @@
 namespace ElectronSelectionHelpers{
   constexpr bool apply_multiiso = true;
   constexpr bool apply_triggerSafety = true;
+  constexpr bool apply_EBEEGapVeto = true;
 
   SelectionType selection_type = kCutbased_Run2;
   bool applyMVALooseFakeableNoIsoWPs = false; // For Cutbased_Run2 ID
@@ -38,12 +38,13 @@ namespace ElectronSelectionHelpers{
   bool testFakeableId_IsoTrig(ElectronObject const& part);
   bool testFakeableIso(ElectronObject const& part);
 
-  bool testMediumId(ElectronObject const& part);
-  bool testMediumIso(ElectronObject const& part);
-
   bool testTightId(ElectronObject const& part);
   bool testTightIso(ElectronObject const& part);
 
+  bool testKin_Skim(ElectronObject const& part);
+  bool testKin_Loose(ElectronObject const& part);
+  bool testKin_Fakeable(ElectronObject const& part);
+  bool testKin_Tight(ElectronObject const& part);
   bool testKin(ElectronObject const& part);
 
   bool testPreselectionLoose_NoIsoTrig(ElectronObject const& part);
@@ -52,7 +53,6 @@ namespace ElectronSelectionHelpers{
   bool testPreselectionFakeable_NoIsoTrig(ElectronObject const& part);
   bool testPreselectionFakeable_IsoTrig(ElectronObject const& part);
   bool testPreselectionFakeable(ElectronObject const& part);
-  bool testPreselectionMedium(ElectronObject const& part);
   bool testPreselectionTight(ElectronObject const& part);
 }
 
@@ -242,12 +242,9 @@ bool ElectronSelectionHelpers::testLooseId_Common(ElectronObject const& part){
   case kTopMVAv2_Run2:
     return (
       part.extras.lostHits<=maxMissingHits_TopMVAany_Run2_UL
-      &&
-      std::abs(part.extras.dxy)<dxyThr_TopMVAany_Run2_UL
-      &&
-      std::abs(part.extras.dz)<dzThr_TopMVAany_Run2_UL
-      &&
-      std::abs(part.extras.sip3d)<sip3dThr_TopMVAany_Run2_UL
+      && std::abs(part.extras.dxy)<dxyThr_TopMVAany_Run2_UL
+      && std::abs(part.extras.dz)<dzThr_TopMVAany_Run2_UL
+      && std::abs(part.extras.sip3d)<sip3dThr_TopMVAany_Run2_UL
       );
   default:
     IVYerr << "ElectronSelectionHelpers::testLooseId_Common: Selection type " << selection_type << " is not implemented." << endl;
@@ -365,8 +362,6 @@ bool ElectronSelectionHelpers::testFakeableId_Common(ElectronObject const& part)
       part.extras.convVeto
       &&
       part.extras.tightCharge==2
-      &&
-      part_pt>=20.
       );
   }
   case kTopMVA_Run2:
@@ -374,7 +369,7 @@ bool ElectronSelectionHelpers::testFakeableId_Common(ElectronObject const& part)
   {
     float mvascore = -999;
     if (!part.getExternalMVAScore(selection_type, mvascore)){
-      IVYerr << "MuonSelectionHelpers::testFakeableId: MVA score is not yet computed for selection type " << selection_type << "." << endl;
+      IVYerr << "ElectronSelectionHelpers::testFakeableId: MVA score is not yet computed for selection type " << selection_type << "." << endl;
       assert(0);
     }
 
@@ -390,26 +385,18 @@ bool ElectronSelectionHelpers::testFakeableId_Common(ElectronObject const& part)
 
     return (
       part.extras.lostHits<=maxMissingHits_TopMVAany_Run2_UL
-      &&
-      std::abs(part.extras.dxy)<dxyThr_TopMVAany_Run2_UL
-      &&
-      std::abs(part.extras.dz)<dzThr_TopMVAany_Run2_UL
-      &&
-      std::abs(part.extras.sip3d)<sip3dThr_TopMVAany_Run2_UL
-      &&
-      part.extras.hoe<hoverEThr_TopMVAany_Run2_UL
-      &&
-      part.extras.eInvMinusPInv>min_EinvminusPinvThr_TopMVAany_Run2_UL
-      &&
-      part.extras.sieie<(part_etaSC<etaThr_cat1 ? sieieThr_barrel_TopMVAany_Run2_UL : sieieThr_endcap_TopMVAany_Run2_UL)
-      &&
-      part.extras.convVeto
-      &&
-      part.extras.tightCharge==2
+      && std::abs(part.extras.dxy)<dxyThr_TopMVAany_Run2_UL
+      && std::abs(part.extras.dz)<dzThr_TopMVAany_Run2_UL
+      && std::abs(part.extras.sip3d)<sip3dThr_TopMVAany_Run2_UL
+      //&& part.extras.hoe<hoverEThr_TopMVAany_Run2_UL
+      //&& part.extras.eInvMinusPInv>min_EinvminusPinvThr_TopMVAany_Run2_UL
+      //&& part.extras.sieie<(part_etaSC<etaThr_cat1 ? sieieThr_barrel_TopMVAany_Run2_UL : sieieThr_endcap_TopMVAany_Run2_UL)
+      && part.extras.convVeto
+      && part.extras.tightCharge==2
       && (
-        mvascore>(selection_type==kTopMVA_Run2 ? wp_medium_TopMVA_Run2_UL : wp_medium_TopMVAv2_Run2_UL)
+        mvascore>(selection_type==kTopMVA_Run2 ? wp_tight_TopMVA_Run2_UL : wp_tight_TopMVAv2_Run2_UL)
         ||
-        (bscore<AK4JetSelectionHelpers::getBtaggingWP() && ptratio>=isoThr_TopMVAany_Run2_UL_Fakeable_ALT_I2 && part.extras.mvaFall17V2noIso_WPL)
+        (part.extras.mvaFall17V2noIso_WPL && ptratio>=isoThr_TopMVAany_Run2_UL_Fakeable_ALT_I2 && bscore<bscoreThr_TopMVAany_Run2_UL_Fakeable_ALT)
         )
       );
   }
@@ -505,51 +492,6 @@ bool ElectronSelectionHelpers::testFakeableId_NoIsoTrig(ElectronObject const& pa
     return false;
   }
 }
-bool ElectronSelectionHelpers::testMediumId(ElectronObject const& part){
-  double const part_pt = part.pt();
-  double const part_eta = std::abs(part.eta());
-  double const part_etaSC = std::abs(part.etaSC());
-
-  switch (selection_type){
-  case kCutbased_Run2:
-    return testTightId(part);
-  case kTopMVA_Run2:
-  case kTopMVAv2_Run2:
-  {
-    float mvascore = -999;
-    if (!part.getExternalMVAScore(selection_type, mvascore)){
-      IVYerr << "ElectronSelectionHelpers::testMediumId: MVA score is not yet computed for selection type " << selection_type << "." << endl;
-      assert(0);
-    }
-
-    return (
-      part.extras.lostHits<=maxMissingHits_TopMVAany_Run2_UL
-      &&
-      std::abs(part.extras.dxy)<dxyThr_TopMVAany_Run2_UL
-      &&
-      std::abs(part.extras.dz)<dzThr_TopMVAany_Run2_UL
-      &&
-      std::abs(part.extras.sip3d)<sip3dThr_TopMVAany_Run2_UL
-      &&
-      part.extras.hoe<hoverEThr_TopMVAany_Run2_UL
-      &&
-      part.extras.eInvMinusPInv>min_EinvminusPinvThr_TopMVAany_Run2_UL
-      &&
-      part.extras.sieie<(part_etaSC<etaThr_cat1 ? sieieThr_barrel_TopMVAany_Run2_UL : sieieThr_endcap_TopMVAany_Run2_UL)
-      &&
-      part.extras.convVeto
-      &&
-      part.extras.tightCharge==2
-      &&
-      mvascore>(selection_type==kTopMVA_Run2 ? wp_mediumID_TopMVA_Run2_UL : wp_mediumID_TopMVAv2_Run2_UL)
-      );
-  }
-  default:
-    IVYerr << "ElectronSelectionHelpers::testMediumId: Selection type " << selection_type << " is not implemented." << endl;
-    assert(0);
-    return false;
-  }
-}
 bool ElectronSelectionHelpers::testTightId(ElectronObject const& part){
   double const part_pt = part.pt();
   double const part_eta = std::abs(part.eta());
@@ -574,8 +516,6 @@ bool ElectronSelectionHelpers::testTightId(ElectronObject const& part){
         part.extras.convVeto
         &&
         part.extras.tightCharge==2
-        &&
-        part_pt>=20.
         )
       ) return false;
 
@@ -611,24 +551,15 @@ bool ElectronSelectionHelpers::testTightId(ElectronObject const& part){
 
     return (
       part.extras.lostHits<=maxMissingHits_TopMVAany_Run2_UL
-      &&
-      std::abs(part.extras.dxy)<dxyThr_TopMVAany_Run2_UL
-      &&
-      std::abs(part.extras.dz)<dzThr_TopMVAany_Run2_UL
-      &&
-      std::abs(part.extras.sip3d)<sip3dThr_TopMVAany_Run2_UL
-      &&
-      part.extras.hoe<hoverEThr_TopMVAany_Run2_UL
-      &&
-      part.extras.eInvMinusPInv>min_EinvminusPinvThr_TopMVAany_Run2_UL
-      &&
-      part.extras.sieie<(part_etaSC<etaThr_cat1 ? sieieThr_barrel_TopMVAany_Run2_UL : sieieThr_endcap_TopMVAany_Run2_UL)
-      &&
-      part.extras.convVeto
-      &&
-      part.extras.tightCharge==2
-      &&
-      mvascore>(selection_type==kTopMVA_Run2 ? wp_medium_TopMVA_Run2_UL : wp_medium_TopMVAv2_Run2_UL)
+      && std::abs(part.extras.dxy)<dxyThr_TopMVAany_Run2_UL
+      && std::abs(part.extras.dz)<dzThr_TopMVAany_Run2_UL
+      && std::abs(part.extras.sip3d)<sip3dThr_TopMVAany_Run2_UL
+      //&& part.extras.hoe<hoverEThr_TopMVAany_Run2_UL
+      //&& part.extras.eInvMinusPInv>min_EinvminusPinvThr_TopMVAany_Run2_UL
+      //&& part.extras.sieie<(part_etaSC<etaThr_cat1 ? sieieThr_barrel_TopMVAany_Run2_UL : sieieThr_endcap_TopMVAany_Run2_UL)
+      && part.extras.convVeto
+      && part.extras.tightCharge==2
+      && mvascore>(selection_type==kTopMVA_Run2 ? wp_tight_TopMVA_Run2_UL : wp_tight_TopMVAv2_Run2_UL)
       );
   }
   default:
@@ -668,7 +599,6 @@ bool ElectronSelectionHelpers::testFakeableIso(ElectronObject const& part){
     return false;
   }
 }
-bool ElectronSelectionHelpers::testMediumIso(ElectronObject const& part){ return testTightIso(part); }
 bool ElectronSelectionHelpers::testTightIso(ElectronObject const& part){
   double const ptratio = part.ptratio();
   double const ptrel = part.ptrel();
@@ -692,17 +622,69 @@ bool ElectronSelectionHelpers::testTightIso(ElectronObject const& part){
   }
 }
 
-bool ElectronSelectionHelpers::testKin(ElectronObject const& part){
-  double const part_pt = part.pt();
-  double const part_eta = std::abs(part.eta());
+bool ElectronSelectionHelpers::testKin_Skim(ElectronObject const& part){
+  return (part.pt() >= ptThr_skim && std::abs(part.eta()) < etaThr_cat2);
+}
+bool ElectronSelectionHelpers::testKin_Loose(ElectronObject const& part){
   double const part_etaSC = std::abs(part.etaSC());
-
-  return (part_pt>=ptThr_cat0 && part_eta<etaThr_cat2 && !(part_etaSC>=etaThrLow_Gap && part_etaSC<=etaThrHigh_Gap));
+  bool const pass_eta = (std::abs(part.eta()) < etaThr_cat2 && !(apply_EBEEGapVeto && part_etaSC>=etaThrLow_Gap && part_etaSC<=etaThrHigh_Gap));
+  switch (selection_type){
+  case kCutbased_Run2:
+    return (part.pt() >= ptThr_loose && pass_eta);
+  case kTopMVA_Run2:
+  case kTopMVAv2_Run2:
+    return (part.pt() >= ptThr_TopMVAany_Run2_UL_loose && pass_eta);
+  default:
+    IVYerr << "ElectronSelectionHelpers::testKin_Loose: Selection type " << selection_type << " is not implemented." << endl;
+    assert(0);
+    return false;
+  }
+}
+bool ElectronSelectionHelpers::testKin_Fakeable(ElectronObject const& part){
+  double const part_etaSC = std::abs(part.etaSC());
+  bool const pass_eta = (std::abs(part.eta()) < etaThr_cat2 && !(apply_EBEEGapVeto && part_etaSC>=etaThrLow_Gap && part_etaSC<=etaThrHigh_Gap));
+  switch (selection_type){
+  case kCutbased_Run2:
+    return (part.pt() >= ptThr_fakeable && pass_eta);
+  case kTopMVA_Run2:
+  case kTopMVAv2_Run2:
+    return (part.pt() >= ptThr_TopMVAany_Run2_UL_fakeable && pass_eta);
+  default:
+    IVYerr << "ElectronSelectionHelpers::testKin_Fakeable: Selection type " << selection_type << " is not implemented." << endl;
+    assert(0);
+    return false;
+  }
+}
+bool ElectronSelectionHelpers::testKin_Tight(ElectronObject const& part){
+  double const part_etaSC = std::abs(part.etaSC());
+  bool const pass_eta = (std::abs(part.eta()) < etaThr_cat2 && !(apply_EBEEGapVeto && part_etaSC>=etaThrLow_Gap && part_etaSC<=etaThrHigh_Gap));
+  switch (selection_type){
+  case kCutbased_Run2:
+    return (part.pt() >= ptThr_tight && pass_eta);
+  case kTopMVA_Run2:
+  case kTopMVAv2_Run2:
+    return (part.pt() >= ptThr_TopMVAany_Run2_UL_tight && pass_eta);
+  default:
+    IVYerr << "ElectronSelectionHelpers::testKin_Tight: Selection type " << selection_type << " is not implemented." << endl;
+    assert(0);
+    return false;
+  }
+}
+bool ElectronSelectionHelpers::testKin(ElectronObject const& part){
+  return (
+    part.testSelectionBit(kKinOnly_Skim)
+    ||
+    part.testSelectionBit(kKinOnly_Loose)
+    ||
+    part.testSelectionBit(kKinOnly_Fakeable)
+    ||
+    part.testSelectionBit(kKinOnly_Tight)
+    );
 }
 
 bool ElectronSelectionHelpers::testPreselectionLoose_IsoTrig(ElectronObject const& part){
   return (
-    part.testSelectionBit(kKinOnly)
+    part.testSelectionBit(kKinOnly_Loose)
     &&
     testTriggerSafety(part)
     &&
@@ -713,7 +695,7 @@ bool ElectronSelectionHelpers::testPreselectionLoose_IsoTrig(ElectronObject cons
 }
 bool ElectronSelectionHelpers::testPreselectionLoose_NoIsoTrig(ElectronObject const& part){
   return (
-    part.testSelectionBit(kKinOnly)
+    part.testSelectionBit(kKinOnly_Loose)
     &&
     testTriggerSafety(part)
     &&
@@ -731,7 +713,7 @@ bool ElectronSelectionHelpers::testPreselectionLoose(ElectronObject const& part)
 }
 bool ElectronSelectionHelpers::testPreselectionFakeable_IsoTrig(ElectronObject const& part){
   return (
-    part.testSelectionBit(kKinOnly)
+    part.testSelectionBit(kKinOnly_Fakeable)
     &&
     testTriggerSafety(part)
     &&
@@ -742,7 +724,7 @@ bool ElectronSelectionHelpers::testPreselectionFakeable_IsoTrig(ElectronObject c
 }
 bool ElectronSelectionHelpers::testPreselectionFakeable_NoIsoTrig(ElectronObject const& part){
   return (
-    part.testSelectionBit(kKinOnly)
+    part.testSelectionBit(kKinOnly_Fakeable)
     &&
     testTriggerSafety(part)
     &&
@@ -758,20 +740,9 @@ bool ElectronSelectionHelpers::testPreselectionFakeable(ElectronObject const& pa
     (!applyMVALooseFakeableNoIsoWPs && part.testSelectionBit(kPreselectionFakeable_IsoTrig))
     );
 }
-bool ElectronSelectionHelpers::testPreselectionMedium(ElectronObject const& part){
-  return (
-    part.testSelectionBit(kKinOnly)
-    &&
-    testTriggerSafety(part)
-    &&
-    testMediumId(part)
-    &&
-    testMediumIso(part)
-    );
-}
 bool ElectronSelectionHelpers::testPreselectionTight(ElectronObject const& part){
   return (
-    part.testSelectionBit(kKinOnly)
+    part.testSelectionBit(kKinOnly_Tight)
     &&
     testTriggerSafety(part)
     &&
@@ -784,6 +755,10 @@ bool ElectronSelectionHelpers::testPreselectionTight(ElectronObject const& part)
 void ElectronSelectionHelpers::setSelectionBits(ElectronObject& part){
   static_assert(std::numeric_limits<ParticleObject::SelectionBitsType_t>::digits >= nSelectionBits);
 
+  part.setSelectionBit(kKinOnly_Skim, testKin_Skim(part));
+  part.setSelectionBit(kKinOnly_Loose, testKin_Loose(part));
+  part.setSelectionBit(kKinOnly_Fakeable, testKin_Fakeable(part));
+  part.setSelectionBit(kKinOnly_Tight, testKin_Tight(part));
   part.setSelectionBit(kKinOnly, testKin(part));
 
   part.setSelectionBit(kPreselectionLoose_NoIsoTrig, testPreselectionLoose_NoIsoTrig(part));
@@ -792,6 +767,5 @@ void ElectronSelectionHelpers::setSelectionBits(ElectronObject& part){
   part.setSelectionBit(kPreselectionFakeable_NoIsoTrig, testPreselectionFakeable_NoIsoTrig(part));
   part.setSelectionBit(kPreselectionFakeable_IsoTrig, testPreselectionFakeable_IsoTrig(part));
   part.setSelectionBit(kPreselectionFakeable, testPreselectionFakeable(part));
-  part.setSelectionBit(kPreselectionMedium, testPreselectionMedium(part));
   part.setSelectionBit(kPreselectionTight, testPreselectionTight(part));
 }
