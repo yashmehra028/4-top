@@ -3,21 +3,31 @@
 
 #include <vector>
 #include "AK4JetObject.h"
+#include "BtagHelpers.h"
 
 
 namespace AK4JetSelectionHelpers{
   enum SelectionBits{
-    kJetIdOnly,
-    kBTagOnly,
     kKinOnly,
+    kKinOnly_BTag,
+
+    kJetIdOnly,
+
+    kBTagged_Loose,
+    kBTagged_Medium,
+    kBTagged_Tight,
 
     kPreselectionTight,
-    kPreselectionTight_BTagged,
+
+    kPreselectionTight_BTagged_Loose,
+    kPreselectionTight_BTagged_Medium,
+    kPreselectionTight_BTagged_Tight,
 
     nSelectionBits
   };
 
   // Kinematic pT thresholds
+  constexpr float ptThr_btag_infimum = 20.;
   constexpr float ptThr = 25.;
   constexpr float ptThr_HEMVeto = 30.;
 
@@ -30,14 +40,8 @@ namespace AK4JetSelectionHelpers{
 
   constexpr int jetIdBitPos = 1;
 
-  // Deep flavor cutoffs - medium
-  // Found here: https://twiki.cern.ch/twiki/bin/viewauth/CMS/BtagRecommendation
-  constexpr float deepFlavThr_2016_APV = 0.2598;
-  constexpr float deepFlavThr_2016_NonAPV = 0.2489;
-  constexpr float deepFlavThr_2017 = 0.3040;
-  constexpr float deepFlavThr_2018 = 0.2783;
-
-  float getBtaggingWP();
+  // b tagging
+  constexpr BtagHelpers::BtagWPType btagger_type = BtagHelpers::kDeepFlav_Loose; // Just pass the loose enum to specify tagger type
 
   void setSelectionBits(AK4JetObject& part);
 }

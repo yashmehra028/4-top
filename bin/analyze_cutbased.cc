@@ -97,19 +97,50 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     extra_arguments.getNamedVal("force_sync_preselection", forceApplyPreselection);
   }
 
+  // Shorthand option for the Run 2 UL analysis proposal
+  bool use_shorthand_Run2_UL_proposal_config;
+  extra_arguments.getNamedVal("shorthand_Run2_UL_proposal_config", use_shorthand_Run2_UL_proposal_config);
+
+  // Options to set alternative muon and electron IDs, or b-tagging WP
   std::string muon_id_name;
-  extra_arguments.getNamedVal("muon_id", muon_id_name);
-  if (muon_id_name!=""){
-    IVYout << "Switching to muon id " << muon_id_name << endl;
-    MuonSelectionHelpers::setSelectionTypeByName(muon_id_name);
-  }
   std::string electron_id_name;
-  extra_arguments.getNamedVal("electron_id", electron_id_name);
-  if (electron_id_name!=""){
-    IVYout << "Switching to electron id " << electron_id_name << endl;
-    ElectronSelectionHelpers::setSelectionTypeByName(electron_id_name);
+  std::string btag_WPname;
+  if (use_shorthand_Run2_UL_proposal_config){
+    muon_id_name = electron_id_name = "TopMVA_Run2";
+    btag_WPname = "loose";
+  }
+  else{
+    extra_arguments.getNamedVal("muon_id", muon_id_name);
+    extra_arguments.getNamedVal("electron_id", electron_id_name);
+    extra_arguments.getNamedVal("btag", btag_WPname);
   }
 
+  if (muon_id_name!=""){
+    IVYout << "Switching to muon id " << muon_id_name << "..." << endl;
+    MuonSelectionHelpers::setSelectionTypeByName(muon_id_name);
+  }
+  else IVYout << "Using default muon id = " << MuonSelectionHelpers::selection_type << "..." << endl;
+
+  if (electron_id_name!=""){
+    IVYout << "Switching to electron id " << electron_id_name << "..." << endl;
+    ElectronSelectionHelpers::setSelectionTypeByName(electron_id_name);
+  }
+  else IVYout << "Using default electron id = " << ElectronSelectionHelpers::selection_type << "..." << endl;
+
+  AK4JetSelectionHelpers::SelectionBits bit_preselection_btag = AK4JetSelectionHelpers::kPreselectionTight_BTagged_Medium;
+  if (btag_WPname!=""){
+    std::string btag_WPname_lower;
+    HelperFunctions::lowercase(btag_WPname, btag_WPname_lower);
+    IVYout << "Switching to b-tagging WP " << btag_WPname_lower << "..." << endl;
+    if (btag_WPname_lower=="loose") bit_preselection_btag = AK4JetSelectionHelpers::kPreselectionTight_BTagged_Loose;
+    else if (btag_WPname_lower=="medium") bit_preselection_btag = AK4JetSelectionHelpers::kPreselectionTight_BTagged_Medium;
+    else if (btag_WPname_lower=="tight") bit_preselection_btag = AK4JetSelectionHelpers::kPreselectionTight_BTagged_Tight;
+    else{
+      IVYerr << "btag=" << btag_WPname << " is not implemented." << endl;
+      assert(0);
+    }
+  }
+  else IVYout << "Using default b-tagging WP = " << static_cast<int>(bit_preselection_btag)-static_cast<int>(AK4JetSelectionHelpers::kPreselectionTight_BTagged_Loose) << "..." << endl;
 
   // Flag to control whether any preselection other than nleps>=2 to be applied
   bool const applyPreselection = !runSyncExercise || forceApplyPreselection;
@@ -558,7 +589,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       float mass = jet->mass();
 
       bool is_tight = ParticleSelectionHelpers::isTightJet(jet);
-      bool is_btagged = jet->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTagged);
+      bool is_btagged = jet->testSelectionBit(bit_preselection_btag);
       constexpr bool is_clean = true;
 
       if (printObjInfo) IVYout
@@ -598,7 +629,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         float mass = jet->mass();
 
         bool is_tight = ParticleSelectionHelpers::isTightJet(jet);
-        bool is_btagged = jet->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTagged);
+        bool is_btagged = jet->testSelectionBit(bit_preselection_btag);
         constexpr bool is_clean = false;
 
         if (printObjInfo) IVYout
@@ -914,6 +945,7 @@ int main(int argc, char** argv){
 
     if (wish.empty()){
       if (value=="help"){ print_help=has_help=true; }
+      else if (value=="shorthand_Run2_UL_proposal_config") extra_arguments.setNamedVal<bool>(value, true);
       else{
         IVYerr << "ERROR: Unknown argument " << value << endl;
         print_help=true;
@@ -936,8 +968,7 @@ int main(int argc, char** argv){
       HelperFunctions::castStringToValue(value, tmpval);
       extra_arguments.setNamedVal(wish, tmpval);
     }
-    else if (wish=="muon_id") extra_arguments.setNamedVal(wish, value);
-    else if (wish=="electron_id") extra_arguments.setNamedVal(wish, value);
+    else if (wish=="muon_id" || wish=="electron_id" || wish=="btag") extra_arguments.setNamedVal(wish, value);
     else if (wish=="xsec"){
       if (xsec<0.) xsec = 1;
       xsec *= std::stod(value);
@@ -972,11 +1003,18 @@ int main(int argc, char** argv){
     IVYout << "- write_sync_objects: Create a file that contains the info. for all leptons and jets, and event identifiers. Ignored if run_sync=false. Optional. Default is to not produce such a file.\n";
     IVYout << "- force_sync_preselection: When sync. mode is on, also apply SR/CR preselection.  Ignored if run_sync=false. Optional. Default is to run without preselection.\n";
     IVYout
+      << "- shorthand_Run2_UL_proposal_config: Shorthand flag for the switches for the Run 2 UL analysis proposal:\n"
+      << "  * muon_id='TopMVA_Run2'\n"
+      << "  * electron_id='TopMVA_Run2'\n"
+      << "  * btag='loose'\n"
+      << "  The use of this shorthand will ignore the user-defined setting of these options above.\n";
+    IVYout
       << "- muon_id: Can be 'Cutbased_Run2', 'TopMVA_Run2', or 'TopMVAv2_Run2'.\n"
       << "  Default is whatever is in MuonSelectionHelpers (currently 'Cutbased_Run2') if no value is given.\n";
     IVYout
       << "- electron_id: Can be 'Cutbased_Run2', 'TopMVA_Run2', or 'TopMVAv2_Run2'.\n"
       << "  Default is whatever is in ElectronSelectionHelpers (currently 'Cutbased_Run2') if no value is given.\n";
+    IVYout << "- btag: Name of the b-tagging WP. Can be 'medium' or 'loose' (case-insensitive). Default='medium'.\n";
 
     IVYout << endl;
     return (has_help ? 0 : 1);

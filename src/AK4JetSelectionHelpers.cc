@@ -7,13 +7,15 @@
 
 
 namespace AK4JetSelectionHelpers{
+  bool testKin(AK4JetObject const& part);
+  bool testKin_BTag(AK4JetObject const& part);
+
   bool testJetId(AK4JetObject const& part);
   bool testId(AK4JetObject const& part);
-  bool testBTag(AK4JetObject const& part);
-  bool testKin(AK4JetObject const& part);
 
   bool testPreselectionTight(AK4JetObject const& part);
-  bool testPreselectionTight_BTagged(AK4JetObject const& part);
+
+  void setBTagBits(AK4JetObject& part);
 }
 
 
@@ -21,20 +23,17 @@ using namespace std;
 using namespace IvyStreamHelpers;
 
 
-float AK4JetSelectionHelpers::getBtaggingWP(){
-  auto const& dp = SampleHelpers::getDataPeriod();
+bool AK4JetSelectionHelpers::testKin(AK4JetObject const& part){
+  return (part.pt()>=ptThr && std::abs(part.eta())<etaThr_common);
+}
+bool AK4JetSelectionHelpers::testKin_BTag(AK4JetObject const& part){
   auto const& dy = SampleHelpers::getDataYear();
 
-  float res = 1e9;
-  if (dy==2016) res = (SampleHelpers::isAPV2016Affected(dp) ? deepFlavThr_2016_APV : deepFlavThr_2016_NonAPV);
-  else if (dy==2017) res = deepFlavThr_2017;
-  else if (dy==2018) res = deepFlavThr_2018;
-  else{
-    IVYerr << "AK4JetSelectionHelpers::getBtaggingWP: Data period " << dp << " is not defined." << endl;
-    assert(0);
-  }
+  float etaThr_btag = -1;
+  if (dy<=2016) etaThr_btag = etaThr_btag_Phase0Tracker;
+  else etaThr_btag = etaThr_btag_Phase1Tracker;
 
-  return res;
+  return (part.pt()>=std::max(ptThr_btag_infimum, ptThr) && std::abs(part.eta())<etaThr_btag);
 }
 
 bool AK4JetSelectionHelpers::testJetId(AK4JetObject const& part){
@@ -43,43 +42,50 @@ bool AK4JetSelectionHelpers::testJetId(AK4JetObject const& part){
 bool AK4JetSelectionHelpers::testId(AK4JetObject const& part){
   return part.testSelectionBit(kJetIdOnly); // Could add PU jet ID here as well...
 }
-bool AK4JetSelectionHelpers::testBTag(AK4JetObject const& part){
-  auto const& dp = SampleHelpers::getDataPeriod();
-  auto const& dy = SampleHelpers::getDataYear();
-
-  float etaThr = -1;
-  if (dy<=2016) etaThr = etaThr_btag_Phase0Tracker;
-  else etaThr = etaThr_btag_Phase1Tracker;
-
-  float const deepFlavThr = getBtaggingWP();
-  return (part.extras.btagDeepFlavB>deepFlavThr && std::abs(part.eta())<etaThr);
-}
-bool AK4JetSelectionHelpers::testKin(AK4JetObject const& part){
-  return (part.pt()>=ptThr && std::abs(part.eta())<etaThr_common);
-}
 
 bool AK4JetSelectionHelpers::testPreselectionTight(AK4JetObject const& part){
   return (
-    testId(part)
-    &&
     part.testSelectionBit(kKinOnly)
+    &&
+    testId(part)
     );
 }
-bool AK4JetSelectionHelpers::testPreselectionTight_BTagged(AK4JetObject const& part){
-  return (
-    part.testSelectionBit(kPreselectionTight)
-    &&
-    part.testSelectionBit(kBTagOnly)
-    );
+
+void AK4JetSelectionHelpers::setBTagBits(AK4JetObject& part){
+  auto const btagWPs = BtagHelpers::getBtagWPs(btagger_type);
+  assert(btagWPs.size()==3);
+
+  // There is no fool-proof way to do this at the moment other than duplicating some lines...
+  switch (btagger_type){
+  case BtagHelpers::kDeepFlav_Loose:
+  case BtagHelpers::kDeepFlav_Medium:
+  case BtagHelpers::kDeepFlav_Tight:
+  {
+    auto const& bscore = part.extras.btagDeepFlavB;
+    part.setSelectionBit(kBTagged_Loose, bscore>btagWPs.front());
+    part.setSelectionBit(kBTagged_Medium, bscore>btagWPs.at(1));
+    part.setSelectionBit(kBTagged_Tight, bscore>btagWPs.back());
+    break;
+  }
+  default:
+    IVYerr << "AK4JetSelectionHelpers::setBTagBits: b-tagger type " << btagger_type << " is not implemented. Aborting..." << endl;
+    assert(0);
+  }
+
+  bool const pass_BTag_preselection = part.testSelectionBit(kKinOnly_BTag) && part.testSelectionBit(kPreselectionTight);
+  part.setSelectionBit(kPreselectionTight_BTagged_Loose, pass_BTag_preselection && part.testSelectionBit(kBTagged_Loose));
+  part.setSelectionBit(kPreselectionTight_BTagged_Medium, pass_BTag_preselection && part.testSelectionBit(kBTagged_Medium));
+  part.setSelectionBit(kPreselectionTight_BTagged_Tight, pass_BTag_preselection && part.testSelectionBit(kBTagged_Tight));
 }
 
 void AK4JetSelectionHelpers::setSelectionBits(AK4JetObject& part){
   static_assert(std::numeric_limits<ParticleObject::SelectionBitsType_t>::digits >= nSelectionBits);
 
-  part.setSelectionBit(kJetIdOnly, testJetId(part));
-  part.setSelectionBit(kBTagOnly, testBTag(part));
   part.setSelectionBit(kKinOnly, testKin(part));
+  part.setSelectionBit(kKinOnly_BTag, testKin_BTag(part));
 
+  part.setSelectionBit(kJetIdOnly, testJetId(part));
   part.setSelectionBit(kPreselectionTight, testPreselectionTight(part));
-  part.setSelectionBit(kPreselectionTight_BTagged, testPreselectionTight_BTagged(part));
+
+  setBTagBits(part);
 }

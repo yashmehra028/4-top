@@ -5,6 +5,7 @@
 #include "ElectronSelectionHelpers.h"
 #include "AK4JetObject.h"
 #include "IvyFramework/IvyDataTools/interface/HelperFunctions.h"
+#include "IvyFramework/IvyDataTools/interface/IvyStreamHelpers.hh"
 
 
 // These are functions hidden from the user

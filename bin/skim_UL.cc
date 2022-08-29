@@ -262,7 +262,6 @@ if (MAXSIZE>0) tin->getSelectedTree()->SetBranchStatus(Form("n%s", GlobalCollect
 
     jetHandler.constructJetMET(&simEventHandler);
     auto const& ak4jets = jetHandler.getAK4Jets();
-    //auto const& eventmet = jetHandler.getPFMET();
 
     // Do not apply any requirements using tight leptons because at skim level, we are not supposed to know what a tight lepton is!
     // You can, however, apply requirements on jet multiplicity:
@@ -270,13 +269,13 @@ if (MAXSIZE>0) tin->getSelectedTree()->SetBranchStatus(Form("n%s", GlobalCollect
     // Therefore, N>N_req is only going to be slightly inefficient.
     unsigned int const n_ak4jets = ak4jets.size();
     unsigned int n_ak4jets_tight = 0;
-    unsigned int n_ak4jets_tight_btagged = 0;
+    unsigned int n_ak4jets_tight_btagged_loose = 0; // As the name suggesst, the b-tagging WP is kept as 'loose' as possible.
     for (auto const& jet:ak4jets){
       // When we count jets, only look for jets that pass jet ID.
       // This way, when we apply JES/JER variations, we can account for changes in Nj/Nb counting because of the migration of some jets close to the pT threshold.
       if (jet->testSelectionBit(AK4JetSelectionHelpers::kJetIdOnly)){
         n_ak4jets_tight++;
-        if (jet->testSelectionBit(AK4JetSelectionHelpers::kBTagOnly)) n_ak4jets_tight_btagged++;
+        if (jet->testSelectionBit(AK4JetSelectionHelpers::kBTagged_Loose)) n_ak4jets_tight_btagged_loose++;
       }
     }
 
@@ -312,7 +311,7 @@ if (MAXSIZE>0) tin->getSelectedTree()->SetBranchStatus(Form("n%s", GlobalCollect
     }
 
     bool const pass_loose_dilepton = (
-      (found_dilepton_SS || found_dilepton_OS) && (n_ak4jets_tight>=2 && n_ak4jets_tight_btagged>=1)
+      (found_dilepton_SS || found_dilepton_OS) && (n_ak4jets_tight>=2 && n_ak4jets_tight_btagged_loose>=1)
       ||
       found_dilepton_OSSF_Zcand
       ) && event_weight_triggers_dilepton!=0.;

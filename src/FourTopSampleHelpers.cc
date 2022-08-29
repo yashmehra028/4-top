@@ -3,6 +3,7 @@
 #include "IvyFramework/IvyDataTools/interface/HelperFunctionsCore.h"
 #include "SamplesCore.h"
 #include "FourTopTriggerHelpers.h"
+#include "BtagHelpers.h"
 
 
 using namespace std;
@@ -43,4 +44,5 @@ void SampleHelpers::configure(TString period, TString stag, HostHelpers::Hosts i
   runConfigure = true;
 
   TriggerHelpers::configureHLTmap();
+  BtagHelpers::configureBtagWPs();
 }
