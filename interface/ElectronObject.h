@@ -3,6 +3,19 @@
 
 #include "ParticleObject.h"
 
+#define ELECTRON_FR_VARIABLES \
+ELECTRON_VARIABLE(bool, cutBased, 0) \
+ELECTRON_VARIABLE(float, dr03EcalRecHitSumEt, 0) \
+ELECTRON_VARIABLE(float, dr03EcalRecHitSumEt, 0) \
+ELECTRON_VARIABLE(float, dr03HcalDepth1TowerSumEt, 0) \
+ELECTRON_VARIABLE(float, dr03TkSumPt, 0) \
+ELECTRON_VARIABLE(float, ip3d, 0) \
+ELECTRON_VARIABLE(bool, isPFCand, 0) \
+ELECTRON_VARIABLE(float, mvaFall17V2Iso, 0) \
+ELECTRON_VARIABLE(float, pfRelIso03_chg, 0) \
+ELECTRON_VARIABLE(float, r9, 0) \
+ELECTRON_VARIABLE(float, scEtOverPt, 0) \
+ELECTRON_VARIABLE(float, seedGain, 0) 
 
 #define ELECTRON_EXTRA_VARIABLES \
 ELECTRON_VARIABLE(bool, convVeto, 0) \
@@ -22,7 +35,8 @@ ELECTRON_VARIABLE(float, miniPFRelIso_chg, 0) \
 ELECTRON_VARIABLE(float, pfRelIso03_all, 0) \
 ELECTRON_VARIABLE(float, jetPtRelv2, 0) \
 ELECTRON_VARIABLE(float, jetRelIso, 0) \
-ELECTRON_VARIABLE(float, deltaEtaSC, 0)
+ELECTRON_VARIABLE(float, deltaEtaSC, 0) \
+ELECTRON_FR_VARIABLES 
 
 
 class ElectronVariables{
