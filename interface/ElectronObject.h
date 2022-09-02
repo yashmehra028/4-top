@@ -12,6 +12,7 @@ ELECTRON_VARIABLE(float, dr03TkSumPt, 0) \
 ELECTRON_VARIABLE(float, ip3d, 0) \
 ELECTRON_VARIABLE(bool, isPFCand, 0) \
 ELECTRON_VARIABLE(float, mvaFall17V2Iso, 0) \
+ELECTRON_VARIABLE(int, pdgId, 0) \
 ELECTRON_VARIABLE(float, pfRelIso03_chg, 0) \
 ELECTRON_VARIABLE(float, r9, 0) \
 ELECTRON_VARIABLE(float, scEtOverPt, 0) \

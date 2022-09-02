@@ -3,6 +3,19 @@
 
 #include "ParticleObject.h"
 
+#define MUON_FR_VARIABLES \
+MUON_VARIABLE(bool, highPurity, 0) \
+MUON_VARIABLE(bool, inTimeMuon, 0) \
+MUON_VARIABLE(bool, isGlobal, 0) \
+MUON_VARIABLE(bool, isPFcand, 0) \
+MUON_VARIABLE(bool, isTracker, 0) \
+MUON_VARIABLE(int, nStations, 0) \
+MUON_VARIABLE(int, pdgId, 0) \
+MUON_VARIABLE(float, pfRelIso03_chg, 0) \
+MUON_VARIABLE(bool, tightId, 0) \
+MUON_VARIABLE(float, tkRelIso, 0) \
+MUON_VARIABLE(bool, triggerIdLoose, 0)
+
 
 #define MUON_EXTRA_VARIABLES \
 MUON_VARIABLE(bool, looseId, 0) \
@@ -18,6 +31,7 @@ MUON_VARIABLE(float, sip3d, 0) \
 MUON_VARIABLE(float, jetPtRelv2, 0) \
 MUON_VARIABLE(float, jetRelIso, 0) \
 MUON_VARIABLE(float, ptErr, 0)
+MUON_FR_VARIABLES
 
 
 class MuonVariables{
