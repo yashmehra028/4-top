@@ -8,7 +8,7 @@
 
 
 namespace ParticleSelectionHelpers{
-  bool useFakeableIdForJetCleaning = false;
+  bool useFakeableIdForPhysicsChecks = false;
 }
 
 
@@ -83,15 +83,21 @@ SELECTION_TYPES;
 #undef SELECTION_TYPES
 
 
-void ParticleSelectionHelpers::setUseFakeableIdForJetCleaning(bool flag){ useFakeableIdForJetCleaning=flag; }
+void ParticleSelectionHelpers::setUseFakeableIdForPhysicsChecks(bool flag){ useFakeableIdForPhysicsChecks = flag; }
 
 template<> bool ParticleSelectionHelpers::isParticleForJetCleaning<MuonObject>(MuonObject const* part){
-  return (isTightParticle(part) || (useFakeableIdForJetCleaning && isFakeableParticle(part)));
+  return (isTightParticle(part) || (useFakeableIdForPhysicsChecks && isFakeableParticle(part)));
 }
 template<> bool ParticleSelectionHelpers::isParticleForJetCleaning<ElectronObject>(ElectronObject const* part){
-  return (isTightParticle(part) || (useFakeableIdForJetCleaning && isFakeableParticle(part)));
+  return (isTightParticle(part) || (useFakeableIdForPhysicsChecks && isFakeableParticle(part)));
 }
 
+template<> bool ParticleSelectionHelpers::isParticleForTriggerChecking<MuonObject>(MuonObject const* part){
+  return (isTightParticle(part) || (useFakeableIdForPhysicsChecks && isFakeableParticle(part)));
+}
+template<> bool ParticleSelectionHelpers::isParticleForTriggerChecking<ElectronObject>(ElectronObject const* part){
+  return (isTightParticle(part) || (useFakeableIdForPhysicsChecks && isFakeableParticle(part)));
+}
 
 template<> bool ParticleSelectionHelpers::isJetForHEMVeto<AK4JetObject>(AK4JetObject const* jet){
   // No PU jet id requirement, so do not use the isTightJet check.

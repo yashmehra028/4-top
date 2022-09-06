@@ -176,20 +176,39 @@ float EventFilterHandler::getTriggerWeight(
 
         if (checkTriggerObjectsForHLTPaths){
           HLTTriggerPathProperties::TriggerObjectExceptionType const& TOexception = hltprop.getTOException();
-          auto const& triggerObjects = prod->getTriggerObjects();
+          std::vector<TriggerObject const*> triggerObjects; triggerObjects.reserve(product_triggerobjects.size());
+          {
+            auto const& TOreqs = TriggerHelpers::getHLTMenuTriggerObjectReqs(&hltprop);
+            for (auto const& to_part:product_triggerobjects){
+              bool pass_reqs = false;
+              for (auto const& pp:TOreqs){
+                if (to_part->isTriggerObjectType(pp.first) && (to_part->extras.filterBits & pp.second)==pp.second){
+                  pass_reqs = true;
+                  break;
+                }
+              }
+              if (pass_reqs) triggerObjects.push_back(to_part);
+            }
+          }
 
           TriggerObject::getMatchedPhysicsObjects(
             triggerObjects, { TriggerMuon }, 0.2,
             muons_trigcheck, muons_trigcheck_TOmatched
           );
-          TriggerObject::getMatchedPhysicsObjects(
-            triggerObjects, { TriggerElectron }, 0.2,
-            electrons_trigcheck, electrons_trigcheck_TOmatched
-          );
-          TriggerObject::getMatchedPhysicsObjects(
-            triggerObjects, { TriggerPhoton }, 0.2,
-            photons_trigcheck, photons_trigcheck_TOmatched
-          );
+          if (TOexception == HLTTriggerPathProperties::toNoElectronTriggerObjects) electrons_trigcheck_TOmatched = electrons_trigcheck;
+          else{
+            TriggerObject::getMatchedPhysicsObjects(
+              triggerObjects, { TriggerElectron }, 0.2,
+              electrons_trigcheck, electrons_trigcheck_TOmatched
+            );
+          }
+          if (TOexception == HLTTriggerPathProperties::toNoPhotonTriggerObjects) photons_trigcheck_TOmatched = photons_trigcheck;
+          else{
+            TriggerObject::getMatchedPhysicsObjects(
+              triggerObjects, { TriggerPhoton }, 0.2,
+              photons_trigcheck, photons_trigcheck_TOmatched
+            );
+          }
 
           if (this->verbosity>=MiscUtils::DEBUG){
             IVYout << "\t- Number of matched muons: " << muons_trigcheck_TOmatched.size() << " / " << muons_trigcheck.size() << endl;
@@ -379,10 +398,6 @@ bool EventFilterHandler::constructHLTPaths(SimEventHandler const* simEventHandle
 
       // Set list index as its unique identifier
       obj->setUniqueIdentifier(itrig);
-
-      // No trigger objects at the moment
-      //// Associate trigger objects
-      //obj->setTriggerObjects(product_triggerobjects);
 
       bool isValid = true;
       HLTTriggerPathProperties const* hltprop = nullptr;

@@ -1,4 +1,5 @@
 #include <cassert>
+#include <regex>
 #include "FourTopTriggerHelpers.h"
 #include "SamplesCore.h"
 #include "IvyFramework/IvyDataTools/interface/HelperFunctionsCore.h"
@@ -9,6 +10,9 @@ namespace TriggerHelpers{
   std::unordered_map< TriggerHelpers::TriggerType, std::vector<std::string> > HLT_type_list_map;
   std::unordered_map< TriggerHelpers::TriggerType, std::vector<HLTTriggerPathProperties> > HLT_type_proplist_map;
   std::vector<HLTTriggerPathProperties const*> runRangeExcluded_HLTprop_list; // This list is only for ease
+
+  std::unordered_map< HLTTriggerPathProperties const*, std::vector<std::pair<TriggerObjectType, unsigned long long int>> > HLT_prop_TOreqs_map;
+  std::vector<std::pair<TriggerObjectType, unsigned long long int>> getTriggerObjectReqs(HLTTriggerPathProperties const& hltprop);
 
   void assignRunRangeExclusions(std::string const& name, std::vector< std::pair<int, int> > const& rangelist);
   void assignTriggerObjectCheckException(std::string const& name, HLTTriggerPathProperties::TriggerObjectExceptionType const& flag);
@@ -51,6 +55,15 @@ std::vector< std::pair<TriggerHelpers::TriggerType, HLTTriggerPathProperties con
   }
 
   return res;
+}
+std::vector<std::pair<TriggerObjectType, unsigned long long int>> const& TriggerHelpers::getHLTMenuTriggerObjectReqs(HLTTriggerPathProperties const* hltprop){
+  assert(hltprop!=nullptr);
+  auto it = HLT_prop_TOreqs_map.find(hltprop);
+  if (it==HLT_prop_TOreqs_map.cend()){
+    IVYerr << "TriggerHelpers::getHLTMenuTriggerObjectReqs: Trigger object requiremens for " << hltprop->getName() << " is not found." << endl;
+    assert(0);
+  }
+  return it->second;
 }
 
 void TriggerHelpers::dropSelectionCuts(TriggerHelpers::TriggerType type){
@@ -120,6 +133,334 @@ void TriggerHelpers::assignTriggerObjectCheckException(std::string const& name, 
       hltprop.setTOException(flag);
     }
   }
+}
+
+// Here be the dragons...
+// Note that object matching is done for only muons, electrons, and photons, both here and in EventFilterHandler.cc.
+// If one would like to match jets (why???), one has to edit both this function
+// and EventFilterHandler::getTriggerWeight (i.e., search for the call blocks to TriggerObject::getMatchedPhysicsObjects in EventFilterHandler).
+std::vector<std::pair<TriggerObjectType, unsigned long long int>> TriggerHelpers::getTriggerObjectReqs(HLTTriggerPathProperties const& hltprop){
+  std::vector<std::pair<TriggerObjectType, unsigned long long int>> res;
+
+  auto const& dy = SampleHelpers::getDataYear();
+  auto const& hltname = hltprop.getName();
+  auto const& hltTOtype_hltprop_map = hltprop.getObjectProperties();
+  unsigned short nm_req = 0;
+  unsigned short ne_req = 0;
+  unsigned short npho_req = 0;
+  unsigned short nj_req = 0;
+  for (auto const& pp:hltTOtype_hltprop_map){
+    switch (pp.first){
+    case HLTObjectProperties::kMuon:
+      nm_req = pp.second.size();
+      break;
+    case HLTObjectProperties::kElectron:
+      ne_req = pp.second.size();
+      break;
+    case HLTObjectProperties::kPhoton:
+      npho_req = pp.second.size();
+      break;
+    case HLTObjectProperties::kAK4Jet:
+      nj_req = pp.second.size();
+      break;
+    default:
+      break;
+    }
+  }
+
+  // Mask requirements taken directly from NanoAOD code
+  // because the documentation is illegible:
+  // https://github.com/cms-sw/cmssw/blob/master/PhysicsTools/NanoAOD/python/triggerObjects_cff.py
+
+  unsigned short nm = 0;
+  unsigned long long int mask_mu = 0;
+  unsigned short ne = 0;
+  unsigned long long int mask_e = 0;
+  unsigned short npho = 0;
+  unsigned long long int mask_pho = 0;
+  unsigned short nj = 0;
+  //unsigned long long int mask_j = 0;
+
+  // Muons
+  if (hltname.find("TripleMu")!=std::string::npos) nm = 3;
+  else if (hltname.find("DoubleMu")!=std::string::npos || hltname.find("DiMu")!=std::string::npos) nm = 2;
+  else{
+    std::regex rgx("(No)?(Iso)?(Tk)?(Old)?(Mu[0-9]+)(_TrkIsoVVL)?");
+    auto it_begin = std::sregex_iterator(hltname.begin(), hltname.end(), rgx);
+    auto it_end = std::sregex_iterator();
+    for (auto it=it_begin; it!=it_end; it++){
+      std::smatch sm = *it;
+      std::string strmatch = sm.str();
+
+      if (strmatch.find("NoMu")!=std::string::npos) continue; // This is a PF*NoMu trigger, ignore it.
+
+      std::string stest;
+      nm++;
+      // Tests for specific filters
+      stest = "TrkIsoVVL";
+      if (strmatch.find(stest)!=std::string::npos){
+        switch (dy){
+        case 2016:
+        case 2017:
+        case 2018:
+        case 2022:
+          HelperFunctions::set_bit(mask_mu, 0);
+          break;
+        default:
+          IVYerr << "TriggerHelpers::getTriggerObjectReqs: Year " << dy << " is not implemented to set the bit for " << stest << "." << endl;
+          assert(0);
+        }
+      }
+      stest = "IsoMu";
+      if (strmatch.find(stest)!=std::string::npos){
+        switch (dy){
+        case 2016:
+        case 2017:
+        case 2018:
+        case 2022:
+          HelperFunctions::set_bit(mask_mu, 1);
+          break;
+        default:
+          IVYerr << "TriggerHelpers::getTriggerObjectReqs: Year " << dy << " is not implemented to set the bit for " << stest << "." << endl;
+          assert(0);
+        }
+      }
+      stest = "IsoTkMu";
+      if (strmatch.find(stest)!=std::string::npos){
+        switch (dy){
+        case 2016:
+          HelperFunctions::set_bit(mask_mu, 3);
+          break;
+        default:
+          IVYerr << "TriggerHelpers::getTriggerObjectReqs: Year " << dy << " is not implemented to set the bit for " << stest << "." << endl;
+          assert(0);
+        }
+      }
+      stest = "Mu50";
+      if (strmatch.find(stest)!=std::string::npos){
+        switch (dy){
+        case 2016:
+        case 2017:
+        case 2018:
+        case 2022:
+          HelperFunctions::set_bit(mask_mu, 10);
+          break;
+        default:
+          IVYerr << "TriggerHelpers::getTriggerObjectReqs: Year " << dy << " is not implemented to set the bit for " << stest << "." << endl;
+          assert(0);
+        }
+      }
+      stest = "Mu100";
+      if (strmatch.find(stest)!=std::string::npos){
+        switch (dy){
+        case 2017:
+        case 2018:
+        case 2022:
+          HelperFunctions::set_bit(mask_mu, 11);
+          break;
+        default:
+          IVYerr << "TriggerHelpers::getTriggerObjectReqs: Year " << dy << " is not implemented to set the bit for " << stest << "." << endl;
+          assert(0);
+        }
+      }
+    }
+  }
+  if (nm!=nm_req){
+    IVYerr << "TriggerHelpers::getTriggerObjectReqs: The trigger " << hltname << " is specified to require " << nm_req << " muons, but only " << nm << " are found during the parsing of its name." << endl;
+    assert(0);
+  }
+
+  // Electrons
+  if (hltname.find("DoubleEle")!=std::string::npos || hltname.find("DiEle")!=std::string::npos) ne = 2;
+  else if (ne_req==2 && hltname.find("HLT_DoublePhoton")!=std::string::npos){
+    // Special case:
+    // HLT_DoublePhoton*_v* can be used for high-pt electrons.
+    ne = 2;
+    switch (dy){
+    case 2016:
+    case 2017:
+    case 2018:
+    case 2022:
+      // No corresponding bits in NanoAOD, such an oversight!
+      break;
+    default:
+      IVYerr << "TriggerHelpers::getTriggerObjectReqs: Year " << dy << " is not implemented to set the bit for DoublePhoton*." << endl;
+      assert(0);
+    }
+  }
+  else if (ne_req==1 && (hltname=="HLT_Photon175_v" || hltname=="HLT_Photon200_v")){
+    // Special case:
+    // HLT_Photon{175,200}_v* can be used for high-pt electrons.
+    // Note that a precise HLT path name check is done, and without '*' included.
+    ne = 1;
+    switch (dy){
+    case 2016:
+    case 2017:
+    case 2018:
+    case 2022:
+      HelperFunctions::set_bit(mask_e, 13);
+      break;
+    default:
+      IVYerr << "TriggerHelpers::getTriggerObjectReqs: Year " << dy << " is not implemented to set the bit for Photon{175,200}." << endl;
+      assert(0);
+    }
+  }
+  else{
+    std::regex rgx("(Ele[0-9]+)");
+    auto it_begin = std::sregex_iterator(hltname.begin(), hltname.end(), rgx);
+    auto it_end = std::sregex_iterator();
+    for (auto it=it_begin; it!=it_end; it++){
+      std::smatch sm = *it;
+      std::string strmatch = sm.str();
+      ne++;
+    }
+  }
+  if (ne>0){
+    std::string stest;
+    // Tests for specific filters
+    stest = "CaloIdL_TrackIdL_IsoVL";
+    if (hltname.find(stest)!=std::string::npos){
+      switch (dy){
+      case 2016:
+      case 2017:
+      case 2018:
+      case 2022:
+        HelperFunctions::set_bit(mask_e, 0);
+        break;
+      default:
+        IVYerr << "TriggerHelpers::getTriggerObjectReqs: Year " << dy << " is not implemented to set the bit for " << stest << "." << endl;
+        assert(0);
+      }
+    }
+    stest = "WPTight";
+    if (hltname.find(stest)!=std::string::npos){
+      switch (dy){
+      case 2016:
+      case 2017:
+      case 2018:
+      case 2022:
+        HelperFunctions::set_bit(mask_e, 1);
+        break;
+      default:
+        IVYerr << "TriggerHelpers::getTriggerObjectReqs: Year " << dy << " is not implemented to set the bit for " << stest << "." << endl;
+        assert(0);
+      }
+    }
+    stest = "WPLoose";
+    if (hltname.find(stest)!=std::string::npos){
+      switch (dy){
+      case 2016:
+      case 2017:
+      case 2018:
+      case 2022:
+        HelperFunctions::set_bit(mask_e, 2);
+        break;
+      default:
+        IVYerr << "TriggerHelpers::getTriggerObjectReqs: Year " << dy << " is not implemented to set the bit for " << stest << "." << endl;
+        assert(0);
+      }
+    }
+    stest = "CaloIdVT_GsfTrkIdT";
+    if (hltname.find(stest)!=std::string::npos){
+      switch (dy){
+      case 2016:
+      case 2017:
+      case 2018:
+      case 2022:
+        HelperFunctions::set_bit(mask_e, 11);
+        break;
+      default:
+        IVYerr << "TriggerHelpers::getTriggerObjectReqs: Year " << dy << " is not implemented to set the bit for " << stest << "." << endl;
+        assert(0);
+      }
+    }
+  }
+  if (ne!=ne_req){
+    IVYerr << "TriggerHelpers::getTriggerObjectReqs: The trigger " << hltname << " is specified to require " << ne_req << " electrons, but only " << ne << " are found during the parsing of its name." << endl;
+    assert(0);
+  }
+
+  // Photons
+  if (npho_req>0){
+    if (hltname.find("DoublePhoton")!=std::string::npos) npho = 2;
+    else{
+      std::regex rgx("(Photon[0-9]+)");
+      auto it_begin = std::sregex_iterator(hltname.begin(), hltname.end(), rgx);
+      auto it_end = std::sregex_iterator();
+      for (auto it=it_begin; it!=it_end; it++){
+        std::smatch sm = *it;
+        std::string strmatch = sm.str();
+        npho++;
+      }
+    }
+  }
+  // No matching requirement is sought for photons.
+  // Why?
+  // Because NanoAOD geniuses messed up photon trigger objects!
+  // THERE ARE NONE! IT DOESN'T MATTER!
+  // That is why a trigger object exception is assigned to all kSinglePho HLT path properties in configureHLTmap().
+  if (npho!=npho_req){
+    IVYerr << "TriggerHelpers::getTriggerObjectReqs: The trigger " << hltname << " is specified to require " << npho_req << " photons, but only " << npho << " are found during the parsing of its name." << endl;
+    assert(0);
+  }
+
+  // Jets
+  // While we do not match jets, we still have to count them because some masks have bits related to jets.
+  // (What an idiotic arrangement of information...)
+  if (hltname.find("DiPFJet")!=std::string::npos || hltname.find("DiJet")!=std::string::npos) nj = 2;
+  else{
+    std::regex rgx("(AK8)?(PFJet[0-9]+)");
+    auto it_begin = std::sregex_iterator(hltname.begin(), hltname.end(), rgx);
+    auto it_end = std::sregex_iterator();
+    for (auto it=it_begin; it!=it_end; it++){
+      std::smatch sm = *it;
+      std::string strmatch = sm.str();
+      if (strmatch.find("AK8")==std::string::npos) nj++;
+    }
+  }
+  if (nj!=nj_req){
+    IVYerr << "TriggerHelpers::getTriggerObjectReqs: The trigger " << hltname << " is specified to require " << nj_req << " PF jets, but only " << nj << " are found during the parsing of its name." << endl;
+    assert(0);
+  }
+
+  // (Repeat: What an idiotic arrangement of information...)
+  // Trilepton triggers
+  if (nm==3){
+    if (dy>2016) HelperFunctions::set_bit(mask_mu, 7);
+  }
+  else if (nm==2 && ne==1){
+    if (dy>2016) HelperFunctions::set_bit(mask_mu, 8);
+    HelperFunctions::set_bit(mask_e, 9);
+  }
+  else if (nm==1 && ne==2){
+    if (dy>2016) HelperFunctions::set_bit(mask_mu, 9);
+    HelperFunctions::set_bit(mask_e, 8);
+  }
+  else if (ne==3){
+    HelperFunctions::set_bit(mask_e, 7);
+  }
+  // Dilepton triggers
+  else if (nm==2){
+    if (dy>2016) HelperFunctions::set_bit(mask_mu, 4);
+  }
+  else if (nm==1 && ne==1){
+    if (dy>2016) HelperFunctions::set_bit(mask_mu, 5);
+    HelperFunctions::set_bit(mask_e, 5);
+  }
+  else if (ne==2){
+    HelperFunctions::set_bit(mask_e, 4);
+  }
+  // Single electron + jet triggers
+  else if (ne==1 && nj==1){
+    HelperFunctions::set_bit(mask_e, 12);
+  }
+
+  res.reserve((nm>0)+(ne>0)+(npho>0));
+  if (nm>0) res.emplace_back(TriggerMuon, mask_mu);
+  if (ne>0) res.emplace_back(TriggerElectron, mask_e);
+  if (npho>0) res.emplace_back(TriggerPhoton, mask_pho);
+
+  return res;
 }
 
 void TriggerHelpers::configureHLTmap(){
@@ -206,24 +547,12 @@ void TriggerHelpers::configureHLTmap(){
     HLT_type_proplist_map[kSingleEle_Prescaled] = std::vector<HLTTriggerPathProperties>();
     HLT_type_proplist_map[kSingleEle_HighPt] = std::vector<HLTTriggerPathProperties>{ { "HLT_Photon175_v*",{ { HLTObjectProperties::kElectron } } } };
     HLT_type_proplist_map[kSinglePho] = std::vector<HLTTriggerPathProperties>{
-      //{ "HLT_Photon300_NoHE_v*", { { HLTObjectProperties::kPhoton, { { HLTObjectProperties::kPt, 300.f+40.f } } } } }, // Unprescaled
-      //{ "HLT_Photon175_v*", { { HLTObjectProperties::kPhoton, { { HLTObjectProperties::kPt, 200.f }, { HLTObjectProperties::kPtHigh, 300.f+40.f } } } } }, // Unprescaled
       { "HLT_Photon175_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 175.f+45.f } } } } }, // Unprescaled
       { "HLT_Photon165_R9Id90_HE10_IsoM_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 165.f+35.f },{ HLTObjectProperties::kPtHigh, 175.f+45.f } } } } },
-      //{ "HLT_Photon165_HE10_v*", { { HLTObjectProperties::kPhoton, { { HLTObjectProperties::kPt, 165.f*1.1f }, { HLTObjectProperties::kPtHigh, 175.f*1.1f } } } } },
-      //{ "HLT_Photon120_R9Id90_HE10_Iso40_EBOnly_VBF_v*", { { HLTObjectProperties::kPhoton, { { HLTObjectProperties::kPt, 120.f*1.1f }, { HLTObjectProperties::kPtHigh, 165.f*1.1f } } } } },
       { "HLT_Photon120_R9Id90_HE10_IsoM_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 120.f+15.f },{ HLTObjectProperties::kPtHigh, 165.f+35.f } } } } },
-      //{ "HLT_Photon90_R9Id90_HE10_Iso40_EBOnly_VBF_v*", { { HLTObjectProperties::kPhoton, { { HLTObjectProperties::kPt, 90.f*1.1f }, { HLTObjectProperties::kPtHigh, 120.f*1.1f } } } } },
       { "HLT_Photon90_R9Id90_HE10_IsoM_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 90.f*1.1f },{ HLTObjectProperties::kPtHigh, 120.f+15.f } } } } },
-      //{ "HLT_Photon75_R9Id90_HE10_Iso40_EBOnly_VBF_v*", { { HLTObjectProperties::kPhoton, { { HLTObjectProperties::kPt, 75.f*1.1f }, { HLTObjectProperties::kPtHigh, 90.f*1.1f } } } } },
       { "HLT_Photon75_R9Id90_HE10_IsoM_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 75.f*1.1f },{ HLTObjectProperties::kPtHigh, 90.f*1.1f } } } } },
-      //{ "HLT_Photon50_R9Id90_HE10_Iso40_EBOnly_VBF_v*", { { HLTObjectProperties::kPhoton, { { HLTObjectProperties::kPt, 50.f*1.1f }, { HLTObjectProperties::kPtHigh, 75.f*1.1f } } } } },
-      { "HLT_Photon50_R9Id90_HE10_IsoM_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 50.f*1.1f },{ HLTObjectProperties::kPtHigh, 75.f*1.1f } } } } },
-      //{ "HLT_Photon36_R9Id90_HE10_Iso40_EBOnly_VBF_v*", { { HLTObjectProperties::kPhoton, { { HLTObjectProperties::kPt, 36.f*1.1f }, { HLTObjectProperties::kPtHigh, 50.f*1.1f } } } } },
-      { "HLT_Photon36_R9Id90_HE10_IsoM_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 36.f*1.1f },{ HLTObjectProperties::kPtHigh, 50.f*1.1f } } } } }, // Has L1 prescales as well
-      { "HLT_Photon30_R9Id90_HE10_IsoM_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 30.f*1.1f },{ HLTObjectProperties::kPtHigh, 36.f*1.1f } } } } }, // Has L1 prescales as well
-                                                                                                                                                                           //{ "HLT_Photon22_R9Id90_HE10_Iso40_EBOnly_VBF_v*", { { HLTObjectProperties::kPhoton, { { HLTObjectProperties::kPt, 22.f*1.1f }, { HLTObjectProperties::kPtHigh, 30.f*1.1f } } } } }, // Has L1 prescales as well
-      { "HLT_Photon22_R9Id90_HE10_IsoM_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 22.f*1.1f },{ HLTObjectProperties::kPtHigh, 30.f*1.1f } } } } } // Has L1 prescales as well
+      { "HLT_Photon50_R9Id90_HE10_IsoM_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 50.f*1.1f },{ HLTObjectProperties::kPtHigh, 75.f*1.1f } } } } }
     };
     HLT_type_proplist_map[kTripleLep] = std::vector<HLTTriggerPathProperties>{
       { "HLT_Mu8_DiEle12_CaloIdL_TrackIdL_v*",{ { HLTObjectProperties::kMuon },{ HLTObjectProperties::kElectron },{ HLTObjectProperties::kElectron } } },
@@ -441,20 +770,12 @@ void TriggerHelpers::configureHLTmap(){
     HLT_type_proplist_map[kSingleEle_Prescaled] = std::vector<HLTTriggerPathProperties>();
     HLT_type_proplist_map[kSingleEle_HighPt] = std::vector<HLTTriggerPathProperties>{ { "HLT_Photon200_v*",{ { HLTObjectProperties::kElectron } } } };
     HLT_type_proplist_map[kSinglePho] = std::vector<HLTTriggerPathProperties>{
-      //{ "HLT_Photon300_NoHE_v*", { { HLTObjectProperties::kPhoton, { { HLTObjectProperties::kPt, 300.f+40.f } } } } }, // Unprescaled
-      //{ "HLT_Photon200_v*", { { HLTObjectProperties::kPhoton, { { HLTObjectProperties::kPt, 200.f*1.15f }, { HLTObjectProperties::kPtHigh, 300.f+40.f } } } } }, // Unprescaled
-      //{ "HLT_Photon175_v*", { { HLTObjectProperties::kPhoton, { { HLTObjectProperties::kPt, 175.f*1.1f }, { HLTObjectProperties::kPtHigh, 200.f*1.15f } } } } },
-      //{ "HLT_Photon165_R9Id90_HE10_IsoM_v*", { { HLTObjectProperties::kPhoton, { { HLTObjectProperties::kPt, 165.f*1.1f }, { HLTObjectProperties::kPtHigh, 175.f*1.15f } } } } },
       { "HLT_Photon200_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 200.f*1.15f } } } } }, // Unprescaled
       { "HLT_Photon165_R9Id90_HE10_IsoM_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 165.f*1.1f },{ HLTObjectProperties::kPtHigh, 200.f*1.15f } } } } },
       { "HLT_Photon120_R9Id90_HE10_IsoM_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 120.f*1.1f },{ HLTObjectProperties::kPtHigh, 165.f*1.1f } } } } },
       { "HLT_Photon90_R9Id90_HE10_IsoM_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 90.f*1.1f },{ HLTObjectProperties::kPtHigh, 120.f*1.1f } } } } },
       { "HLT_Photon75_R9Id90_HE10_IsoM_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 75.f*1.1f },{ HLTObjectProperties::kPtHigh, 90.f*1.1f } } } } },
-      { "HLT_Photon50_R9Id90_HE10_IsoM_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 50.f*1.1f },{ HLTObjectProperties::kPtHigh, 75.f*1.1f } } } } },
-      { "HLT_Photon33_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 33.f*1.1f },{ HLTObjectProperties::kPtHigh, 50.f*1.1f } } } } }//,
-      //{ "HLT_Photon30_HoverELoose_v*", { { HLTObjectProperties::kPhoton, { { HLTObjectProperties::kPt, 30.f*1.1f }, { HLTObjectProperties::kPtHigh, 33.f*1.1f } } } } }, // Only runs 299368 - 306460 (36.75 fb-1)
-      //{ "HLT_Photon25_v*", { { HLTObjectProperties::kPhoton, { { HLTObjectProperties::kPt, 25.f*1.1f }, { HLTObjectProperties::kPtHigh, 30.f*1.1f } } } } }, // Only runs 302026 - 306460 (27.13 fb-1)
-      //{ "HLT_Photon20_HoverELoose_v*", { { HLTObjectProperties::kPhoton, { { HLTObjectProperties::kPt, 20.f*1.1f }, { HLTObjectProperties::kPtHigh, 25.f*1.1f } } } } } // Only runs 299368 - 306460 (36.75 fb-1)
+      { "HLT_Photon50_R9Id90_HE10_IsoM_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 50.f*1.1f },{ HLTObjectProperties::kPtHigh, 75.f*1.1f } } } } }
     };
     HLT_type_proplist_map[kTripleLep] = std::vector<HLTTriggerPathProperties>{
       { "HLT_Mu8_DiEle12_CaloIdL_TrackIdL_DZ_v*",{ { HLTObjectProperties::kMuon },{ HLTObjectProperties::kElectron },{ HLTObjectProperties::kElectron } } },
@@ -667,19 +988,12 @@ void TriggerHelpers::configureHLTmap(){
     HLT_type_proplist_map[kSingleEle_Prescaled] = std::vector<HLTTriggerPathProperties>();
     HLT_type_proplist_map[kSingleEle_HighPt] = std::vector<HLTTriggerPathProperties>{ { "HLT_Photon200_v*",{ { HLTObjectProperties::kElectron } } } };
     HLT_type_proplist_map[kSinglePho] = std::vector<HLTTriggerPathProperties>{
-      //{ "HLT_Photon300_NoHE_v*", { { HLTObjectProperties::kPhoton, { { HLTObjectProperties::kPt, 300.f+40.f } } } } }, // Unprescaled
-      //{ "HLT_Photon200_v*", { { HLTObjectProperties::kPhoton, { { HLTObjectProperties::kPt, 200.f*1.15f }, { HLTObjectProperties::kPtHigh, 300.f+40.f } } } } }, // Unprescaled
-      //{ "HLT_Photon175_v*", { { HLTObjectProperties::kPhoton, { { HLTObjectProperties::kPt, 175.f*1.1f }, { HLTObjectProperties::kPtHigh, 200.f*1.15f } } } } },
-      //{ "HLT_Photon165_R9Id90_HE10_IsoM_v*", { { HLTObjectProperties::kPhoton, { { HLTObjectProperties::kPt, 165.f*1.1f }, { HLTObjectProperties::kPtHigh, 175.f*1.15f } } } } },
       { "HLT_Photon200_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 200.f*1.15f } } } } }, // Unprescaled
       { "HLT_Photon165_R9Id90_HE10_IsoM_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 165.f*1.1f },{ HLTObjectProperties::kPtHigh, 200.f*1.15f } } } } },
       { "HLT_Photon120_R9Id90_HE10_IsoM_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 120.f*1.1f },{ HLTObjectProperties::kPtHigh, 165.f*1.1f } } } } },
       { "HLT_Photon90_R9Id90_HE10_IsoM_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 90.f*1.1f },{ HLTObjectProperties::kPtHigh, 120.f*1.1f } } } } },
       { "HLT_Photon75_R9Id90_HE10_IsoM_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 90.f },{ HLTObjectProperties::kPtHigh, 90.f*1.1f } } } } },
-      { "HLT_Photon50_R9Id90_HE10_IsoM_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 50.f*1.1f },{ HLTObjectProperties::kPtHigh, 90.f } } } } },
-      { "HLT_Photon33_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 33.f*1.1f },{ HLTObjectProperties::kPtHigh, 50.f*1.1f } } } } },
-      { "HLT_Photon30_HoverELoose_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 30.f*1.1f },{ HLTObjectProperties::kPtHigh, 33.f*1.1f } } } } },
-      { "HLT_Photon20_HoverELoose_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 20.f*1.1f },{ HLTObjectProperties::kPtHigh, 20.f*1.1f } } } } }
+      { "HLT_Photon50_R9Id90_HE10_IsoM_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 50.f*1.1f },{ HLTObjectProperties::kPtHigh, 90.f } } } } }
     };
     HLT_type_proplist_map[kTripleLep] = std::vector<HLTTriggerPathProperties>{
       { "HLT_Mu8_DiEle12_CaloIdL_TrackIdL_DZ_v*",{ { HLTObjectProperties::kMuon },{ HLTObjectProperties::kElectron },{ HLTObjectProperties::kElectron } } },
@@ -788,11 +1102,26 @@ void TriggerHelpers::configureHLTmap(){
     }
   }
 
-  // Fill the name map as well for simpler checking functionality
+  // NANOAOD WORKAROUND:
+  // Assign the no-photon trigger object exception to all single photon triggers unanimously.
+  // Why?
+  // BECAUSE NANOAOD EXPERTS (!) MESSED UP RECORDING PHOTON TRIGGER OBJECTS!
+  // (Have I ever expressed my instense dislike toward NanoAOD yet?)
+  for (auto const& hltprop:HLT_type_proplist_map.find(kSinglePho)->second) assignTriggerObjectCheckException((hltprop.getName()+"*"), HLTTriggerPathProperties::toNoPhotonTriggerObjects);
+  // For the DoublePhoton trigger (for high-pT dielectrons), there is no corresponding trigger bit for electrons, so ignore matching there as well.
+  for (auto const& hltprop:HLT_type_proplist_map.find(kDoubleEle_HighPt)->second) assignTriggerObjectCheckException((hltprop.getName()+"*"), HLTTriggerPathProperties::toNoElectronTriggerObjects);
+
+  // Fill the trigger object matching requirements.
+  // Fill the name map as well for simpler checking functionality.
   for (auto const& it:HLT_type_proplist_map){
     auto const& props = it.second;
     std::vector<std::string> tmplist; tmplist.reserve(props.size());
-    for (auto const& prop:props) tmplist.push_back(prop.getName());
+    for (auto const& prop:props){
+      auto const* prop_ptr = &prop;
+      HLT_prop_TOreqs_map[prop_ptr] = getTriggerObjectReqs(prop);
+
+      tmplist.push_back(prop.getName());
+    }
     HLT_type_list_map[it.first] = tmplist;
   }
 }
