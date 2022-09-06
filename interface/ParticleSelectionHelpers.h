@@ -26,10 +26,12 @@ SELECTION_TYPE(Tight)
 #undef SELECTION_TYPE
 #undef SELECTION_TYPES
 
-  void setUseFakeableIdForJetCleaning(bool flag);
+  void setUseFakeableIdForPhysicsChecks(bool flag);
   template<typename T> bool isParticleForJetCleaning(T const* part);
-  template<typename T> bool isParticleForIsotrackCleaning(T const* part);
   template<typename T> bool isParticleForTriggerChecking(T const* part);
+
+  // Isotrack cleaning is always done wrt. loose leptons.
+  template<typename T> bool isParticleForIsotrackCleaning(T const* part);
 
   template<typename T> bool isJetForTriggerChecking(T const* jet);
   template<typename T> bool isJetForHEMVeto(T const*);
@@ -55,14 +57,14 @@ template<> bool ParticleSelectionHelpers::isParticleForJetCleaning<MuonObject>(M
 template<> bool ParticleSelectionHelpers::isParticleForJetCleaning<ElectronObject>(ElectronObject const*);
 template bool ParticleSelectionHelpers::isParticleForJetCleaning<PhotonObject>(PhotonObject const*);
 
+template<typename T> bool ParticleSelectionHelpers::isParticleForTriggerChecking(T const* part){ return isLooseParticle(part); }
+template<> bool ParticleSelectionHelpers::isParticleForTriggerChecking<MuonObject>(MuonObject const*);
+template<> bool ParticleSelectionHelpers::isParticleForTriggerChecking<ElectronObject>(ElectronObject const*);
+template bool ParticleSelectionHelpers::isParticleForTriggerChecking<PhotonObject>(PhotonObject const*);
+
 template<typename T> bool ParticleSelectionHelpers::isParticleForIsotrackCleaning(T const* part){ return isLooseParticle(part); }
 template bool ParticleSelectionHelpers::isParticleForIsotrackCleaning<MuonObject>(MuonObject const*);
 template bool ParticleSelectionHelpers::isParticleForIsotrackCleaning<ElectronObject>(ElectronObject const*);
-
-template<typename T> bool ParticleSelectionHelpers::isParticleForTriggerChecking(T const* part){ return isLooseParticle(part); }
-template bool ParticleSelectionHelpers::isParticleForTriggerChecking<MuonObject>(MuonObject const*);
-template bool ParticleSelectionHelpers::isParticleForTriggerChecking<ElectronObject>(ElectronObject const*);
-template bool ParticleSelectionHelpers::isParticleForTriggerChecking<PhotonObject>(PhotonObject const*);
 
 template<typename T> bool ParticleSelectionHelpers::isJetForTriggerChecking(T const* jet){ return isTightJet(jet); }
 template bool ParticleSelectionHelpers::isJetForTriggerChecking<AK4JetObject>(AK4JetObject const*);

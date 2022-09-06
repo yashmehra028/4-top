@@ -80,8 +80,8 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   TString stroutput_log = coutput_main + "/log_" + proc.data() + ".out"; // This is the output file.
   IVYout.open(stroutput_log.Data());
 
-  constexpr bool cleanJetsFromFakeableObjects = true;
-  ParticleSelectionHelpers::setUseFakeableIdForJetCleaning(cleanJetsFromFakeableObjects);
+  constexpr bool useFakeableIdForPhysicsChecks = true;
+  ParticleSelectionHelpers::setUseFakeableIdForPhysicsChecks(useFakeableIdForPhysicsChecks);
 
   float const absEtaThr_ak4jets = (SampleHelpers::getDataYear()<=2016 ? AK4JetSelectionHelpers::etaThr_btag_Phase0Tracker : AK4JetSelectionHelpers::etaThr_btag_Phase1Tracker);
 
@@ -158,6 +158,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       TriggerHelpers::kMuEle_PFHT
   };
   std::vector<std::string> const hltnames_Dilepton = TriggerHelpers::getHLTMenus(requiredTriggers_Dilepton);
+  auto triggerPropsCheckList_Dilepton = TriggerHelpers::getHLTMenuProperties(requiredTriggers_Dilepton);
 
   // Related to triggers is how we apply loose and fakeable IDs in electrons.
   // This setting should vary for 2016 when analyzing fake rates instead of the signal or SR-like control regions.
@@ -803,6 +804,12 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     float event_weight_triggers_dilepton = eventFilter.getTriggerWeight(hltnames_Dilepton);
     if (applyPreselection && event_weight_triggers_dilepton==0.) continue; // Test if any triggers passed at all
     seltracker.accumulate("Pass any trigger", wgt);
+    float event_weight_triggers_dilepton_matched = eventFilter.getTriggerWeight(
+      triggerPropsCheckList_Dilepton,
+      &muons, &electrons, nullptr, &ak4jets, nullptr, nullptr
+    );
+    seltracker.accumulate("Pass triggers after matching", (event_weight_triggers_dilepton_matched>0.)*wgt);
+
 
     // Accumulate any ME weights and K factors that might be present
 

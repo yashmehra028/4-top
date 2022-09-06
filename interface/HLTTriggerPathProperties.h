@@ -15,7 +15,8 @@
 class HLTTriggerPathProperties{
 public:
   enum TriggerObjectExceptionType{
-    toRecoverObjectsFromFailing,
+    toNoElectronTriggerObjects,
+    toNoPhotonTriggerObjects,
     nTriggerObjectExceptionTypes
   };
 

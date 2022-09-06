@@ -1,8 +1,12 @@
 #ifndef TRIGGERHELPERSCORE_H
 #define TRIGGERHELPERSCORE_H
 
+#include <vector>
 #include <unordered_map>
+#include <utility>
 #include "HLTTriggerPathProperties.h"
+#include "HLTTriggerPathObject.h"
+#include "TriggerObject.h"
 
 
 namespace TriggerHelpers{
@@ -53,6 +57,7 @@ namespace TriggerHelpers{
   };
 
   bool hasRunRangeExclusions(std::string const& name, HLTTriggerPathProperties const** out_hltprop = nullptr); // This is to allow a string-based recognition of run range exclusions.
+
 }
 
 #endif
