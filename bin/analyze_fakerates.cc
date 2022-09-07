@@ -538,8 +538,8 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         auto ipos = hltname_pruned.find_last_of("_v");
         if (ipos!=std::string::npos) hltname_pruned = hltname_pruned.substr(0, ipos-1);
       }
-      rcd_output.setNamedVal(Form("event_wgt_trigger_%s", hltname_pruned.data()), pass_any_trigger);
-      rcd_output.setNamedVal(Form("event_wgt_trigger_TOmatched_%s", hltname_pruned.data()), pass_any_trigger_TOmatched);
+      rcd_output.setNamedVal(Form("event_wgt_trigger_%s", hltname_pruned.data()), event_weight_trigger);
+      rcd_output.setNamedVal(Form("event_wgt_trigger_TOmatched_%s", hltname_pruned.data()), event_weight_trigger_TOmatched);
     }
     if (!pass_any_trigger) continue;
     seltracker.accumulate("Pass any trigger", wgt);
