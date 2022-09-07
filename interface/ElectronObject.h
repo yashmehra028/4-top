@@ -3,22 +3,20 @@
 
 #include "ParticleObject.h"
 
-#define ELECTRON_FR_VARIABLES \
-ELECTRON_VARIABLE(bool, cutBased, 0) \
-ELECTRON_VARIABLE(float, dr03EcalRecHitSumEt, 0) \
+#define ELECTRON_EXTRA_UNUSED_VARIABLES \
+ELECTRON_VARIABLE(bool, isPFCand, 0) \
+ELECTRON_VARIABLE(unsigned char, seedGain, 0) \
+ELECTRON_VARIABLE(int, cutBased, 0) \
 ELECTRON_VARIABLE(float, dr03EcalRecHitSumEt, 0) \
 ELECTRON_VARIABLE(float, dr03HcalDepth1TowerSumEt, 0) \
 ELECTRON_VARIABLE(float, dr03TkSumPt, 0) \
-ELECTRON_VARIABLE(float, ip3d, 0) \
-ELECTRON_VARIABLE(bool, isPFCand, 0) \
-ELECTRON_VARIABLE(float, mvaFall17V2Iso, 0) \
-ELECTRON_VARIABLE(int, pdgId, 0) \
 ELECTRON_VARIABLE(float, pfRelIso03_chg, 0) \
+ELECTRON_VARIABLE(float, ip3d, 0) \
 ELECTRON_VARIABLE(float, r9, 0) \
 ELECTRON_VARIABLE(float, scEtOverPt, 0) \
-ELECTRON_VARIABLE(float, seedGain, 0) 
+ELECTRON_VARIABLE(float, mvaFall17V2Iso, 0)
 
-#define ELECTRON_EXTRA_VARIABLES \
+#define ELECTRON_EXTRA_USED_VARIABLES \
 ELECTRON_VARIABLE(bool, convVeto, 0) \
 ELECTRON_VARIABLE(bool, mvaFall17V2noIso_WPL, 0) \
 ELECTRON_VARIABLE(unsigned char, lostHits, 0) \
@@ -36,8 +34,11 @@ ELECTRON_VARIABLE(float, miniPFRelIso_chg, 0) \
 ELECTRON_VARIABLE(float, pfRelIso03_all, 0) \
 ELECTRON_VARIABLE(float, jetPtRelv2, 0) \
 ELECTRON_VARIABLE(float, jetRelIso, 0) \
-ELECTRON_VARIABLE(float, deltaEtaSC, 0) \
-ELECTRON_FR_VARIABLES 
+ELECTRON_VARIABLE(float, deltaEtaSC, 0)
+
+#define ELECTRON_EXTRA_VARIABLES \
+ELECTRON_EXTRA_USED_VARIABLES \
+ELECTRON_EXTRA_UNUSED_VARIABLES
 
 
 class ElectronVariables{

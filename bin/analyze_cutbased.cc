@@ -152,17 +152,19 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     TriggerHelpers::kMuEle
   };
   // These PFHT triggers were used in the 2016 analysis. They are a bit more efficient.
-  if (SampleHelpers::getDataYear()==2016) requiredTriggers_Dilepton = std::vector<TriggerHelpers::TriggerType>{
+  if (SampleHelpers::getDataYear()==2016){
+    requiredTriggers_Dilepton = std::vector<TriggerHelpers::TriggerType>{
       TriggerHelpers::kDoubleMu_PFHT,
       TriggerHelpers::kDoubleEle_PFHT,
       TriggerHelpers::kMuEle_PFHT
-  };
+    };
+    // Related to triggers is how we apply loose and fakeable IDs in electrons.
+    // This setting should vary for 2016 when analyzing fake rates instead of the signal or SR-like control regions.
+    // If trigger choices change, this setting may not be relevant either.
+    if (ElectronSelectionHelpers::selection_type == ElectronSelectionHelpers::kCutbased_Run2) ElectronSelectionHelpers::setApplyMVALooseFakeableNoIsoWPs(true);
+  }
   std::vector<std::string> const hltnames_Dilepton = TriggerHelpers::getHLTMenus(requiredTriggers_Dilepton);
   auto triggerPropsCheckList_Dilepton = TriggerHelpers::getHLTMenuProperties(requiredTriggers_Dilepton);
-
-  // Related to triggers is how we apply loose and fakeable IDs in electrons.
-  // This setting should vary for 2016 when analyzing fake rates instead of the signal or SR-like control regions.
-  if (ElectronSelectionHelpers::selection_type == ElectronSelectionHelpers::kCutbased_Run2) ElectronSelectionHelpers::setApplyMVALooseFakeableNoIsoWPs((SampleHelpers::getDataYear()==2016));
 
   // Declare handlers
   GenInfoHandler genInfoHandler;
@@ -395,9 +397,9 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     AK4JET_EXTRA_INPUT_VARIABLES
     // All sync. write objects
 #define SYNC_ALLOBJS_BRANCH_VECTOR_COMMANDS \
-   SYNC_MUONS_BRANCH_VECTOR_COMMANDS \
-   SYNC_ELECTRONS_BRANCH_VECTOR_COMMANDS \
-   SYNC_AK4JETS_BRANCH_VECTOR_COMMANDS
+    SYNC_MUONS_BRANCH_VECTOR_COMMANDS \
+    SYNC_ELECTRONS_BRANCH_VECTOR_COMMANDS \
+    SYNC_AK4JETS_BRANCH_VECTOR_COMMANDS
 #define SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, COLLNAME, NAME) std::vector<TYPE> COLLNAME##_##NAME;
 #define MUON_VARIABLE(TYPE, NAME, DEFVAL) SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, muons, NAME)
 #define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, electrons, NAME)
@@ -798,9 +800,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     if (!eventFilter.isUniqueDataEvent()) continue; // Test if the data event is unique (i.e., dorky). Does not do anything in the MC.
     seltracker.accumulate("Pass unique event check", wgt);
 
-    // Later on, an overload of getTriggerWeight could be used to match trigger objects.
-    // That would mean, however, that trigger bits need to be interpreted from NanoAOD.
-    // Well, good luck with juggling between different years...
+    // Triggers
     float event_weight_triggers_dilepton = eventFilter.getTriggerWeight(hltnames_Dilepton);
     if (applyPreselection && event_weight_triggers_dilepton==0.) continue; // Test if any triggers passed at all
     seltracker.accumulate("Pass any trigger", wgt);
@@ -996,7 +996,7 @@ int main(int argc, char** argv){
   }
 
   if (print_help){
-    IVYout << "skim_UL options:\n\n";
+    IVYout << argv[0] << " options:\n\n";
     IVYout << "- help: Prints this help message.\n";
     IVYout << "- dataset: Data set name. Mandatory.\n";
     IVYout << "- short_name: Process short name. Mandatory.\n";

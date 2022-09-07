@@ -73,29 +73,21 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   // This is the output directory.
   // Output should always be recorded as if you are running the job locally.
   // We will inform the Condor job later on that some files would need transfer if we are running on Condor.
-  TString coutput_main = ANALYSISPKGPATH + "test/output/Analysis_CutBased/" + strdate.data() + "/" + SampleHelpers::getDataPeriod();
+  TString coutput_main = ANALYSISPKGPATH + "test/output/Analysis_FakeRates/" + strdate.data() + "/" + SampleHelpers::getDataPeriod();
   HostHelpers::ExpandEnvironmentVariables(coutput_main);
   gSystem->mkdir(coutput_main, true);
   TString stroutput = coutput_main + "/" + proc.data() + ".root"; // This is the output file.
   TString stroutput_log = coutput_main + "/log_" + proc.data() + ".out"; // This is the output file.
   IVYout.open(stroutput_log.Data());
 
-  constexpr bool cleanJetsFromFakeableObjects = true;
-  ParticleSelectionHelpers::setUseFakeableIdForJetCleaning(cleanJetsFromFakeableObjects);
+  constexpr bool useFakeableIdForPhysicsChecks = true;
+  ParticleSelectionHelpers::setUseFakeableIdForPhysicsChecks(useFakeableIdForPhysicsChecks);
 
   float const absEtaThr_ak4jets = (SampleHelpers::getDataYear()<=2016 ? AK4JetSelectionHelpers::etaThr_btag_Phase0Tracker : AK4JetSelectionHelpers::etaThr_btag_Phase1Tracker);
 
-  // Turn on synchronization exercise options
+  // Turn on individual files
   std::string input_files;
   extra_arguments.getNamedVal("input_files", input_files);
-  bool runSyncExercise = false;
-  extra_arguments.getNamedVal("run_sync", runSyncExercise);
-  bool writeSyncObjects = false;
-  bool forceApplyPreselection = false;
-  if (runSyncExercise){
-    extra_arguments.getNamedVal("write_sync_objects", writeSyncObjects);
-    extra_arguments.getNamedVal("force_sync_preselection", forceApplyPreselection);
-  }
 
   // Shorthand option for the Run 2 UL analysis proposal
   bool use_shorthand_Run2_UL_proposal_config;
@@ -142,31 +134,28 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   }
   else IVYout << "Using default b-tagging WP = " << static_cast<int>(bit_preselection_btag)-static_cast<int>(AK4JetSelectionHelpers::kPreselectionTight_BTagged_Loose) << "..." << endl;
 
-  // Flag to control whether any preselection other than nleps>=2 to be applied
-  bool const applyPreselection = !runSyncExercise || forceApplyPreselection;
-
   // Trigger configuration
-  std::vector<TriggerHelpers::TriggerType> requiredTriggers_Dilepton{
-    TriggerHelpers::kDoubleMu,
-    TriggerHelpers::kDoubleEle,
-    TriggerHelpers::kMuEle
+  std::vector<TriggerHelpers::TriggerType> requiredTriggers_SingleLepton{
+    TriggerHelpers::kSingleMu_Control_Iso,
+    TriggerHelpers::kSingleEle_Control_Iso
   };
-  // These PFHT triggers were used in the 2016 analysis. They are a bit more efficient.
-  if (SampleHelpers::getDataYear()==2016) requiredTriggers_Dilepton = std::vector<TriggerHelpers::TriggerType>{
-      TriggerHelpers::kDoubleMu_PFHT,
-      TriggerHelpers::kDoubleEle_PFHT,
-      TriggerHelpers::kMuEle_PFHT
-  };
-  std::vector<std::string> const hltnames_Dilepton = TriggerHelpers::getHLTMenus(requiredTriggers_Dilepton);
-
-  // Related to triggers is how we apply loose and fakeable IDs in electrons.
-  // This setting should vary for 2016 when analyzing fake rates instead of the signal or SR-like control regions.
-  if (ElectronSelectionHelpers::selection_type == ElectronSelectionHelpers::kCutbased_Run2) ElectronSelectionHelpers::setApplyMVALooseFakeableNoIsoWPs((SampleHelpers::getDataYear()==2016));
+  if (SampleHelpers::getDataYear()==2016){
+    requiredTriggers_SingleLepton = std::vector<TriggerHelpers::TriggerType>{
+      TriggerHelpers::kSingleMu_Control_NoIso,
+      TriggerHelpers::kSingleEle_Control_NoIso
+    };
+    // Related to triggers is how we apply loose and fakeable IDs in electrons.
+    // This setting should vary for 2016 when analyzing fake rates instead of the signal or SR-like control regions.
+    // If trigger choices change, this setting may not be relevant either.
+    if (ElectronSelectionHelpers::selection_type == ElectronSelectionHelpers::kCutbased_Run2) ElectronSelectionHelpers::setApplyMVALooseFakeableNoIsoWPs(true);
+  }
+  std::vector<std::string> const hltnames_SingleLepton = TriggerHelpers::getHLTMenus(requiredTriggers_SingleLepton);
+  auto triggerPropsCheckList_SingleLepton = TriggerHelpers::getHLTMenuProperties(requiredTriggers_SingleLepton);
 
   // Declare handlers
   GenInfoHandler genInfoHandler;
   SimEventHandler simEventHandler;
-  EventFilterHandler eventFilter(requiredTriggers_Dilepton);
+  EventFilterHandler eventFilter(requiredTriggers_SingleLepton);
   MuonHandler muonHandler;
   ElectronHandler electronHandler;
   JetMETHandler jetHandler;
@@ -255,20 +244,25 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   isotrackHandler.bookBranches(tin);
   isotrackHandler.wrapTree(tin);
 
+  RunNumber_t* ptr_RunNumber = nullptr;
+  LuminosityBlock_t* ptr_LuminosityBlock = nullptr;
   EventNumber_t* ptr_EventNumber = nullptr;
   tin->bookBranch<EventNumber_t>("event", 0);
   tin->getValRef("event", ptr_EventNumber);
+  if (isData){
+    tin->bookBranch<RunNumber_t>("run", 0);
+    tin->getValRef("run", ptr_RunNumber);
+    tin->bookBranch<LuminosityBlock_t>("luminosityBlock", 0);
+    tin->getValRef("luminosityBlock", ptr_LuminosityBlock);
+  }
 
   curdir->cd();
 
-  TFile* foutput_sync_objects = nullptr;
-  BaseTree* tout_sync_objects = nullptr;
-  SimpleEntry rcd_sync_objects;
-  foutput_sync_objects = TFile::Open(coutput_main + "/" + Form("sync_objects_%s.root", proc.data()), "recreate");
-  tout_sync_objects = new BaseTree("SyncObjects");
-  tout_sync_objects->setAutoSave(0);
+  SimpleEntry rcd_output;
+  TFile* foutput = TFile::Open(stroutput, "recreate");
+  BaseTree* tout = new BaseTree("Events");
+  tout->setAutoSave(0);
   curdir->cd();
-  
 
   // Keep track of sums of weights
   SelectionTracker seltracker;
@@ -303,28 +297,13 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       // Add L1 prefiring weight for 2016 and 2017
       wgt *= simEventHandler.getL1PrefiringWeight(SystematicsHelpers::sNominal);
     }
+    wgt *= norm_scale;
 
     muonHandler.constructMuons();
     electronHandler.constructElectrons();
     jetHandler.constructJetMET(&simEventHandler);
 
-    // !!!IMPORTANT!!!
-    // NEVER USE LEPTONS AND JETS IN AN ANALYSIS BEFORE DISAMBIGUATING THEM!
-    // Muon and electron handlers do not apply any selection, so the selection bits are all 0.
-    // In order to compute pTratio and pTrel, you need jets!
-    // ParticleDisambiguator does the matching, and assigns the overlapping jets (or closest ones) as 'mothers' of the leptons.
-    // Once mothers are assigned, ParticleObject::ptratio and ptrel functions work as intended,
-    // and you can apply the additional selections on these variables this way.
-    // ParticleDisambiguator then cleans all geometrically overlapping jets by resetting their selection bits, which makes them unusable.
     particleDisambiguator.disambiguateParticles(&muonHandler, &electronHandler, nullptr, &jetHandler);
-
-    bool const printObjInfo = runSyncExercise
-      &&
-      HelperFunctions::checkListVariable(std::vector<int>{ 6994, 7046, 11794 }, ev);
-      //HelperFunctions::checkListVariable(std::vector<int>{ 1233, 1475, 1546, 1696, 2011, 2103, 2801, 2922, 3378, 3407, 3575, 3645, 5021, 5127, 6994, 7000, 7046, 7341, 7351, 8050, 9931, 10063, 10390, 10423, 10623, 10691, 10791, 10796, 11127, 11141, 11279, 11794, 12231, 12996, 13115, 13294, 13550, 14002, 14319, 15062, 15754, 16153, 16166, 16316, 16896, 16911, 17164 }, ev);
-      //HelperFunctions::checkListVariable(std::vector<int>{663, 1469, 3087, 3281}, ev);
-      //HelperFunctions::checkListVariable(std::vector<int>{204, 353, 438, 1419}, ev);
-      //HelperFunctions::checkListVariable(std::vector<int>{3, 15, 30, 31, 32, 41, 153, 154, 162, 197, 215, 284, 317, 360, 572, 615, 747, 1019, 1119, 1129}, ev);
 
     // Muon sync. write variables
 #define SYNC_MUONS_BRANCH_VECTOR_COMMANDS \
@@ -368,9 +347,9 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     AK4JET_EXTRA_INPUT_VARIABLES
     // All sync. write objects
 #define SYNC_ALLOBJS_BRANCH_VECTOR_COMMANDS \
-   SYNC_MUONS_BRANCH_VECTOR_COMMANDS \
-   SYNC_ELECTRONS_BRANCH_VECTOR_COMMANDS \
-   SYNC_AK4JETS_BRANCH_VECTOR_COMMANDS
+    SYNC_MUONS_BRANCH_VECTOR_COMMANDS \
+    SYNC_ELECTRONS_BRANCH_VECTOR_COMMANDS \
+    SYNC_AK4JETS_BRANCH_VECTOR_COMMANDS
 #define SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, COLLNAME, NAME) std::vector<TYPE> COLLNAME##_##NAME;
 #define MUON_VARIABLE(TYPE, NAME, DEFVAL) SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, muons, NAME)
 #define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, electrons, NAME)
@@ -380,8 +359,6 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 #undef ELECTRON_VARIABLE
 #undef MUON_VARIABLE
 #undef SYNC_OBJ_BRANCH_VECTOR_COMMAND
-
-    if (printObjInfo) IVYout << "Lepton info for event " << ev << ":" << endl;
 
     auto const& muons = muonHandler.getProducts();
     std::vector<MuonObject*> muons_selected;
@@ -411,6 +388,8 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         is_loose = true;
       }
 
+      if (!is_loose) continue;
+
       float ptrel_final = part->ptrel();
       float ptratio_final = part->ptratio();
 
@@ -425,13 +404,11 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       }
       if (mother) bscore = mother->extras.btagDeepFlavB;
 
-      if (writeSyncObjects){
 #define SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, COLLNAME, NAME) COLLNAME##_##NAME.push_back(NAME);
 #define MUON_VARIABLE(TYPE, NAME, DEFVAL) muons_##NAME.push_back(part->extras.NAME);
-        SYNC_MUONS_BRANCH_VECTOR_COMMANDS;
+      SYNC_MUONS_BRANCH_VECTOR_COMMANDS;
 #undef MUON_VARIABLE
 #undef SYNC_OBJ_BRANCH_VECTOR_COMMAND
-      }
     }
     HelperFunctions::appendVector(muons_selected, muons_tight);
     HelperFunctions::appendVector(muons_selected, muons_fakeable);
@@ -466,6 +443,8 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         is_loose = true;
       }
 
+      if (!is_loose) continue;
+
       float mvaFall17V2noIso_raw = 0.5 * std::log((1. + part->extras.mvaFall17V2noIso)/(1. - part->extras.mvaFall17V2noIso));
       float ptrel_final = part->ptrel();
       float ptratio_final = part->ptratio();
@@ -481,13 +460,11 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       }
       if (mother) bscore = mother->extras.btagDeepFlavB;
 
-      if (writeSyncObjects){
 #define SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, COLLNAME, NAME) COLLNAME##_##NAME.push_back(NAME);
 #define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) electrons_##NAME.push_back(part->extras.NAME);
-        SYNC_ELECTRONS_BRANCH_VECTOR_COMMANDS;
+      SYNC_ELECTRONS_BRANCH_VECTOR_COMMANDS;
 #undef ELECTRON_VARIABLE
 #undef SYNC_OBJ_BRANCH_VECTOR_COMMAND
-      }
     }
     HelperFunctions::appendVector(electrons_selected, electrons_tight);
     HelperFunctions::appendVector(electrons_selected, electrons_fakeable);
@@ -498,20 +475,8 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     unsigned int const nleptons_loose = muons_loose.size() + electrons_loose.size();
     unsigned int const nleptons_selected = nleptons_tight + nleptons_fakeable + nleptons_loose;
 
-    std::vector<ParticleObject*> leptons_selected; leptons_selected.reserve(nleptons_selected);
-    for (auto const& part:muons_selected) leptons_selected.push_back(dynamic_cast<ParticleObject*>(part));
-    for (auto const& part:electrons_selected) leptons_selected.push_back(dynamic_cast<ParticleObject*>(part));
-    ParticleObjectHelpers::sortByGreaterPt(leptons_selected);
-
-    std::vector<ParticleObject*> leptons_tight; leptons_tight.reserve(nleptons_tight);
-    for (auto const& part:muons_tight) leptons_tight.push_back(dynamic_cast<ParticleObject*>(part));
-    for (auto const& part:electrons_tight) leptons_tight.push_back(dynamic_cast<ParticleObject*>(part));
-    ParticleObjectHelpers::sortByGreaterPt(leptons_tight);
-
-    double ak4jets_pt40_HT=0;
     auto const& ak4jets = jetHandler.getAK4Jets();
-    std::vector<AK4JetObject*> ak4jets_tight_pt40;
-    std::vector<AK4JetObject*> ak4jets_tight_pt25_btagged;
+    unsigned int nak4jets_tight_pt25_etaCentral = 0;
     for (auto const& jet:ak4jets){
       float pt = jet->pt();
       float eta = jet->eta();
@@ -522,35 +487,27 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       bool is_btagged = jet->testSelectionBit(bit_preselection_btag);
       constexpr bool is_clean = true;
 
-      if (writeSyncObjects){
 #define SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, COLLNAME, NAME) COLLNAME##_##NAME.push_back(NAME);
 #define AK4JET_VARIABLE(TYPE, NAME, DEFVAL) ak4jets_##NAME.push_back(jet->extras.NAME);
-        SYNC_AK4JETS_BRANCH_VECTOR_COMMANDS;
+      SYNC_AK4JETS_BRANCH_VECTOR_COMMANDS;
 #undef AK4JET_VARIABLE
 #undef SYNC_OBJ_BRANCH_VECTOR_COMMAND
-      }
 
-      if (is_tight && pt>=25. && std::abs(eta)<absEtaThr_ak4jets){
-        if (is_btagged) ak4jets_tight_pt25_btagged.push_back(jet);
-        if (pt>=40.){
-          ak4jets_tight_pt40.push_back(jet);
-          ak4jets_pt40_HT += pt;
-        }
-      }
+      if (is_tight && pt>=25. && std::abs(eta)<absEtaThr_ak4jets) nak4jets_tight_pt25_etaCentral++;
     }
 
-    unsigned int const nak4jets_tight_pt40 = ak4jets_tight_pt40.size();
-    unsigned int const nak4jets_tight_pt25_btagged = ak4jets_tight_pt25_btagged.size();
-
+    // MET info
     auto const& eventmet = jetHandler.getPFMET();
 
 
     // BEGIN PRESELECTION
     seltracker.accumulate("Full sample", wgt);
 
+    if ((nleptons_tight + nleptons_fakeable)!=1) continue;
+    seltracker.accumulate("Has exactly one fakeable lepton", wgt);
 
-    if (nleptons_fakeable!=1) continue; // Skims are required to apply this selection, so no additional test on applyPreselection.
-
+    if (nak4jets_tight_pt25_etaCentral==0) continue;
+    seltracker.accumulate("Has at least one tight jet with pT>25 GeV and central eta", wgt);
 
     // Put event filters to the last because data has unique event tracking enabled.
     eventFilter.constructFilters(&simEventHandler);
@@ -562,55 +519,80 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     if (!eventFilter.isUniqueDataEvent()) continue; // Test if the data event is unique (i.e., dorky). Does not do anything in the MC.
     seltracker.accumulate("Pass unique event check", wgt);
 
-    // TODO: get code from ulascan
-    // does the trigger selection and records the flag for the control trigger
+    // Triggers
+    bool pass_any_trigger = false;
+    bool pass_any_trigger_TOmatched = false;
+    for (auto const& hlt_type_prop_pair:triggerPropsCheckList_SingleLepton){
+      std::string const& hltname = hlt_type_prop_pair.second->getName();
+      std::vector< std::pair<TriggerHelpers::TriggerType, HLTTriggerPathProperties const*> > dummy_type_prop_vector{ hlt_type_prop_pair };
+      float event_weight_trigger = eventFilter.getTriggerWeight(std::vector<std::string>{hltname});
+      float event_weight_trigger_TOmatched = eventFilter.getTriggerWeight(
+        dummy_type_prop_vector,
+        &muons, &electrons, nullptr, &ak4jets, nullptr, nullptr
+      );
+      pass_any_trigger |= (event_weight_trigger>0.);
+      pass_any_trigger_TOmatched |= (event_weight_trigger_TOmatched>0.);
 
+      std::string hltname_pruned = hltname;
+      {
+        auto ipos = hltname_pruned.find_last_of("_v");
+        if (ipos!=std::string::npos) hltname_pruned = hltname_pruned.substr(0, ipos-1);
+      }
+      rcd_output.setNamedVal(Form("event_wgt_trigger_%s", hltname_pruned.data()), pass_any_trigger);
+      rcd_output.setNamedVal(Form("event_wgt_trigger_TOmatched_%s", hltname_pruned.data()), pass_any_trigger_TOmatched);
+    }
+    if (!pass_any_trigger) continue;
+    seltracker.accumulate("Pass any trigger", wgt);
+    seltracker.accumulate("Pass triggers after TO matching", static_cast<float>(pass_any_trigger_TOmatched)*wgt);
 
     /*************************************************/
     /* NO MORE CALLS TO SELECTION BEYOND THIS POINT! */
     /*************************************************/
-    // Write object sync. info.
-    if (writeSyncObjects){
-      rcd_sync_objects.setNamedVal("EventNumber", *ptr_EventNumber);
-      rcd_sync_objects.setNamedVal("PFMET_pt_final", eventmet->pt());
-      rcd_sync_objects.setNamedVal("PFMET_phi_final", eventmet->phi());
+    // Write output
+    rcd_output.setNamedVal("event_wgt", wgt);
 
-#define SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, COLLNAME, NAME) rcd_sync_objects.setNamedVal(Form("%s_%s", #COLLNAME, #NAME), COLLNAME##_##NAME);
+    rcd_output.setNamedVal("EventNumber", *ptr_EventNumber);
+    if (isData){
+      rcd_output.setNamedVal("RunNumber", *ptr_RunNumber);
+      rcd_output.setNamedVal("LuminosityBlock", *ptr_LuminosityBlock);
+    }
+    rcd_output.setNamedVal("PFMET_pt_final", eventmet->pt());
+    rcd_output.setNamedVal("PFMET_phi_final", eventmet->phi());
+
+#define SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, COLLNAME, NAME) rcd_output.setNamedVal(Form("%s_%s", #COLLNAME, #NAME), COLLNAME##_##NAME);
 #define MUON_VARIABLE(TYPE, NAME, DEFVAL) SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, muons, NAME)
 #define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, electrons, NAME)
 #define AK4JET_VARIABLE(TYPE, NAME, DEFVAL) SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, ak4jets, NAME)
-      SYNC_ALLOBJS_BRANCH_VECTOR_COMMANDS;
+    SYNC_ALLOBJS_BRANCH_VECTOR_COMMANDS;
 #undef AK4JET_VARIABLE
 #undef ELECTRON_VARIABLE
 #undef MUON_VARIABLE
 #undef SYNC_OBJ_BRANCH_VECTOR_COMMAND
 
-      if (firstOutputEvent){
-#define SIMPLE_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_sync_objects.named##name_t##s.begin(); itb!=rcd_sync_objects.named##name_t##s.end(); itb++) tout_sync_objects->putBranch(itb->first, itb->second);
-#define VECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_sync_objects.namedV##name_t##s.begin(); itb!=rcd_sync_objects.namedV##name_t##s.end(); itb++) tout_sync_objects->putBranch(itb->first, &(itb->second));
-#define DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_sync_objects.namedVV##name_t##s.begin(); itb!=rcd_sync_objects.namedVV##name_t##s.end(); itb++) tout_sync_objects->putBranch(itb->first, &(itb->second));
-        SIMPLE_DATA_OUTPUT_DIRECTIVES;
-        VECTOR_DATA_OUTPUT_DIRECTIVES;
-        DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVES;
-#undef SIMPLE_DATA_OUTPUT_DIRECTIVE
-#undef VECTOR_DATA_OUTPUT_DIRECTIVE
-#undef DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE
-      }
-
-      // Record whatever is in rcd_sync_objects into the tree.
-#define SIMPLE_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_sync_objects.named##name_t##s.begin(); itb!=rcd_sync_objects.named##name_t##s.end(); itb++) tout_sync_objects->setVal(itb->first, itb->second);
-#define VECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_sync_objects.namedV##name_t##s.begin(); itb!=rcd_sync_objects.namedV##name_t##s.end(); itb++) tout_sync_objects->setVal(itb->first, &(itb->second));
-#define DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_sync_objects.namedVV##name_t##s.begin(); itb!=rcd_sync_objects.namedVV##name_t##s.end(); itb++) tout_sync_objects->setVal(itb->first, &(itb->second));
+    if (firstOutputEvent){
+#define SIMPLE_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.named##name_t##s.begin(); itb!=rcd_output.named##name_t##s.end(); itb++) tout->putBranch(itb->first, itb->second);
+#define VECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.namedV##name_t##s.begin(); itb!=rcd_output.namedV##name_t##s.end(); itb++) tout->putBranch(itb->first, &(itb->second));
+#define DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.namedVV##name_t##s.begin(); itb!=rcd_output.namedVV##name_t##s.end(); itb++) tout->putBranch(itb->first, &(itb->second));
       SIMPLE_DATA_OUTPUT_DIRECTIVES;
       VECTOR_DATA_OUTPUT_DIRECTIVES;
       DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVES;
 #undef SIMPLE_DATA_OUTPUT_DIRECTIVE
 #undef VECTOR_DATA_OUTPUT_DIRECTIVE
 #undef DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE
-
-      tout_sync_objects->fill();
     }
 
+    // Record whatever is in rcd_output into the tree.
+#define SIMPLE_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.named##name_t##s.begin(); itb!=rcd_output.named##name_t##s.end(); itb++) tout->setVal(itb->first, itb->second);
+#define VECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.namedV##name_t##s.begin(); itb!=rcd_output.namedV##name_t##s.end(); itb++) tout->setVal(itb->first, &(itb->second));
+#define DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.namedVV##name_t##s.begin(); itb!=rcd_output.namedVV##name_t##s.end(); itb++) tout->setVal(itb->first, &(itb->second));
+    SIMPLE_DATA_OUTPUT_DIRECTIVES;
+    VECTOR_DATA_OUTPUT_DIRECTIVES;
+    DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVES;
+#undef SIMPLE_DATA_OUTPUT_DIRECTIVE
+#undef VECTOR_DATA_OUTPUT_DIRECTIVE
+#undef DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE
+
+    tout->fill();
     n_recorded++;
 
     if (firstOutputEvent) firstOutputEvent = false;
@@ -619,16 +601,12 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   IVYout << "Number of events recorded: " << n_recorded << " / " << n_traversed << " / " << nEntries << endl;
   seltracker.print();
 
-  tout_sync_objects->writeToFile(foutput_sync_objects);
-  delete tout_sync_objects;
-
-  foutput_sync_objects->Close();
-
-  if (runSyncExercise){
-    SampleHelpers::splitFileAndAddForTransfer(stroutput_sync);
-  }
+  tout->writeToFile(foutput);
+  delete tout;
+  foutput->Close();
 
   curdir->cd();
+
   delete tin;
 
   IVYout.close();
@@ -675,11 +653,6 @@ int main(int argc, char** argv){
       }
       extra_arguments.setNamedVal(wish, value);
     }
-    else if (wish=="run_sync" || wish=="write_sync_objects" || wish=="force_sync_preselection"){
-      bool tmpval;
-      HelperFunctions::castStringToValue(value, tmpval);
-      extra_arguments.setNamedVal(wish, tmpval);
-    }
     else if (wish=="muon_id" || wish=="electron_id" || wish=="btag") extra_arguments.setNamedVal(wish, value);
     else if (wish=="xsec"){
       if (xsec<0.) xsec = 1;
@@ -701,7 +674,7 @@ int main(int argc, char** argv){
   }
 
   if (print_help){
-    IVYout << "skim_UL options:\n\n";
+    IVYout << argv[0] << " options:\n\n";
     IVYout << "- help: Prints this help message.\n";
     IVYout << "- dataset: Data set name. Mandatory.\n";
     IVYout << "- short_name: Process short name. Mandatory.\n";
@@ -711,9 +684,6 @@ int main(int argc, char** argv){
     IVYout << "- xsec: Cross section value. Mandatory in the MC.\n";
     IVYout << "- BR: BR value. Mandatory in the MC.\n";
     IVYout << "- input_files: Input files to run. Optional. Default is to run on all files.\n";
-    IVYout << "- run_sync: Turn on synchronization output. Optional. Default is to run without synchronization output.\n";
-    IVYout << "- write_sync_objects: Create a file that contains the info. for all leptons and jets, and event identifiers. Ignored if run_sync=false. Optional. Default is to not produce such a file.\n";
-    IVYout << "- force_sync_preselection: When sync. mode is on, also apply SR/CR preselection.  Ignored if run_sync=false. Optional. Default is to run without preselection.\n";
     IVYout
       << "- shorthand_Run2_UL_proposal_config: Shorthand flag for the switches for the Run 2 UL analysis proposal:\n"
       << "  * muon_id='TopMVA_Run2'\n"
