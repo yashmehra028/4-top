@@ -4,7 +4,7 @@
 #include "ParticleObject.h"
 
 #define ELECTRON_EXTRA_UNUSED_VARIABLES \
-ELECTRON_VARIABLE(bool, isPFCand, 0) \
+ELECTRON_VARIABLE(bool, isPFcand, 0) \
 ELECTRON_VARIABLE(unsigned char, seedGain, 0) \
 ELECTRON_VARIABLE(int, cutBased, 0) \
 ELECTRON_VARIABLE(float, dr03EcalRecHitSumEt, 0) \

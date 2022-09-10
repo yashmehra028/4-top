@@ -59,6 +59,16 @@ printenv() {
     export LD_LIBRARY_PATH=${libappend}${end}
   fi
 
+  pythonappend="${PKGDIR}/python"
+  end=""
+  if [[ ! -z "${PYTHONPATH+x}" ]]; then
+    end=":${PYTHONPATH}"
+  fi
+  if [[ "${end}" != *"$pythonappend"* ]]; then
+    echo "export PYTHONPATH=${pythonappend}${end}"
+    export PYTHONPATH="${pythonappend}${end}"
+  fi
+
   pathappend="${PKGDIR}/executables"
   end=""
   if [[ ! -z "${PATH+x}" ]]; then
@@ -78,6 +88,15 @@ doenv() {
   if [[ -d ${CMSSW_BASE}/src/IvyFramework/IvyMLTools ]]; then
     envopts="env xgboost_path=${xgboost_path}"
     eval $(${CMSSW_BASE}/src/IvyFramework/IvyMLTools/setup.sh ${envopts})
+  fi
+
+  pythonappend="${PKGDIR}/python"
+  end=""
+  if [[ ! -z "${PYTHONPATH+x}" ]]; then
+    end=":${PYTHONPATH}"
+  fi
+  if [[ "${end}" != *"$pythonappend"* ]]; then
+    export PYTHONPATH="${pythonappend}${end}"
   fi
 }
 printenvinstr () {
