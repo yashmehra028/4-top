@@ -33,6 +33,7 @@
 #include "SamplesCore.h"
 #include "FourTopTriggerHelpers.h"
 #include "DileptonHandler.h"
+#include "InputChunkSplitter.h"
 #include "SplitFileAndAddForTransfer.h"
 
 
@@ -65,25 +66,55 @@ void SelectionTracker::print() const{
   }
 }
 
-int ScanChain(std::string const& strdate, std::string const& dset, std::string const& proc, double const& xsec, SimpleEntry const& extra_arguments){
+int ScanChain(std::string const& strdate, std::string const& dset, std::string const& proc, double const& xsec, int const& ichunk, int const& nchunks, SimpleEntry const& extra_arguments){
   if (!SampleHelpers::checkRunOnCondor()) std::signal(SIGINT, SampleHelpers::setSignalInterrupt);
 
   TDirectory* curdir = gDirectory;
 
-  // This is the output directory.
-  // Output should always be recorded as if you are running the job locally.
-  // We will inform the Condor job later on that some files would need transfer if we are running on Condor.
-  TString coutput_main = ANALYSISPKGPATH + "test/output/Analysis_FakeRates/" + strdate.data() + "/" + SampleHelpers::getDataPeriod();
-  HostHelpers::ExpandEnvironmentVariables(coutput_main);
-  gSystem->mkdir(coutput_main, true);
-  TString stroutput = coutput_main + "/" + proc.data() + ".root"; // This is the output file.
-  TString stroutput_log = coutput_main + "/log_" + proc.data() + ".out"; // This is the output file.
-  IVYout.open(stroutput_log.Data());
-
+  // Configure analysis-specific stuff
   constexpr bool useFakeableIdForPhysicsChecks = true;
   ParticleSelectionHelpers::setUseFakeableIdForPhysicsChecks(useFakeableIdForPhysicsChecks);
 
   float const absEtaThr_ak4jets = (SampleHelpers::getDataYear()<=2016 ? AK4JetSelectionHelpers::etaThr_btag_Phase0Tracker : AK4JetSelectionHelpers::etaThr_btag_Phase1Tracker);
+
+  double const lumi = SampleHelpers::getIntegratedLuminosity(SampleHelpers::getDataPeriod());
+  IVYout << "Valid data periods for " << SampleHelpers::getDataPeriod() << ": " << SampleHelpers::getValidDataPeriods() << endl;
+  IVYout << "Integrated luminosity: " << lumi << endl;
+
+  // This is the output directory.
+  // Output should always be recorded as if you are running the job locally.
+  // We will inform the Condor job later on that some files would need transfer if we are running on Condor.
+  TString coutput_main = TString("output/Analysis_FakeRates/") + strdate.data() + "/" + SampleHelpers::getDataPeriod();
+  HostHelpers::ExpandEnvironmentVariables(coutput_main);
+  gSystem->mkdir(coutput_main, true);
+
+  std::vector<std::pair<std::string, std::string>> dset_proc_pairs;
+  {
+    std::vector<std::string> dsets, procs;
+    HelperFunctions::splitOptionRecursive(dset, dsets, ',', false);
+    HelperFunctions::splitOptionRecursive(proc, procs, ',', false);
+    HelperFunctions::zipVectors(dsets, procs, dset_proc_pairs);
+  }
+  bool const has_multiple_dsets = dset_proc_pairs.size()>1;
+
+  // Configure output file name
+  std::string output_file;
+  extra_arguments.getNamedVal("output_file", output_file);
+  if (output_file==""){
+    if (has_multiple_dsets){
+      IVYerr << "Multiple data sets are passed. An output file identifier must be specified through the option 'output_file'." << endl;
+      assert(0);
+    }
+    output_file = proc;
+  }
+  if (nchunks>0) output_file = Form("%s_%i_of_%i", output_file.data(), ichunk, nchunks);
+
+  // Configure full output file names with path
+  TString stroutput = coutput_main + "/" + output_file.data() + ".root"; // This is the output ROOT file.
+  TString stroutput_log = coutput_main + "/log_" + output_file.data() + ".out"; // This is the output log file.
+  TString stroutput_err = coutput_main + "/log_" + output_file.data() + ".err"; // This is the error log file.
+  IVYout.open(stroutput_log.Data());
+  IVYerr.open(stroutput_err.Data());
 
   // Turn on individual files
   std::string input_files;
@@ -167,438 +198,504 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
   // Some advanced event filters
   eventFilter.setTrackDataEvents(true);
-  eventFilter.setCheckUniqueDataEvent(true);
+  eventFilter.setCheckUniqueDataEvent(has_multiple_dsets);
   eventFilter.setCheckHLTPathRunRanges(true);
 
   curdir->cd();
 
-  // Acquire input tree/chain
-  TString strinput = SampleHelpers::getInputDirectory() + "/" + SampleHelpers::getDataPeriod() + "/" + proc.data();
-  TString cinput = (input_files=="" ? strinput + "/*.root" : strinput + "/" + input_files.data());
-  IVYout << "Accessing input files " << cinput << "..." << endl;
-  BaseTree* tin = new BaseTree(cinput, "Events", "", "");
-  tin->sampleIdentifier = SampleHelpers::getSampleIdentifier(dset);
-  bool const isData = SampleHelpers::checkSampleIsData(tin->sampleIdentifier);
-  if (!isData && xsec<0.){
-    IVYerr << "xsec = " << xsec << " is not valid." << endl;
-    assert(0);
-  }
+  // We conclude the setup of event processing specifications and move on to I/O configuration next.
 
-  double sum_wgts = (isData ? 1 : 0);
-  if (!isData){
-    for (auto const& fname:SampleHelpers::lsdir(strinput.Data())){
-      if (input_files!="" && fname!=input_files.data()) continue;
-      if (fname.EndsWith(".root")){
-        TFile* ftmp = TFile::Open(strinput + "/" + fname, "read");
-        TH2D* hCounters = (TH2D*) ftmp->Get("Counters");
-        sum_wgts += hCounters->GetBinContent(1, 1);
-        ftmp->Close();
-      }
-    }
-  }
-  if (sum_wgts==0.){
-    IVYerr << "Sum of pre-recorded weights cannot be zero." << endl;
-    assert(0);
-  }
-
-  curdir->cd();
-
-  // Calculate the overall normalization scale on the events.
-  // Includes xsec (in fb), lumi (in fb-1), and 1/sum of weights in all of the MC.
-  // Data normalizaion factor is always 1.
-  double const lumi = SampleHelpers::getIntegratedLuminosity(SampleHelpers::getDataPeriod());
-  double norm_scale = (isData ? 1. : xsec * xsecScale * lumi)/sum_wgts;
-
-  IVYout << "Valid data periods for " << SampleHelpers::getDataPeriod() << ": " << SampleHelpers::getValidDataPeriods() << endl;
-  IVYout << "Integrated luminosity: " << lumi << endl;
-  IVYout << "Acquired a sum of weights of " << sum_wgts << ". Overall normalization will be " << norm_scale << "." << endl;
-
-  curdir->cd();
-
-  // Wrap the ivies around the input tree:
-  // Booking is basically SetBranchStatus+SetBranchAddress. You can book for as many trees as you would like.
-  // In some cases, bookBranches also informs the ivy dynamically that it is supposed to consume certain entries.
-  // For entries common to all years or any data or MC, the consumption information is handled in the ivy constructor already.
-  // None of these mean the ivy establishes its access to the input tree yet.
-  // Wrapping a tree informs the ivy that it is supposed to consume the booked entries from that particular tree.
-  // Without wrapping, you are not really accessing the entries from the input tree to construct the physics objects;
-  // all you would get are 0 electrons, 0 jets, everything failing event filters etc.
-  genInfoHandler.bookBranches(tin);
-  genInfoHandler.wrapTree(tin);
-
-  simEventHandler.bookBranches(tin);
-  simEventHandler.wrapTree(tin);
-
-  eventFilter.bookBranches(tin);
-  eventFilter.wrapTree(tin);
-
-  muonHandler.bookBranches(tin);
-  muonHandler.wrapTree(tin);
-
-  electronHandler.bookBranches(tin);
-  electronHandler.wrapTree(tin);
-
-  jetHandler.bookBranches(tin);
-  jetHandler.wrapTree(tin);
-
-  isotrackHandler.bookBranches(tin);
-  isotrackHandler.wrapTree(tin);
-
-  RunNumber_t* ptr_RunNumber = nullptr;
-  LuminosityBlock_t* ptr_LuminosityBlock = nullptr;
-  EventNumber_t* ptr_EventNumber = nullptr;
-  tin->bookBranch<EventNumber_t>("event", 0);
-  tin->getValRef("event", ptr_EventNumber);
-  if (isData){
-    tin->bookBranch<RunNumber_t>("run", 0);
-    tin->getValRef("run", ptr_RunNumber);
-    tin->bookBranch<LuminosityBlock_t>("luminosityBlock", 0);
-    tin->getValRef("luminosityBlock", ptr_LuminosityBlock);
-  }
-
-  curdir->cd();
-
+  // Open the output ROOT file
   SimpleEntry rcd_output;
   TFile* foutput = TFile::Open(stroutput, "recreate");
+  foutput->cd();
   BaseTree* tout = new BaseTree("Events");
   tout->setAutoSave(0);
   curdir->cd();
 
+  // Acquire input tree/chains
+  TString strinputdpdir = SampleHelpers::getDataPeriod();
+  if (SampleHelpers::testDataPeriodIsLikeData(SampleHelpers::getDataPeriod())){
+    auto const& dy = SampleHelpers::getDataYear();
+    if (dy==2016){
+      if (SampleHelpers::isAPV2016Affected(SampleHelpers::getDataPeriod())) strinputdpdir = Form("%i_APV", dy);
+      else strinputdpdir = Form("%i_NonAPV", dy);
+    }
+    else strinputdpdir = Form("%i", dy);
+  }
+
+  signed char is_sim_data_flag = -1; // =0 for sim, =1 for data
+  int nevents_total = 0;
+  std::vector<BaseTree*> tinlist; tinlist.reserve(dset_proc_pairs.size());
+  std::unordered_map<BaseTree*, double> tin_normScale_map;
+  for (auto const& dset_proc_pair:dset_proc_pairs){
+    TString strinput = SampleHelpers::getInputDirectory() + "/" + strinputdpdir + "/" + dset_proc_pair.second.data();
+    TString cinput = (input_files=="" ? strinput + "/*.root" : strinput + "/" + input_files.data());
+    IVYout << "Accessing input files " << cinput << "..." << endl;
+    BaseTree* tin = new BaseTree(cinput, "Events", "", "");
+    tin->sampleIdentifier = SampleHelpers::getSampleIdentifier(dset_proc_pair.first);
+    bool const isData = SampleHelpers::checkSampleIsData(tin->sampleIdentifier);
+    if (!isData){
+      if (xsec<0.){
+        IVYerr << "xsec = " << xsec << " is not valid." << endl;
+        assert(0);
+      }
+      if (has_multiple_dsets){
+        IVYerr << "Should not process multiple data sets in sim. mode. Aborting..." << endl;
+        assert(0);
+      }
+    }
+    if (is_sim_data_flag==-1) is_sim_data_flag = (isData ? 1 : 0);
+    else if (is_sim_data_flag != (isData ? 1 : 0)){
+      IVYerr << "Should not process data and simulation at the same time." << endl;
+      assert(0);
+    }
+
+    double sum_wgts = (isData ? 1 : 0);
+    if (!isData){
+      for (auto const& fname:SampleHelpers::lsdir(strinput.Data())){
+        if (input_files!="" && fname!=input_files.data()) continue;
+        if (fname.EndsWith(".root")){
+          TFile* ftmp = TFile::Open(strinput + "/" + fname, "read");
+          TH2D* hCounters = (TH2D*) ftmp->Get("Counters");
+          sum_wgts += hCounters->GetBinContent(1, 1);
+          ftmp->Close();
+        }
+      }
+    }
+    if (sum_wgts==0.){
+      IVYerr << "Sum of pre-recorded weights cannot be zero." << endl;
+      assert(0);
+    }
+
+    // Add the tree to the list of trees to process
+    tinlist.push_back(tin);
+
+    // Calculate the overall normalization scale on the events.
+    // Includes xsec (in fb), lumi (in fb-1), and 1/sum of weights in all of the MC.
+    // Data normalizaion factor is always 1.
+    double norm_scale = (isData ? 1. : xsec * xsecScale * lumi)/sum_wgts;
+    tin_normScale_map[tin] = norm_scale;
+    IVYout << "Acquired a sum of weights of " << sum_wgts << ". Overall normalization will be " << norm_scale << "." << endl;
+
+    nevents_total += tin->getNEvents();
+
+    curdir->cd();
+
+    // Book the necessary branches
+    genInfoHandler.bookBranches(tin);
+    simEventHandler.bookBranches(tin);
+    eventFilter.bookBranches(tin);
+    muonHandler.bookBranches(tin);
+    electronHandler.bookBranches(tin);
+    jetHandler.bookBranches(tin);
+    isotrackHandler.bookBranches(tin);
+
+    // Book a few additional branches
+    tin->bookBranch<EventNumber_t>("event", 0);
+    if (isData){
+      tin->bookBranch<RunNumber_t>("run", 0);
+      tin->bookBranch<LuminosityBlock_t>("luminosityBlock", 0);
+    }
+  }
+
+  curdir->cd();
+
+  // Prepare to loop!
   // Keep track of sums of weights
   SelectionTracker seltracker;
 
+  // Keep track of the traversed events
   bool firstOutputEvent = true;
-  unsigned int n_traversed = 0;
-  unsigned int n_recorded = 0;
-  int nEntries = tin->getNEvents();
-  IVYout << "Looping over " << nEntries << " events..." << endl;
-  for (int ev=0; ev<nEntries; ev++){
+  bool firstSyncObjectsOutputEvent = true;
+  int eventIndex_begin = -1;
+  int eventIndex_end = -1;
+  int eventIndex_tracker = 0;
+  splitInputEventsIntoChunks((is_sim_data_flag==1), nevents_total, ichunk, nchunks, eventIndex_begin, eventIndex_end);
+
+  for (auto const& tin:tinlist){
     if (SampleHelpers::doSignalInterrupt==1) break;
 
-    tin->getEvent(ev);
-    HelperFunctions::progressbar(ev, nEntries);
-    n_traversed++;
+    auto const& norm_scale = tin_normScale_map.find(tin)->second;
+    bool const isData = (is_sim_data_flag==1);
 
-    genInfoHandler.constructGenInfo();
-    auto const& genInfo = genInfoHandler.getGenInfo();
+    // Wrap the ivies around the input tree:
+    // Booking is basically SetBranchStatus+SetBranchAddress. You can book for as many trees as you would like.
+    // In some cases, bookBranches also informs the ivy dynamically that it is supposed to consume certain entries.
+    // For entries common to all years or any data or MC, the consumption information is handled in the ivy constructor already.
+    // None of these mean the ivy establishes its access to the input tree yet.
+    // Wrapping a tree informs the ivy that it is supposed to consume the booked entries from that particular tree.
+    // Without wrapping, you are not really accessing the entries from the input tree to construct the physics objects;
+    // all you would get are 0 electrons, 0 jets, everything failing event filters etc.
 
-    simEventHandler.constructSimEvent();
+    genInfoHandler.wrapTree(tin);
+    simEventHandler.wrapTree(tin);
+    eventFilter.wrapTree(tin);
+    muonHandler.wrapTree(tin);
+    electronHandler.wrapTree(tin);
+    jetHandler.wrapTree(tin);
+    isotrackHandler.wrapTree(tin);
 
-    double wgt = 1;
-    if (!isData){
-      double genwgt = 1;
-      genwgt = genInfo->getGenWeight(SystematicsHelpers::sNominal);
-
-      double puwgt = 1;
-      puwgt = simEventHandler.getPileUpWeight(SystematicsHelpers::sNominal);
-
-      wgt = genwgt * puwgt;
-
-      // Add L1 prefiring weight for 2016 and 2017
-      wgt *= simEventHandler.getL1PrefiringWeight(SystematicsHelpers::sNominal);
+    RunNumber_t* ptr_RunNumber = nullptr;
+    LuminosityBlock_t* ptr_LuminosityBlock = nullptr;
+    EventNumber_t* ptr_EventNumber = nullptr;
+    tin->getValRef("event", ptr_EventNumber);
+    if (isData){
+      tin->getValRef("run", ptr_RunNumber);
+      tin->getValRef("luminosityBlock", ptr_LuminosityBlock);
     }
-    wgt *= norm_scale;
 
-    muonHandler.constructMuons();
-    electronHandler.constructElectrons();
-    jetHandler.constructJetMET(&simEventHandler);
+    unsigned int n_traversed = 0;
+    unsigned int n_recorded = 0;
+    int nEntries = tin->getNEvents();
+    IVYout << "Looping over " << nEntries << " events from " << tin->sampleIdentifier << "..." << endl;
+    for (int ev=0; ev<nEntries; ev++){
+      if (SampleHelpers::doSignalInterrupt==1) break;
 
-    particleDisambiguator.disambiguateParticles(&muonHandler, &electronHandler, nullptr, &jetHandler);
+      bool doAccumulate = true;
+      if (isData){
+        if (eventIndex_begin>0 || eventIndex_end>0) doAccumulate = (
+          tin->updateBranch(ev, "run", false)
+          &&
+          (eventIndex_begin<0 || (*ptr_RunNumber)>=static_cast<RunNumber_t>(eventIndex_begin))
+          &&
+          (eventIndex_end<0 || (*ptr_RunNumber)<=static_cast<RunNumber_t>(eventIndex_end))
+          );
+      }
+      else doAccumulate = (
+        (eventIndex_begin<0 || eventIndex_tracker>=static_cast<int>(eventIndex_begin))
+        &&
+        (eventIndex_end<0 || eventIndex_tracker<static_cast<int>(eventIndex_end))
+        );
 
-    // Muon sync. write variables
+      eventIndex_tracker++;
+      if (!doAccumulate) continue;
+
+      tin->getEvent(ev);
+      HelperFunctions::progressbar(ev, nEntries);
+      n_traversed++;
+
+      genInfoHandler.constructGenInfo();
+      auto const& genInfo = genInfoHandler.getGenInfo();
+
+      simEventHandler.constructSimEvent();
+
+      double wgt = 1;
+      if (!isData){
+        double genwgt = 1;
+        genwgt = genInfo->getGenWeight(SystematicsHelpers::sNominal);
+
+        double puwgt = 1;
+        puwgt = simEventHandler.getPileUpWeight(SystematicsHelpers::sNominal);
+
+        wgt = genwgt * puwgt;
+
+        // Add L1 prefiring weight for 2016 and 2017
+        wgt *= simEventHandler.getL1PrefiringWeight(SystematicsHelpers::sNominal);
+      }
+      wgt *= norm_scale;
+
+      muonHandler.constructMuons();
+      electronHandler.constructElectrons();
+      jetHandler.constructJetMET(&simEventHandler);
+
+      particleDisambiguator.disambiguateParticles(&muonHandler, &electronHandler, nullptr, &jetHandler);
+
+      // Muon sync. write variables
 #define SYNC_MUONS_BRANCH_VECTOR_COMMANDS \
-    SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, muons, is_loose) \
-    SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, muons, is_fakeable) \
-    SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, muons, is_tight) \
-    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, pt) \
-    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, eta) \
-    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, phi) \
-    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, mass) \
-    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, ptrel_final) \
-    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, ptratio_final) \
-    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, bscore) \
-    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, extMVAscore) \
-    MUON_EXTRA_VARIABLES
-    // Electron sync. write variables
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, muons, is_loose) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, muons, is_fakeable) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, muons, is_tight) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, pt) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, eta) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, phi) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, mass) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, ptrel_final) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, ptratio_final) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, bscore) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, extMVAscore) \
+      MUON_EXTRA_VARIABLES
+      // Electron sync. write variables
 #define SYNC_ELECTRONS_BRANCH_VECTOR_COMMANDS \
-    SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, electrons, is_loose) \
-    SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, electrons, is_fakeable) \
-    SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, electrons, is_tight) \
-    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, pt) \
-    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, eta) \
-    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, etaSC) \
-    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, phi) \
-    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, mass) \
-    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, ptrel_final) \
-    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, ptratio_final) \
-    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, mvaFall17V2noIso_raw) \
-    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, bscore) \
-    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, extMVAscore) \
-    ELECTRON_EXTRA_VARIABLES
-    // ak4jet sync. write variables
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, electrons, is_loose) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, electrons, is_fakeable) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, electrons, is_tight) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, pt) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, eta) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, etaSC) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, phi) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, mass) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, ptrel_final) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, ptratio_final) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, mvaFall17V2noIso_raw) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, bscore) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, extMVAscore) \
+      ELECTRON_EXTRA_VARIABLES
+      // ak4jet sync. write variables
 #define SYNC_AK4JETS_BRANCH_VECTOR_COMMANDS \
-    SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, ak4jets, is_tight) \
-    SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, ak4jets, is_btagged) \
-    SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, ak4jets, is_clean) \
-    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, ak4jets, pt) \
-    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, ak4jets, eta) \
-    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, ak4jets, phi) \
-    SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, ak4jets, mass) \
-    AK4JET_EXTRA_INPUT_VARIABLES
-    // All sync. write objects
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, ak4jets, is_tight) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, ak4jets, is_btagged) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, ak4jets, is_clean) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, ak4jets, pt) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, ak4jets, eta) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, ak4jets, phi) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, ak4jets, mass) \
+      AK4JET_EXTRA_INPUT_VARIABLES
+      // All sync. write objects
 #define SYNC_ALLOBJS_BRANCH_VECTOR_COMMANDS \
-    SYNC_MUONS_BRANCH_VECTOR_COMMANDS \
-    SYNC_ELECTRONS_BRANCH_VECTOR_COMMANDS \
-    SYNC_AK4JETS_BRANCH_VECTOR_COMMANDS
+      SYNC_MUONS_BRANCH_VECTOR_COMMANDS \
+      SYNC_ELECTRONS_BRANCH_VECTOR_COMMANDS \
+      SYNC_AK4JETS_BRANCH_VECTOR_COMMANDS
 #define SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, COLLNAME, NAME) std::vector<TYPE> COLLNAME##_##NAME;
 #define MUON_VARIABLE(TYPE, NAME, DEFVAL) SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, muons, NAME)
 #define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, electrons, NAME)
 #define AK4JET_VARIABLE(TYPE, NAME, DEFVAL) SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, ak4jets, NAME)
-    SYNC_ALLOBJS_BRANCH_VECTOR_COMMANDS;
+      SYNC_ALLOBJS_BRANCH_VECTOR_COMMANDS;
 #undef AK4JET_VARIABLE
 #undef ELECTRON_VARIABLE
 #undef MUON_VARIABLE
 #undef SYNC_OBJ_BRANCH_VECTOR_COMMAND
 
-    auto const& muons = muonHandler.getProducts();
-    std::vector<MuonObject*> muons_selected;
-    std::vector<MuonObject*> muons_tight;
-    std::vector<MuonObject*> muons_fakeable;
-    std::vector<MuonObject*> muons_loose;
-    for (auto const& part:muons){
-      float pt = part->pt();
-      float eta = part->eta();
-      float phi = part->phi();
-      float mass = part->mass();
+      auto const& muons = muonHandler.getProducts();
+      std::vector<MuonObject*> muons_selected;
+      std::vector<MuonObject*> muons_tight;
+      std::vector<MuonObject*> muons_fakeable;
+      std::vector<MuonObject*> muons_loose;
+      for (auto const& part:muons){
+        float pt = part->pt();
+        float eta = part->eta();
+        float phi = part->phi();
+        float mass = part->mass();
 
-      bool is_tight = false;
-      bool is_fakeable = false;
-      bool is_loose = false;
+        bool is_tight = false;
+        bool is_fakeable = false;
+        bool is_loose = false;
 
-      if (ParticleSelectionHelpers::isTightParticle(part)){
-        muons_tight.push_back(part);
-        is_loose = is_fakeable = is_tight = true;
-      }
-      else if (ParticleSelectionHelpers::isFakeableParticle(part)){
-        muons_fakeable.push_back(part);
-        is_loose = is_fakeable = true;
-      }
-      else if (ParticleSelectionHelpers::isLooseParticle(part)){
-        muons_loose.push_back(part);
-        is_loose = true;
-      }
+        if (ParticleSelectionHelpers::isTightParticle(part)){
+          muons_tight.push_back(part);
+          is_loose = is_fakeable = is_tight = true;
+        }
+        else if (ParticleSelectionHelpers::isFakeableParticle(part)){
+          muons_fakeable.push_back(part);
+          is_loose = is_fakeable = true;
+        }
+        else if (ParticleSelectionHelpers::isLooseParticle(part)){
+          muons_loose.push_back(part);
+          is_loose = true;
+        }
 
-      if (!is_loose) continue;
+        if (!is_loose) continue;
 
-      float ptrel_final = part->ptrel();
-      float ptratio_final = part->ptratio();
+        float ptrel_final = part->ptrel();
+        float ptratio_final = part->ptratio();
 
-      float extMVAscore=-99;
-      bool has_extMVAscore = part->getExternalMVAScore(MuonSelectionHelpers::selection_type, extMVAscore);
+        float extMVAscore=-99;
+        bool has_extMVAscore = part->getExternalMVAScore(MuonSelectionHelpers::selection_type, extMVAscore);
 
-      float bscore = 0;
-      AK4JetObject* mother = nullptr;
-      for (auto const& mom:part->getMothers()){
-        mother = dynamic_cast<AK4JetObject*>(mom);
-        if (mother) break;
-      }
-      if (mother) bscore = mother->extras.btagDeepFlavB;
+        float bscore = 0;
+        AK4JetObject* mother = nullptr;
+        for (auto const& mom:part->getMothers()){
+          mother = dynamic_cast<AK4JetObject*>(mom);
+          if (mother) break;
+        }
+        if (mother) bscore = mother->extras.btagDeepFlavB;
 
 #define SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, COLLNAME, NAME) COLLNAME##_##NAME.push_back(NAME);
 #define MUON_VARIABLE(TYPE, NAME, DEFVAL) muons_##NAME.push_back(part->extras.NAME);
-      SYNC_MUONS_BRANCH_VECTOR_COMMANDS;
+        SYNC_MUONS_BRANCH_VECTOR_COMMANDS;
 #undef MUON_VARIABLE
 #undef SYNC_OBJ_BRANCH_VECTOR_COMMAND
-    }
-    HelperFunctions::appendVector(muons_selected, muons_tight);
-    HelperFunctions::appendVector(muons_selected, muons_fakeable);
-    HelperFunctions::appendVector(muons_selected, muons_loose);
-
-    auto const& electrons = electronHandler.getProducts();
-    std::vector<ElectronObject*> electrons_selected;
-    std::vector<ElectronObject*> electrons_tight;
-    std::vector<ElectronObject*> electrons_fakeable;
-    std::vector<ElectronObject*> electrons_loose;
-    for (auto const& part:electrons){
-      float pt = part->pt();
-      float eta = part->eta();
-      float etaSC = part->etaSC();
-      float phi = part->phi();
-      float mass = part->mass();
-
-      bool is_tight = false;
-      bool is_fakeable = false;
-      bool is_loose = false;
-
-      if (ParticleSelectionHelpers::isTightParticle(part)){
-        electrons_tight.push_back(part);
-        is_loose = is_fakeable = is_tight = true;
       }
-      else if (ParticleSelectionHelpers::isFakeableParticle(part)){
-        electrons_fakeable.push_back(part);
-        is_loose = is_fakeable = true;
-      }
-      else if (ParticleSelectionHelpers::isLooseParticle(part)){
-        electrons_loose.push_back(part);
-        is_loose = true;
-      }
+      HelperFunctions::appendVector(muons_selected, muons_tight);
+      HelperFunctions::appendVector(muons_selected, muons_fakeable);
+      HelperFunctions::appendVector(muons_selected, muons_loose);
 
-      if (!is_loose) continue;
+      auto const& electrons = electronHandler.getProducts();
+      std::vector<ElectronObject*> electrons_selected;
+      std::vector<ElectronObject*> electrons_tight;
+      std::vector<ElectronObject*> electrons_fakeable;
+      std::vector<ElectronObject*> electrons_loose;
+      for (auto const& part:electrons){
+        float pt = part->pt();
+        float eta = part->eta();
+        float etaSC = part->etaSC();
+        float phi = part->phi();
+        float mass = part->mass();
 
-      float mvaFall17V2noIso_raw = 0.5 * std::log((1. + part->extras.mvaFall17V2noIso)/(1. - part->extras.mvaFall17V2noIso));
-      float ptrel_final = part->ptrel();
-      float ptratio_final = part->ptratio();
+        bool is_tight = false;
+        bool is_fakeable = false;
+        bool is_loose = false;
 
-      float extMVAscore=-99;
-      bool has_extMVAscore = part->getExternalMVAScore(ElectronSelectionHelpers::selection_type, extMVAscore);
+        if (ParticleSelectionHelpers::isTightParticle(part)){
+          electrons_tight.push_back(part);
+          is_loose = is_fakeable = is_tight = true;
+        }
+        else if (ParticleSelectionHelpers::isFakeableParticle(part)){
+          electrons_fakeable.push_back(part);
+          is_loose = is_fakeable = true;
+        }
+        else if (ParticleSelectionHelpers::isLooseParticle(part)){
+          electrons_loose.push_back(part);
+          is_loose = true;
+        }
 
-      float bscore = 0;
-      AK4JetObject* mother = nullptr;
-      for (auto const& mom:part->getMothers()){
-        mother = dynamic_cast<AK4JetObject*>(mom);
-        if (mother) break;
-      }
-      if (mother) bscore = mother->extras.btagDeepFlavB;
+        if (!is_loose) continue;
+
+        float mvaFall17V2noIso_raw = 0.5 * std::log((1. + part->extras.mvaFall17V2noIso)/(1. - part->extras.mvaFall17V2noIso));
+        float ptrel_final = part->ptrel();
+        float ptratio_final = part->ptratio();
+
+        float extMVAscore=-99;
+        bool has_extMVAscore = part->getExternalMVAScore(ElectronSelectionHelpers::selection_type, extMVAscore);
+
+        float bscore = 0;
+        AK4JetObject* mother = nullptr;
+        for (auto const& mom:part->getMothers()){
+          mother = dynamic_cast<AK4JetObject*>(mom);
+          if (mother) break;
+        }
+        if (mother) bscore = mother->extras.btagDeepFlavB;
 
 #define SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, COLLNAME, NAME) COLLNAME##_##NAME.push_back(NAME);
 #define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) electrons_##NAME.push_back(part->extras.NAME);
-      SYNC_ELECTRONS_BRANCH_VECTOR_COMMANDS;
+        SYNC_ELECTRONS_BRANCH_VECTOR_COMMANDS;
 #undef ELECTRON_VARIABLE
 #undef SYNC_OBJ_BRANCH_VECTOR_COMMAND
-    }
-    HelperFunctions::appendVector(electrons_selected, electrons_tight);
-    HelperFunctions::appendVector(electrons_selected, electrons_fakeable);
-    HelperFunctions::appendVector(electrons_selected, electrons_loose);
+      }
+      HelperFunctions::appendVector(electrons_selected, electrons_tight);
+      HelperFunctions::appendVector(electrons_selected, electrons_fakeable);
+      HelperFunctions::appendVector(electrons_selected, electrons_loose);
 
-    unsigned int const nleptons_tight = muons_tight.size() + electrons_tight.size();
-    unsigned int const nleptons_fakeable = muons_fakeable.size() + electrons_fakeable.size();
-    unsigned int const nleptons_loose = muons_loose.size() + electrons_loose.size();
-    unsigned int const nleptons_selected = nleptons_tight + nleptons_fakeable + nleptons_loose;
+      unsigned int const nleptons_tight = muons_tight.size() + electrons_tight.size();
+      unsigned int const nleptons_fakeable = muons_fakeable.size() + electrons_fakeable.size();
+      unsigned int const nleptons_loose = muons_loose.size() + electrons_loose.size();
+      unsigned int const nleptons_selected = nleptons_tight + nleptons_fakeable + nleptons_loose;
 
-    auto const& ak4jets = jetHandler.getAK4Jets();
-    unsigned int nak4jets_tight_pt25_etaCentral = 0;
-    for (auto const& jet:ak4jets){
-      float pt = jet->pt();
-      float eta = jet->eta();
-      float phi = jet->phi();
-      float mass = jet->mass();
+      auto const& ak4jets = jetHandler.getAK4Jets();
+      unsigned int nak4jets_tight_pt25_etaCentral = 0;
+      for (auto const& jet:ak4jets){
+        float pt = jet->pt();
+        float eta = jet->eta();
+        float phi = jet->phi();
+        float mass = jet->mass();
 
-      bool is_tight = ParticleSelectionHelpers::isTightJet(jet);
-      bool is_btagged = jet->testSelectionBit(bit_preselection_btag);
-      constexpr bool is_clean = true;
+        bool is_tight = ParticleSelectionHelpers::isTightJet(jet);
+        bool is_btagged = jet->testSelectionBit(bit_preselection_btag);
+        constexpr bool is_clean = true;
 
 #define SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, COLLNAME, NAME) COLLNAME##_##NAME.push_back(NAME);
 #define AK4JET_VARIABLE(TYPE, NAME, DEFVAL) ak4jets_##NAME.push_back(jet->extras.NAME);
-      SYNC_AK4JETS_BRANCH_VECTOR_COMMANDS;
+        SYNC_AK4JETS_BRANCH_VECTOR_COMMANDS;
 #undef AK4JET_VARIABLE
 #undef SYNC_OBJ_BRANCH_VECTOR_COMMAND
 
-      if (is_tight && pt>=25. && std::abs(eta)<absEtaThr_ak4jets) nak4jets_tight_pt25_etaCentral++;
-    }
-
-    // MET info
-    auto const& eventmet = jetHandler.getPFMET();
-
-
-    // BEGIN PRESELECTION
-    seltracker.accumulate("Full sample", wgt);
-
-    if ((nleptons_tight + nleptons_fakeable)!=1) continue;
-    seltracker.accumulate("Has exactly one fakeable lepton", wgt);
-
-    if (nak4jets_tight_pt25_etaCentral==0) continue;
-    seltracker.accumulate("Has at least one tight jet with pT>25 GeV and central eta", wgt);
-
-    // Put event filters to the last because data has unique event tracking enabled.
-    eventFilter.constructFilters(&simEventHandler);
-    //if (!eventFilter.test2018HEMFilter(&simEventHandler, nullptr, nullptr, &ak4jets)) continue; // Test for 2018 partial HEM failure
-    //if (!eventFilter.test2018HEMFilter(&simEventHandler, &electrons, nullptr, nullptr)) continue; // Test for 2018 partial HEM failure
-    //seltracker.accumulate("Pass HEM veto", wgt);
-    if (!eventFilter.passMETFilters()) continue; // Test for MET filters
-    seltracker.accumulate("Pass MET filters", wgt);
-    if (!eventFilter.isUniqueDataEvent()) continue; // Test if the data event is unique (i.e., dorky). Does not do anything in the MC.
-    seltracker.accumulate("Pass unique event check", wgt);
-
-    // Triggers
-    bool pass_any_trigger = false;
-    bool pass_any_trigger_TOmatched = false;
-    for (auto const& hlt_type_prop_pair:triggerPropsCheckList_SingleLepton){
-      std::string const& hltname = hlt_type_prop_pair.second->getName();
-      std::vector< std::pair<TriggerHelpers::TriggerType, HLTTriggerPathProperties const*> > dummy_type_prop_vector{ hlt_type_prop_pair };
-      float event_weight_trigger = eventFilter.getTriggerWeight(std::vector<std::string>{hltname});
-      float event_weight_trigger_TOmatched = eventFilter.getTriggerWeight(
-        dummy_type_prop_vector,
-        &muons, &electrons, nullptr, &ak4jets, nullptr, nullptr
-      );
-      pass_any_trigger |= (event_weight_trigger>0.);
-      pass_any_trigger_TOmatched |= (event_weight_trigger_TOmatched>0.);
-
-      std::string hltname_pruned = hltname;
-      {
-        auto ipos = hltname_pruned.find_last_of("_v");
-        if (ipos!=std::string::npos) hltname_pruned = hltname_pruned.substr(0, ipos-1);
+        if (is_tight && pt>=25. && std::abs(eta)<absEtaThr_ak4jets) nak4jets_tight_pt25_etaCentral++;
       }
-      rcd_output.setNamedVal(Form("event_wgt_trigger_%s", hltname_pruned.data()), event_weight_trigger);
-      rcd_output.setNamedVal(Form("event_wgt_trigger_TOmatched_%s", hltname_pruned.data()), event_weight_trigger_TOmatched);
-    }
-    if (!pass_any_trigger) continue;
-    seltracker.accumulate("Pass any trigger", wgt);
-    seltracker.accumulate("Pass triggers after TO matching", static_cast<float>(pass_any_trigger_TOmatched)*wgt);
 
-    /*************************************************/
-    /* NO MORE CALLS TO SELECTION BEYOND THIS POINT! */
-    /*************************************************/
-    // Write output
-    rcd_output.setNamedVal("event_wgt", wgt);
+      // MET info
+      auto const& eventmet = jetHandler.getPFMET();
 
-    rcd_output.setNamedVal("EventNumber", *ptr_EventNumber);
-    if (isData){
-      rcd_output.setNamedVal("RunNumber", *ptr_RunNumber);
-      rcd_output.setNamedVal("LuminosityBlock", *ptr_LuminosityBlock);
-    }
-    rcd_output.setNamedVal("PFMET_pt_final", eventmet->pt());
-    rcd_output.setNamedVal("PFMET_phi_final", eventmet->phi());
+
+      // BEGIN PRESELECTION
+      seltracker.accumulate("Full sample", wgt);
+
+      if ((nleptons_tight + nleptons_fakeable)!=1) continue;
+      seltracker.accumulate("Has exactly one fakeable lepton", wgt);
+
+      if (nak4jets_tight_pt25_etaCentral==0) continue;
+      seltracker.accumulate("Has at least one tight jet with pT>25 GeV and central eta", wgt);
+
+      // Put event filters to the last because data has unique event tracking enabled.
+      eventFilter.constructFilters(&simEventHandler);
+      //if (!eventFilter.test2018HEMFilter(&simEventHandler, nullptr, nullptr, &ak4jets)) continue; // Test for 2018 partial HEM failure
+      //if (!eventFilter.test2018HEMFilter(&simEventHandler, &electrons, nullptr, nullptr)) continue; // Test for 2018 partial HEM failure
+      //seltracker.accumulate("Pass HEM veto", wgt);
+      if (!eventFilter.passMETFilters()) continue; // Test for MET filters
+      seltracker.accumulate("Pass MET filters", wgt);
+      if (!eventFilter.isUniqueDataEvent()) continue; // Test if the data event is unique (i.e., dorky). Does not do anything in the MC.
+      seltracker.accumulate("Pass unique event check", wgt);
+
+      // Triggers
+      bool pass_any_trigger = false;
+      bool pass_any_trigger_TOmatched = false;
+      for (auto const& hlt_type_prop_pair:triggerPropsCheckList_SingleLepton){
+        std::string const& hltname = hlt_type_prop_pair.second->getName();
+        std::vector< std::pair<TriggerHelpers::TriggerType, HLTTriggerPathProperties const*> > dummy_type_prop_vector{ hlt_type_prop_pair };
+        float event_weight_trigger = eventFilter.getTriggerWeight(std::vector<std::string>{hltname});
+        float event_weight_trigger_TOmatched = eventFilter.getTriggerWeight(
+          dummy_type_prop_vector,
+          &muons, &electrons, nullptr, &ak4jets, nullptr, nullptr
+        );
+        pass_any_trigger |= (event_weight_trigger>0.);
+        pass_any_trigger_TOmatched |= (event_weight_trigger_TOmatched>0.);
+
+        std::string hltname_pruned = hltname;
+        {
+          auto ipos = hltname_pruned.find_last_of("_v");
+          if (ipos!=std::string::npos) hltname_pruned = hltname_pruned.substr(0, ipos-1);
+        }
+        rcd_output.setNamedVal(Form("event_wgt_trigger_%s", hltname_pruned.data()), event_weight_trigger);
+        rcd_output.setNamedVal(Form("event_wgt_trigger_TOmatched_%s", hltname_pruned.data()), event_weight_trigger_TOmatched);
+      }
+      if (!pass_any_trigger) continue;
+      seltracker.accumulate("Pass any trigger", wgt);
+      seltracker.accumulate("Pass triggers after TO matching", static_cast<float>(pass_any_trigger_TOmatched)*wgt);
+
+      /*************************************************/
+      /* NO MORE CALLS TO SELECTION BEYOND THIS POINT! */
+      /*************************************************/
+      // Write output
+      rcd_output.setNamedVal("event_wgt", wgt);
+
+      rcd_output.setNamedVal("EventNumber", *ptr_EventNumber);
+      if (isData){
+        rcd_output.setNamedVal("RunNumber", *ptr_RunNumber);
+        rcd_output.setNamedVal("LuminosityBlock", *ptr_LuminosityBlock);
+      }
+      rcd_output.setNamedVal("PFMET_pt_final", eventmet->pt());
+      rcd_output.setNamedVal("PFMET_phi_final", eventmet->phi());
 
 #define SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, COLLNAME, NAME) rcd_output.setNamedVal(Form("%s_%s", #COLLNAME, #NAME), COLLNAME##_##NAME);
 #define MUON_VARIABLE(TYPE, NAME, DEFVAL) SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, muons, NAME)
 #define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, electrons, NAME)
 #define AK4JET_VARIABLE(TYPE, NAME, DEFVAL) SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, ak4jets, NAME)
-    SYNC_ALLOBJS_BRANCH_VECTOR_COMMANDS;
+      SYNC_ALLOBJS_BRANCH_VECTOR_COMMANDS;
 #undef AK4JET_VARIABLE
 #undef ELECTRON_VARIABLE
 #undef MUON_VARIABLE
 #undef SYNC_OBJ_BRANCH_VECTOR_COMMAND
 
-    if (firstOutputEvent){
+      if (firstOutputEvent){
 #define SIMPLE_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.named##name_t##s.begin(); itb!=rcd_output.named##name_t##s.end(); itb++) tout->putBranch(itb->first, itb->second);
 #define VECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.namedV##name_t##s.begin(); itb!=rcd_output.namedV##name_t##s.end(); itb++) tout->putBranch(itb->first, &(itb->second));
 #define DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.namedVV##name_t##s.begin(); itb!=rcd_output.namedVV##name_t##s.end(); itb++) tout->putBranch(itb->first, &(itb->second));
+        SIMPLE_DATA_OUTPUT_DIRECTIVES;
+        VECTOR_DATA_OUTPUT_DIRECTIVES;
+        DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVES;
+#undef SIMPLE_DATA_OUTPUT_DIRECTIVE
+#undef VECTOR_DATA_OUTPUT_DIRECTIVE
+#undef DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE
+      }
+
+      // Record whatever is in rcd_output into the tree.
+#define SIMPLE_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.named##name_t##s.begin(); itb!=rcd_output.named##name_t##s.end(); itb++) tout->setVal(itb->first, itb->second);
+#define VECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.namedV##name_t##s.begin(); itb!=rcd_output.namedV##name_t##s.end(); itb++) tout->setVal(itb->first, &(itb->second));
+#define DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.namedVV##name_t##s.begin(); itb!=rcd_output.namedVV##name_t##s.end(); itb++) tout->setVal(itb->first, &(itb->second));
       SIMPLE_DATA_OUTPUT_DIRECTIVES;
       VECTOR_DATA_OUTPUT_DIRECTIVES;
       DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVES;
 #undef SIMPLE_DATA_OUTPUT_DIRECTIVE
 #undef VECTOR_DATA_OUTPUT_DIRECTIVE
 #undef DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE
+
+      tout->fill();
+      n_recorded++;
+
+      if (firstOutputEvent) firstOutputEvent = false;
     }
 
-    // Record whatever is in rcd_output into the tree.
-#define SIMPLE_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.named##name_t##s.begin(); itb!=rcd_output.named##name_t##s.end(); itb++) tout->setVal(itb->first, itb->second);
-#define VECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.namedV##name_t##s.begin(); itb!=rcd_output.namedV##name_t##s.end(); itb++) tout->setVal(itb->first, &(itb->second));
-#define DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.namedVV##name_t##s.begin(); itb!=rcd_output.namedVV##name_t##s.end(); itb++) tout->setVal(itb->first, &(itb->second));
-    SIMPLE_DATA_OUTPUT_DIRECTIVES;
-    VECTOR_DATA_OUTPUT_DIRECTIVES;
-    DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVES;
-#undef SIMPLE_DATA_OUTPUT_DIRECTIVE
-#undef VECTOR_DATA_OUTPUT_DIRECTIVE
-#undef DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE
-
-    tout->fill();
-    n_recorded++;
-
-    if (firstOutputEvent) firstOutputEvent = false;
+    IVYout << "Number of events recorded: " << n_recorded << " / " << n_traversed << " / " << nEntries << endl;
   }
-
-  IVYout << "Number of events recorded: " << n_recorded << " / " << n_traversed << " / " << nEntries << endl;
   seltracker.print();
 
   tout->writeToFile(foutput);
@@ -606,14 +703,16 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   foutput->Close();
 
   curdir->cd();
-
-  delete tin;
-
-  IVYout.close();
+  for (auto& tin:tinlist) delete tin;;
 
   // Split large files, and add them to the transfer queue from Condor to the target site
   // Does nothing if you are running the program locally because your output is already in the desired location.
   SampleHelpers::splitFileAndAddForTransfer(stroutput);
+
+  // Close the output and error log files
+  IVYout.close();
+  IVYerr.close();
+
   return 0;
 }
 
@@ -621,6 +720,7 @@ int main(int argc, char** argv){
   constexpr int iarg_offset=1; // argv[0]==[Executable name]
 
   bool print_help=false, has_help=false;
+  int ichunk=0, nchunks=0;
   std::string str_dset;
   std::string str_proc;
   std::string str_period;
@@ -653,7 +753,7 @@ int main(int argc, char** argv){
       }
       extra_arguments.setNamedVal(wish, value);
     }
-    else if (wish=="muon_id" || wish=="electron_id" || wish=="btag") extra_arguments.setNamedVal(wish, value);
+    else if (wish=="muon_id" || wish=="electron_id" || wish=="btag" || wish=="output_file") extra_arguments.setNamedVal(wish, value);
     else if (wish=="xsec"){
       if (xsec<0.) xsec = 1;
       xsec *= std::stod(value);
@@ -662,6 +762,8 @@ int main(int argc, char** argv){
       if (xsec<0.) xsec = 1;
       xsec *= std::stod(value);
     }
+    else if (wish=="nchunks") nchunks = std::stoi(value);
+    else if (wish=="ichunk") ichunk = std::stoi(value);
     else{
       IVYerr << "ERROR: Unknown argument " << wish << "=" << value << endl;
       print_help=true;
@@ -683,6 +785,11 @@ int main(int argc, char** argv){
     IVYout << "- output_tag: Version of the output. Mandatory.\n";
     IVYout << "- xsec: Cross section value. Mandatory in the MC.\n";
     IVYout << "- BR: BR value. Mandatory in the MC.\n";
+    IVYout << "- nchunks: Number of splits of the input. Optional. Input splitting is activated only if nchunks>0.\n";
+    IVYout << "- ichunk: Index of split input split to run. Optional. The index should be in the range [0, nchunks-1].\n";
+    IVYout
+      << "- output_file: Identifier of the output file if different from 'short_name'. Optional.\n"
+      << "  The full output file name is '[identifier](_[ichunk]_[nchunks]).root.'\n";
     IVYout << "- input_files: Input files to run. Optional. Default is to run on all files.\n";
     IVYout
       << "- shorthand_Run2_UL_proposal_config: Shorthand flag for the switches for the Run 2 UL analysis proposal:\n"
@@ -704,5 +811,5 @@ int main(int argc, char** argv){
 
   SampleHelpers::configure(str_period, Form("skims:%s", str_tag.data()), HostHelpers::kUCSDT2);
 
-  return ScanChain(str_outtag, str_dset, str_proc, xsec, extra_arguments);
+  return ScanChain(str_outtag, str_dset, str_proc, xsec, ichunk, nchunks, extra_arguments);
 }

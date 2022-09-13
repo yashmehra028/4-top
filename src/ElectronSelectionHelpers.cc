@@ -117,6 +117,10 @@ void ElectronSelectionHelpers::loadMVA(){
     }
     else if (dy==2017) fname += "17";
     else if (dy==2018) fname += "18";
+    else if (dy==2022){
+      fname += "18"; // FIXME: Need to be changed in the future.
+      IVYout << "ElectronSelectionHelpers::loadMVA: WARNING! Using the MVA for year 2018 in place of " << dy << "." << endl;
+    }
     else{
       IVYerr << "ElectronSelectionHelpers::loadMVA: Year " << dy << " is not implemented for type " << selection_type << "." << endl;
       assert(0);
@@ -155,10 +159,13 @@ void ElectronSelectionHelpers::storeMVAScores(ElectronObject& part){
 }
 float ElectronSelectionHelpers::computeMVAScore(ElectronObject const& part, SelectionType const& type){
   float res = -999;
-  if (!isMVASelection(type) || part.getExternalMVAScore(static_cast<int>(type), res)) return res;
+  if (!isMVASelection(type) || !part.testSelectionBit(kKinOnly_Loose) || part.getExternalMVAScore(static_cast<int>(type), res)) return res;
 
   auto it_seltype_mvareader_map = seltype_mvareader_map.find(type);
-  if (it_seltype_mvareader_map==seltype_mvareader_map.end()) seltype_mvareader_map[type] = std::shared_ptr<IvyXGBoostInterface>();
+  if (it_seltype_mvareader_map==seltype_mvareader_map.end()){
+    IVYerr << "ElectronSelectionHelpers::computeMVAScore: External MVA for selection type " << type << " is not set up." << endl;
+    assert(0);
+  }
   auto& mvareader_xgb = seltype_mvareader_map.find(type)->second;
   if (mvareader_xgb){
     std::unordered_map<TString, IvyMLWrapper::IvyMLDataType_t> input_vars;
@@ -185,7 +192,7 @@ float ElectronSelectionHelpers::computeMVAScore(ElectronObject const& part, Sele
       ELECTRON_EXTRA_VARIABLES
 #undef ELECTRON_VARIABLE
       else{
-        IVYerr << "ElectronSelectionHelpers::evalMVA: Input variable name " << vname << " does not match to a corresponding variable. Please fix the implementation." << endl;
+        IVYerr << "ElectronSelectionHelpers::computeMVAScore: Input variable name " << vname << " does not match to a corresponding variable. Please fix the implementation." << endl;
         assert(0);
       }
     }
@@ -761,6 +768,9 @@ void ElectronSelectionHelpers::setSelectionBits(ElectronObject& part){
   part.setSelectionBit(kKinOnly_Fakeable, testKin_Fakeable(part));
   part.setSelectionBit(kKinOnly_Tight, testKin_Tight(part));
   part.setSelectionBit(kKinOnly, testKin(part));
+
+  // Store MVA scores if particle passes kinematic selections
+  storeMVAScores(part);
 
   part.setSelectionBit(kPreselectionLoose_NoIsoTrig, testPreselectionLoose_NoIsoTrig(part));
   part.setSelectionBit(kPreselectionLoose_IsoTrig, testPreselectionLoose_IsoTrig(part));

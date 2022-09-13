@@ -46,10 +46,10 @@ struct SelectionTracker{
   std::vector<TString> ordered_reqs;
   std::unordered_map<TString, std::pair<double, double>> req_sumws_pair_map;
 
-  void accumulate(TString const& strsel, double const& wgt);
+  void accumulate(TString const& strsel, double const& wgt, bool printPass=false);
   void print() const;
 };
-void SelectionTracker::accumulate(TString const& strsel, double const& wgt){
+void SelectionTracker::accumulate(TString const& strsel, double const& wgt, bool printPass){
   if (!HelperFunctions::checkListVariable(ordered_reqs, strsel)){
     req_sumws_pair_map[strsel] = std::pair<double, double>(0, 0);
     ordered_reqs.push_back(strsel);
@@ -57,6 +57,7 @@ void SelectionTracker::accumulate(TString const& strsel, double const& wgt){
   auto it_req_sumws_pair = req_sumws_pair_map.find(strsel);
   it_req_sumws_pair->second.first += wgt;
   it_req_sumws_pair->second.second += wgt*wgt;
+  if (printPass && wgt!=0.) IVYout << strsel << endl;
 }
 void SelectionTracker::print() const{
   IVYout << "Selection summary:" << endl;
@@ -84,7 +85,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   // This is the output directory.
   // Output should always be recorded as if you are running the job locally.
   // If we are running on Condor, ee will inform the batch job later on that some files would need transfer.
-  TString coutput_main = ANALYSISPKGPATH + "test/output/Analysis_CutBased/" + strdate.data() + "/" + SampleHelpers::getDataPeriod();
+  TString coutput_main = TString("output/Analysis_CutBased/") + strdate.data() + "/" + SampleHelpers::getDataPeriod();
   HostHelpers::ExpandEnvironmentVariables(coutput_main);
   gSystem->mkdir(coutput_main, true);
 
@@ -232,7 +233,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
   // Some advanced event filters
   eventFilter.setTrackDataEvents(true);
-  eventFilter.setCheckUniqueDataEvent(true);
+  eventFilter.setCheckUniqueDataEvent(has_multiple_dsets);
   eventFilter.setCheckHLTPathRunRanges(true);
 
   curdir->cd();
@@ -330,10 +331,8 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     isotrackHandler.bookBranches(tin);
 
     // Book a few additional branches
-    if (runSyncExercise || isData){
-      tin->bookBranch<EventNumber_t>("event", 0);
-      if (!isData) tin->bookBranch<float>("GenMET_pt", 0);
-    }
+    tin->bookBranch<EventNumber_t>("event", 0);
+    if (runSyncExercise && !isData) tin->bookBranch<float>("GenMET_pt", 0);
     if (isData){
       tin->bookBranch<RunNumber_t>("run", 0);
       tin->bookBranch<LuminosityBlock_t>("luminosityBlock", 0);
@@ -381,10 +380,8 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     LuminosityBlock_t* ptr_LuminosityBlock = nullptr;
     EventNumber_t* ptr_EventNumber = nullptr;
     float* ptr_genmet_pt = nullptr;
-    if (runSyncExercise || isData){
-      tin->getValRef("event", ptr_EventNumber);
-      if (!isData) tin->getValRef("GenMET_pt", ptr_genmet_pt);
-    }
+    tin->getValRef("event", ptr_EventNumber);
+    if (runSyncExercise && !isData) tin->getValRef("GenMET_pt", ptr_genmet_pt);
     if (isData){
       tin->getValRef("run", ptr_RunNumber);
       tin->getValRef("luminosityBlock", ptr_LuminosityBlock);
@@ -456,7 +453,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
       bool const printObjInfo = runSyncExercise
         &&
-        HelperFunctions::checkListVariable(std::vector<int>{ 6994, 7046, 11794 }, ev);
+        HelperFunctions::checkListVariable(std::vector<int>{ 2981, 3121, 4662 }, ev);
       //HelperFunctions::checkListVariable(std::vector<int>{ 1233, 1475, 1546, 1696, 2011, 2103, 2801, 2922, 3378, 3407, 3575, 3645, 5021, 5127, 6994, 7000, 7046, 7341, 7351, 8050, 9931, 10063, 10390, 10423, 10623, 10691, 10791, 10796, 11127, 11141, 11279, 11794, 12231, 12996, 13115, 13294, 13550, 14002, 14319, 15062, 15754, 16153, 16166, 16316, 16896, 16911, 17164 }, ev);
       //HelperFunctions::checkListVariable(std::vector<int>{663, 1469, 3087, 3281}, ev);
       //HelperFunctions::checkListVariable(std::vector<int>{204, 353, 438, 1419}, ev);
@@ -772,7 +769,11 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       // Write object sync. info.
       if (writeSyncObjects){
         rcd_sync_objects.setNamedVal("EventNumber", *ptr_EventNumber);
-        rcd_sync_objects.setNamedVal("GenMET_pt", *ptr_genmet_pt);
+        if (!isData) rcd_sync_objects.setNamedVal("GenMET_pt", *ptr_genmet_pt);
+        else{
+          rcd_sync_objects.setNamedVal("RunNumber", *ptr_RunNumber);
+          rcd_sync_objects.setNamedVal("LuminosityBlock", *ptr_LuminosityBlock);
+        }
         rcd_sync_objects.setNamedVal("PFMET_pt_final", eventmet->pt());
         rcd_sync_objects.setNamedVal("PFMET_phi_final", eventmet->phi());
 
@@ -814,32 +815,32 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       }
 
       // BEGIN PRESELECTION
-      seltracker.accumulate("Full sample", wgt);
+      seltracker.accumulate("Full sample", wgt, printObjInfo);
 
       if (applyPreselection && (nak4jets_tight_pt25_btagged<2 || nak4jets_tight_pt40<2)) continue;
-      seltracker.accumulate("Pass Nj and Nb", wgt);
+      seltracker.accumulate("Pass Nj and Nb", wgt, printObjInfo);
 
       if (applyPreselection && eventmet->pt()<50.) continue;
-      seltracker.accumulate("Pass pTmiss", wgt);
+      seltracker.accumulate("Pass pTmiss", wgt, printObjInfo);
 
       if (applyPreselection && ak4jets_pt40_HT<300.) continue;
-      seltracker.accumulate("Pass HT", wgt);
+      seltracker.accumulate("Pass HT", wgt, printObjInfo);
 
       if (nleptons_tight<2) continue; // Skims are required to apply this selection, so no additional test on applyPreselection.
       if (applyPreselection && (nleptons_selected<2 || nleptons_selected>=5)) continue;
-      seltracker.accumulate("Has >=2 and <=4 leptons, >=2 of which are tight", wgt);
+      seltracker.accumulate("Has >=2 and <=4 leptons, >=2 of which are tight", wgt, printObjInfo);
 
       if (applyPreselection && (leptons_tight.front()->pt()<25. || leptons_tight.at(1)->pt()<20.)) continue;
-      seltracker.accumulate("Pass pT1 and pT2", wgt);
+      seltracker.accumulate("Pass pT1 and pT2", wgt, printObjInfo);
 
       if (applyPreselection && (nleptons_tight>=3 && leptons_tight.at(2)->pt()<20.)) continue;
-      seltracker.accumulate("Pass pT3 if >=3 tight leptons", wgt);
+      seltracker.accumulate("Pass pT3 if >=3 tight leptons", wgt, printObjInfo);
 
       // Construct all possible dilepton pairs
       int nQ = 0;
       for (auto const& part:leptons_tight) nQ += (part->pdgId()>0 ? -1 : 1);
       if (applyPreselection && (std::abs(nQ)>=(6-static_cast<int>(nleptons_tight)))) continue; // This req. necessarily vetoes Nleps>=5 because the actual number of same-sign leptons will always be >=3.
-      seltracker.accumulate("Pass 3-lepton same charge veto", wgt);
+      seltracker.accumulate("Pass 3-lepton same charge veto", wgt, printObjInfo);
 
       dileptonHandler.constructDileptons(&muons_selected, &electrons_selected);
       auto const& dileptons = dileptonHandler.getProducts();
@@ -851,8 +852,8 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       }
       // If uncommented, these numbers could later tell you the average number of OS and SS dileptons before the rest of the selections
       // once you divide the numbers by the previous gen. weight sum.
-      //seltracker.accumulate("nOS", wgt*static_cast<double>(ndileptons_OS));
-      //seltracker.accumulate("nSS", wgt*static_cast<double>(ndileptons_SS));
+      //seltracker.accumulate("nOS", wgt*static_cast<double>(ndileptons_OS), printObjInfo);
+      //seltracker.accumulate("nSS", wgt*static_cast<double>(ndileptons_SS), printObjInfo);
 
       if (printObjInfo) IVYout << "Dilepton info for event " << ev << ":" << endl;
       bool fail_vetos = false;
@@ -892,30 +893,30 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       }
 
       if (applyPreselection && fail_vetos) continue;
-      seltracker.accumulate("Pass dilepton vetos", wgt);
+      seltracker.accumulate("Pass dilepton vetos", wgt, printObjInfo);
 
       if (applyPreselection && !dilepton_SS_tight) continue;
-      seltracker.accumulate("Has at least one tight SS dilepton", wgt);
+      seltracker.accumulate("Has at least one tight SS dilepton", wgt, printObjInfo);
 
       // Put event filters to the last because data has unique event tracking enabled.
       eventFilter.constructFilters(&simEventHandler);
       //if (!eventFilter.test2018HEMFilter(&simEventHandler, nullptr, nullptr, &ak4jets)) continue; // Test for 2018 partial HEM failure
       //if (!eventFilter.test2018HEMFilter(&simEventHandler, &electrons, nullptr, nullptr)) continue; // Test for 2018 partial HEM failure
-      seltracker.accumulate("Pass HEM veto", wgt);
+      seltracker.accumulate("Pass HEM veto", wgt, printObjInfo);
       if (applyPreselection && !eventFilter.passMETFilters()) continue; // Test for MET filters
-      seltracker.accumulate("Pass MET filters", wgt);
+      seltracker.accumulate("Pass MET filters", wgt, printObjInfo);
       if (!eventFilter.isUniqueDataEvent()) continue; // Test if the data event is unique (i.e., dorky). Does not do anything in the MC.
-      seltracker.accumulate("Pass unique event check", wgt);
+      seltracker.accumulate("Pass unique event check", wgt, printObjInfo);
 
       // Triggers
       float event_weight_triggers_dilepton = eventFilter.getTriggerWeight(hltnames_Dilepton);
       if (applyPreselection && event_weight_triggers_dilepton==0.) continue; // Test if any triggers passed at all
-      seltracker.accumulate("Pass any trigger", wgt);
+      seltracker.accumulate("Pass any trigger", wgt, printObjInfo);
       float event_weight_triggers_dilepton_matched = eventFilter.getTriggerWeight(
         triggerPropsCheckList_Dilepton,
         &muons, &electrons, nullptr, &ak4jets, nullptr, nullptr
       );
-      seltracker.accumulate("Pass triggers after matching", (event_weight_triggers_dilepton_matched>0.)*wgt);
+      seltracker.accumulate("Pass triggers after matching", (event_weight_triggers_dilepton_matched>0.)*wgt, printObjInfo);
 
 
       // Accumulate any ME weights and K factors that might be present
@@ -975,6 +976,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
             << endl;
         }
       }
+      if (printObjInfo) IVYout << "Nb = " << nak4jets_tight_pt25_btagged << ", Nj = " << nak4jets_tight_pt40 << ", iCRZ = " << iCRZ << ", icat = " << icat << endl;
 
       if (runSyncExercise && (!applyPreselection || iCRZ==1 || icat>0)) foutput_sync
         << *ptr_EventNumber << ","
@@ -1006,8 +1008,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     hCat->Scale(sum_ntotal_req/sum_ntotal_traversed);
   }
   {
-    double integral_error;
-    integral_error = 0;
+    double integral_error=0;
     IVYout << "Event counts for the SR:" << endl;
     for (int ix=1; ix<=hCat->GetNbinsX(); ix++) IVYout << "\t- " << hCat->GetXaxis()->GetBinLabel(ix) << ": " << hCat->GetBinContent(ix, 1) << " +- " << hCat->GetBinError(ix, 1) << endl;
     IVYout << "\t- Total: " << HelperFunctions::getHistogramIntegralAndError(hCat, 1, hCat->GetNbinsX()-1, 1, 1, false, &integral_error) << " +- " << integral_error << endl;
@@ -1022,8 +1023,8 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   if (tout_sync_objects){
     tout_sync_objects->writeToFile(foutput_sync_objects);
     delete tout_sync_objects;
+    foutput_sync_objects->Close();
   }
-  if (foutput_sync_objects) foutput_sync_objects->Close();
 
   if (runSyncExercise){
     foutput_sync.close();

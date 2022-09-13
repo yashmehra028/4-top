@@ -24,7 +24,9 @@ void BtagHelpers::configureBtagWPs(){
   auto const& dy = SampleHelpers::getDataYear();
   bool const isAPV2016Affected = SampleHelpers::isAPV2016Affected(dp);
 
-  if (dy==2016){
+  switch (dy){
+  case 2016:
+  {
     if (isAPV2016Affected){
       btagwptype_btagwp_map = std::unordered_map<BtagWPType, float>{
         { kDeepFlav_Loose, 0.0508 },
@@ -39,22 +41,29 @@ void BtagHelpers::configureBtagWPs(){
         { kDeepFlav_Tight, 0.6377 }
       };
     }
+    break;
   }
-  else if (dy==2017){
+  case 2017:
+  {
     btagwptype_btagwp_map = std::unordered_map<BtagWPType, float>{
       { kDeepFlav_Loose, 0.0532 },
       { kDeepFlav_Medium, 0.3040 },
       { kDeepFlav_Tight, 0.7476 }
     };
+    break;
   }
-  else if (dy==2018){
+  case 2018:
+  case 2022:
+  {
     btagwptype_btagwp_map = std::unordered_map<BtagWPType, float>{
       { kDeepFlav_Loose, 0.0490 },
       { kDeepFlav_Medium, 0.2783 },
       { kDeepFlav_Tight, 0.7100 }
     };
+    if (dy==2022) IVYout << "BtagHelpers::configureBtagWPs: WARNING! Using the WPs for year 2018 in place of " << dy << "." << endl;
+    break;
   }
-  else{
+  default:
     IVYerr << "BtagHelpers::configureBtagWPs: Data period " << dp << " is not defined." << endl;
     assert(0);
   }
