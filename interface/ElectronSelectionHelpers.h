@@ -54,8 +54,8 @@ namespace ElectronSelectionHelpers{
 
   // Kinematic pT thresholds
   constexpr float ptThr_loose = 7.;
-  constexpr float ptThr_fakeable = 10.;
-  constexpr float ptThr_tight = 10.;
+  constexpr float ptThr_fakeable = 20.;
+  constexpr float ptThr_tight = 20.;
 
   constexpr float ptThr_cat0 = 5.;
   constexpr float ptThr_cat1 = 10.;

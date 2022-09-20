@@ -113,8 +113,14 @@ int SampleHelpers::getDataYearFromPeriod(TString const& period){
 std::vector<TString> SampleHelpers::getValidDataPeriods(){
   std::vector<TString> res;
   if (theDataYear == 2016){
-    if (theDataPeriod.Contains("_APV")) res = std::vector<TString>{ "2016B", "2016C", "2016D", "2016E", "2016F_APV" };
-    else if (theDataPeriod.Contains("_NonAPV")) res = std::vector<TString>{ "2016F_NonAPV", "2016G", "2016H" };
+    std::vector<TString> res_apv{ "2016B", "2016C", "2016D", "2016E", "2016F_APV" };
+    std::vector<TString> res_nonapv{ "2016F_NonAPV", "2016G", "2016H" };
+    if (theDataPeriod.Contains("_APV")) res = res_apv;
+    else if (theDataPeriod.Contains("_NonAPV")) res = res_nonapv;
+    else if (testDataPeriodIsLikeData(theDataPeriod)){
+      res = res_apv;
+      HelperFunctions::appendVector(res, res_nonapv);
+    }
   }
   else if (theDataYear == 2017) res = std::vector<TString>{ "2017B", "2017C", "2017D", "2017E", "2017F" };
   else if (theDataYear == 2018) res = std::vector<TString>{ "2018A", "2018B", "2018C", "2018D" };
@@ -215,8 +221,14 @@ bool SampleHelpers::checkSampleIsData(TString const& strid, TString* theSampleDa
   std::vector<TString> strperiods = SampleHelpers::getValidDataPeriods();
   for (TString const& strperiod:strperiods){
     TString strcomp = strperiod;
-    if (strperiod.Contains("_APV")) HelperFunctions::replaceString<TString, TString const>(strcomp, "_APV", "-HIPM");
-    else if (strperiod.Contains("_NonAPV")) HelperFunctions::replaceString<TString, TString const>(strcomp, "_NonAPV", "");
+    if (strcomp.Contains("_APV")) HelperFunctions::replaceString<TString, TString const>(strcomp, "_APV", "");
+    else if (strcomp.Contains("_NonAPV")) HelperFunctions::replaceString<TString, TString const>(strcomp, "_NonAPV", "");
+
+    if (SampleHelpers::getDataYear()==2016){
+      bool const hasAPV = isAPV2016Affected(strperiod);
+      if (strid.Contains("HIPM")!=hasAPV) continue;
+    }
+
     if (strid.Contains(strcomp)){
       if (theSampleDataPeriod) *theSampleDataPeriod = strperiod;
       return true;

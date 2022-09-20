@@ -453,11 +453,12 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
       bool const printObjInfo = runSyncExercise
         &&
-        HelperFunctions::checkListVariable(std::vector<int>{ 2981, 3121, 4662 }, ev);
-      //HelperFunctions::checkListVariable(std::vector<int>{ 1233, 1475, 1546, 1696, 2011, 2103, 2801, 2922, 3378, 3407, 3575, 3645, 5021, 5127, 6994, 7000, 7046, 7341, 7351, 8050, 9931, 10063, 10390, 10423, 10623, 10691, 10791, 10796, 11127, 11141, 11279, 11794, 12231, 12996, 13115, 13294, 13550, 14002, 14319, 15062, 15754, 16153, 16166, 16316, 16896, 16911, 17164 }, ev);
-      //HelperFunctions::checkListVariable(std::vector<int>{663, 1469, 3087, 3281}, ev);
-      //HelperFunctions::checkListVariable(std::vector<int>{204, 353, 438, 1419}, ev);
-      //HelperFunctions::checkListVariable(std::vector<int>{3, 15, 30, 31, 32, 41, 153, 154, 162, 197, 215, 284, 317, 360, 572, 615, 747, 1019, 1119, 1129}, ev);
+        HelperFunctions::checkListVariable(std::vector<int>{ 525, 1136, 1696, 2370 }, ev);
+        //HelperFunctions::checkListVariable(std::vector<int>{ 1902, 5855, 6073, 7046, 11794, 16603 }, ev);
+        //HelperFunctions::checkListVariable(std::vector<int>{ 1233, 1475, 1546, 1696, 2011, 2103, 2801, 2922, 3378, 3407, 3575, 3645, 5021, 5127, 6994, 7000, 7046, 7341, 7351, 8050, 9931, 10063, 10390, 10423, 10623, 10691, 10791, 10796, 11127, 11141, 11279, 11794, 12231, 12996, 13115, 13294, 13550, 14002, 14319, 15062, 15754, 16153, 16166, 16316, 16896, 16911, 17164 }, ev);
+        //HelperFunctions::checkListVariable(std::vector<int>{663, 1469, 3087, 3281}, ev);
+        //HelperFunctions::checkListVariable(std::vector<int>{204, 353, 438, 1419}, ev);
+        //HelperFunctions::checkListVariable(std::vector<int>{3, 15, 30, 31, 32, 41, 153, 154, 162, 197, 215, 284, 317, 360, 572, 615, 747, 1019, 1119, 1129}, ev);
 
       // Muon sync. write variables
 #define SYNC_MUONS_BRANCH_VECTOR_COMMANDS \
@@ -827,7 +828,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       seltracker.accumulate("Pass HT", wgt, printObjInfo);
 
       if (nleptons_tight<2) continue; // Skims are required to apply this selection, so no additional test on applyPreselection.
-      if (applyPreselection && (nleptons_selected<2 || nleptons_selected>=5)) continue;
+      if (applyPreselection && (nleptons_tight<2 || nleptons_tight>=5)) continue;
       seltracker.accumulate("Has >=2 and <=4 leptons, >=2 of which are tight", wgt, printObjInfo);
 
       if (applyPreselection && (leptons_tight.front()->pt()<25. || leptons_tight.at(1)->pt()<20.)) continue;

@@ -100,7 +100,7 @@ alldirs:
 
 scritture: | alldirs
 	echo "Copying scripts"; \
-	cp $(SCRIPTSDIR)* $(EXEDIR)
+	cp -f $(SCRIPTSDIR)* $(EXEDIR)
 
 pythoninit:
 	echo "Creating __init__.py"; \
