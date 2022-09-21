@@ -4,13 +4,17 @@
 https://github.com/cmstas/FTAnalysis
 
 # Setup
+First, run the check out script to get all dependencies, i.e.,
 ```
-git clone git@github.com:joseph-crowley/tttt.git
-git clone git@github.com:usarica/ProjectMetis.git
-git clone git@github.com:IvyFramework/IvyDataTools.git IvyFramework/IvyDataTools
+wget https://raw.githubusercontent.com/cmstas/tttt/[YOUR FAVORITE BRANCH]/checkout.sh
+./checkout.sh
+```
+Then, you need to go into the src subdirectory of the CMSSW directory that is set up based on the checkout script, and run
+```
+cmsenv
 cd tttt
-./setup.sh -j [Ncores]
-# To clean: ./setup.sh clean
+./setup -j [Ncores] # Ncores is optional, if you are running on a non-Condor node, you can keep it blank.
+eval $(./setup.sh env)
 ```
 
 # How to submit jobs using Metis to produce skims
