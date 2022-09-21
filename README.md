@@ -13,7 +13,7 @@ Then, you need to go into the src subdirectory of the CMSSW directory that is se
 ```
 cmsenv
 cd tttt
-./setup -j [Ncores] # Ncores is optional, if you are running on a non-Condor node, you can keep it blank.
+./setup.sh -j [Ncores] # Ncores is optional. Unless you are running on a Condor node, you can keep it blank.
 eval $(./setup.sh env)
 ```
 
