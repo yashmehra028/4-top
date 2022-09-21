@@ -265,6 +265,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
   signed char is_sim_data_flag = -1; // =0 for sim, =1 for data
   int nevents_total = 0;
+  unsigned int nevents_total_traversed = 0;
   std::vector<BaseTree*> tinlist; tinlist.reserve(dset_proc_pairs.size());
   std::unordered_map<BaseTree*, double> tin_normScale_map;
   for (auto const& dset_proc_pair:dset_proc_pairs){
@@ -1000,13 +1001,17 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     }
 
     IVYout << "Number of events recorded: " << n_recorded << " / " << n_traversed << " / " << nEntries << endl;
+    nevents_total_traversed += n_traversed;
   }
   seltracker.print();
 
-  if (is_sim_data_flag==0 && (eventIndex_tracker - eventIndex_begin)>0){
+  if (is_sim_data_flag==0 && nevents_total_traversed>0){
     double const sum_ntotal_req = (nchunks>0 ? (eventIndex_end - eventIndex_begin) : nevents_total);
-    double const sum_ntotal_traversed = (eventIndex_tracker - eventIndex_begin);
-    hCat->Scale(sum_ntotal_req/sum_ntotal_traversed);
+    double const sum_ntotal_traversed = nevents_total_traversed;
+    double const sum_ntotal_scale = sum_ntotal_req/sum_ntotal_traversed;
+    IVYout << "Total number of events traversed / requested: " << sum_ntotal_traversed << " / " << sum_ntotal_req << endl;
+    IVYout << "Scaling the yield by " << sum_ntotal_scale << "..." << endl;
+    hCat->Scale(sum_ntotal_scale);
   }
   {
     double integral_error=0;
