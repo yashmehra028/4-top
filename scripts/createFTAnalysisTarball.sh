@@ -68,14 +68,14 @@ src/tttt \
 --exclude=src/tttt/test/*.txt \
 --exclude=src/tttt/test/*.csv \
 --exclude=src/tttt/test/*.sh \
+--exclude=src/tttt/test/*.so \
+--exclude=src/tttt/test/*.pcm \
 --exclude=src/tttt{/test,}/output* \
 --exclude=src/tttt{/test,}/manual* \
 --exclude=src/tttt{/test,}/*.md \
 --exclude=src/tttt{/test,}/*.d \
 --exclude=src/tttt{/test,}/*.a \
 --exclude=src/tttt{/test,}/*.o \
---exclude=src/tttt{/test,}/*.so \
---exclude=src/tttt{/test,}/*.pcm \
 --exclude={.git,.gitignore,*.tar,*.tar.xz,*.tar.gz,*.pyc,*.mod,*.out,*.bkp,summary.json}
 
 
