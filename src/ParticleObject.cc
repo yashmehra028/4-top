@@ -31,3 +31,12 @@ bool ParticleObject::getExternalMVAScore(int const& key, float& val) const{
     return true;
   }
 }
+
+ParticleObject* ParticleObject::getFirstMotherInChain_matchPDGId(ParticleObject* part, int const& id_req){
+  ParticleObject* res = nullptr;
+  if (part){
+    if (part->pdgId()==id_req) res = part;
+    else{ for (auto const& mpart:part->getMothers()){ if (mpart && !res) res = getFirstMotherInChain_matchPDGId(dynamic_cast<ParticleObject*>(mpart), id_req); } }
+  }
+  return res;
+}

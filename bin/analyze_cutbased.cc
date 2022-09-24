@@ -420,6 +420,25 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
       genInfoHandler.constructGenInfo();
       auto const& genInfo = genInfoHandler.getGenInfo();
+      auto const& genparticles = genInfoHandler.getGenParticles();
+
+      std::vector<GenParticleObject*> genmatch_promptleptons;
+      std::vector<GenParticleObject*> genmatch_photonproducts;
+      for (auto const& part:genparticles){
+        if (part->status()!=1) continue; // Only final states
+        bool const isLepton = std::abs(part->pdgId())==11 || std::abs(part->pdgId())==13;
+        bool const isPhoton = part->pdgId()==22;
+        if (!(isLepton || isPhoton)) continue;
+
+        GenParticleObject* photonMother = nullptr;
+        if (isLepton) photonMother = dynamic_cast<GenParticleObject*>(ParticleObject::getFirstMotherInChain_matchPDGId(part, 22));
+
+        if (isLepton && part->extras.isPromptFinalState) genmatch_promptleptons.push_back(part);
+        else if ((isPhoton && part->extras.isPromptFinalState) || (photonMother && photonMother->extras.isPrompt)) genmatch_photonproducts.push_back(part);
+      }
+      std::vector<GenParticleObject*> genmatchparticles;
+      HelperFunctions::appendVector(genmatchparticles, genmatch_promptleptons);
+      HelperFunctions::appendVector(genmatchparticles, genmatch_photonproducts);
 
       simEventHandler.constructSimEvent();
 
@@ -466,6 +485,12 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, muons, is_loose) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, muons, is_fakeable) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, muons, is_tight) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, muons, is_genmatched_prompt) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, muons, is_genmatched_photonProduct) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, muons, is_genmatched_prompt_sameCharge) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, muons, is_genmatched_prompt_chargeFlip) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, muons, is_genmatched_prompt_photonProduct) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(int, muons, genmatch_pdgId) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, pt) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, eta) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, phi) \
@@ -480,6 +505,12 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, electrons, is_loose) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, electrons, is_fakeable) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, electrons, is_tight) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, electrons, is_genmatched_prompt) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, electrons, is_genmatched_photonProduct) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, electrons, is_genmatched_prompt_sameCharge) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, electrons, is_genmatched_prompt_chargeFlip) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, electrons, is_genmatched_prompt_photonProduct) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(int, electrons, genmatch_pdgId) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, pt) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, eta) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, etaSC) \
@@ -516,9 +547,43 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 #undef MUON_VARIABLE
 #undef SYNC_OBJ_BRANCH_VECTOR_COMMAND
 
+      // Get leptons and match them to gen. particles
+      auto const& muons = muonHandler.getProducts();
+      auto const& electrons = electronHandler.getProducts();
+
+      std::vector<ParticleObject*> leptons; leptons.reserve(muons.size()+electrons.size());
+      for (auto const& part:muons) leptons.push_back(part);
+      for (auto const& part:electrons) leptons.push_back(part);
+      std::unordered_map<ParticleObject*, GenParticleObject*> lepton_genmatchpart_map;
+      ParticleObjectHelpers::matchParticles(
+        ParticleObjectHelpers::kMatchBy_DeltaR, 0.2,
+        leptons.begin(), leptons.end(),
+        genmatchparticles.begin(), genmatchparticles.end(),
+        lepton_genmatchpart_map
+      );
+
+      std::unordered_map<ParticleObject*, bool> leptons_isGenMatched_map;
+      std::unordered_map<ParticleObject*, bool> leptons_isGenMatched_photonProduct_map;
+      std::unordered_map<ParticleObject*, int> leptons_genMatchPDGId_map;
+      for (auto const& part:leptons){
+        bool is_genmatched_prompt = false;
+        bool is_genmatched_photonProduct = false;
+        int genmatch_pdgId = -9000; // This PDG id means not a valid particle.
+        GenParticleObject* genpart = nullptr;
+        auto it_genpart = lepton_genmatchpart_map.find(part);
+        if (it_genpart!=lepton_genmatchpart_map.end()) genpart = it_genpart->second;
+        if (genpart){
+          is_genmatched_prompt = genpart->extras.isPrompt;
+          is_genmatched_photonProduct = HelperFunctions::checkListVariable(genmatch_photonproducts, genpart);
+          genmatch_pdgId = genpart->pdgId();
+        }
+        leptons_isGenMatched_map[part] = is_genmatched_prompt;
+        leptons_isGenMatched_photonProduct_map[part] = is_genmatched_photonProduct;
+        leptons_genMatchPDGId_map[part] = genmatch_pdgId;
+      }
+
       if (printObjInfo) IVYout << "Lepton info for event " << ev << ":" << endl;
 
-      auto const& muons = muonHandler.getProducts();
       std::vector<MuonObject*> muons_selected;
       std::vector<MuonObject*> muons_tight;
       std::vector<MuonObject*> muons_fakeable;
@@ -533,6 +598,15 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         bool is_fakeable = false;
         bool is_loose = false;
 
+        // The following two variables are guaranteed to exist from global matching to all leptons.
+        bool is_genmatched_prompt = leptons_isGenMatched_map.find(dynamic_cast<ParticleObject*>(part))->second;
+        bool is_genmatched_photonProduct = leptons_isGenMatched_photonProduct_map.find(dynamic_cast<ParticleObject*>(part))->second;
+        int genmatch_pdgId = leptons_genMatchPDGId_map.find(dynamic_cast<ParticleObject*>(part))->second;
+
+        bool is_genmatched_prompt_sameCharge = is_genmatched_prompt && genmatch_pdgId==part->pdgId();
+        bool is_genmatched_prompt_chargeFlip = is_genmatched_prompt && std::abs(genmatch_pdgId)==std::abs(part->pdgId()) && genmatch_pdgId!=part->pdgId();
+        bool is_genmatched_prompt_photonProduct = is_genmatched_prompt && is_genmatched_photonProduct;
+
         if (ParticleSelectionHelpers::isTightParticle(part)){
           muons_tight.push_back(part);
           is_loose = is_fakeable = is_tight = true;
@@ -545,6 +619,8 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
           muons_loose.push_back(part);
           is_loose = true;
         }
+
+        genparticles;
 
         float ptrel_final = part->ptrel();
         float ptratio_final = part->ptratio();
@@ -593,7 +669,6 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       HelperFunctions::appendVector(muons_selected, muons_fakeable);
       HelperFunctions::appendVector(muons_selected, muons_loose);
 
-      auto const& electrons = electronHandler.getProducts();
       std::vector<ElectronObject*> electrons_selected;
       std::vector<ElectronObject*> electrons_tight;
       std::vector<ElectronObject*> electrons_fakeable;
@@ -608,6 +683,15 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         bool is_tight = false;
         bool is_fakeable = false;
         bool is_loose = false;
+
+        // The following two variables are guaranteed to exist from global matching to all leptons.
+        bool is_genmatched_prompt = leptons_isGenMatched_map.find(dynamic_cast<ParticleObject*>(part))->second;
+        bool is_genmatched_photonProduct = leptons_isGenMatched_photonProduct_map.find(dynamic_cast<ParticleObject*>(part))->second;
+        int genmatch_pdgId = leptons_genMatchPDGId_map.find(dynamic_cast<ParticleObject*>(part))->second;
+
+        bool is_genmatched_prompt_sameCharge = is_genmatched_prompt && genmatch_pdgId==part->pdgId();
+        bool is_genmatched_prompt_chargeFlip = is_genmatched_prompt && std::abs(genmatch_pdgId)==std::abs(part->pdgId()) && genmatch_pdgId!=part->pdgId();
+        bool is_genmatched_prompt_photonProduct = is_genmatched_prompt && is_genmatched_photonProduct;
 
         if (ParticleSelectionHelpers::isTightParticle(part)){
           electrons_tight.push_back(part);
@@ -685,6 +769,19 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       for (auto const& part:muons_tight) leptons_tight.push_back(dynamic_cast<ParticleObject*>(part));
       for (auto const& part:electrons_tight) leptons_tight.push_back(dynamic_cast<ParticleObject*>(part));
       ParticleObjectHelpers::sortByGreaterPt(leptons_tight);
+
+      bool hasGenPromptLepton_ChargeFlip = false;
+      bool hasGenMatchedPromptPhotonProduct = false;
+      bool hasNonPromptLepton = false;
+      for (auto const& part:leptons_tight){
+        bool is_genmatched_prompt = leptons_isGenMatched_map.find(part)->second;
+        bool is_genmatched_photonProduct = leptons_isGenMatched_photonProduct_map.find(part)->second;
+        int genmatch_pdgId = leptons_genMatchPDGId_map.find(part)->second;
+
+        if (is_genmatched_prompt && std::abs(genmatch_pdgId)==std::abs(part->pdgId())) hasGenPromptLepton_ChargeFlip |= (genmatch_pdgId!=part->pdgId());
+        else if (is_genmatched_prompt && is_genmatched_photonProduct) hasGenMatchedPromptPhotonProduct |= true;
+        else hasNonPromptLepton |= true;
+      }
 
       if (printObjInfo) IVYout << "Jet info for event " << ev << ":" << endl;
       double ak4jets_pt40_HT=0;
@@ -778,6 +875,10 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         }
         rcd_sync_objects.setNamedVal("PFMET_pt_final", eventmet->pt());
         rcd_sync_objects.setNamedVal("PFMET_phi_final", eventmet->phi());
+
+        rcd_sync_objects.setNamedVal("hasGenPromptLepton_ChargeFlip", hasGenPromptLepton_ChargeFlip);
+        rcd_sync_objects.setNamedVal("hasGenMatchedPromptPhotonProduct", hasGenMatchedPromptPhotonProduct);
+        rcd_sync_objects.setNamedVal("hasNonPromptLepton", hasNonPromptLepton);
 
 #define SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, COLLNAME, NAME) rcd_sync_objects.setNamedVal(Form("%s_%s", #COLLNAME, #NAME), COLLNAME##_##NAME);
 #define MUON_VARIABLE(TYPE, NAME, DEFVAL) SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, muons, NAME)

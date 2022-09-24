@@ -58,6 +58,7 @@ GenParticleObject& GenParticleObject::operator=(const GenParticleObject& other){
 GenParticleObject::~GenParticleObject(){}
 
 void GenParticleObject::assignStatusBits(int const& statusFlags){
+  extras.isPrompt = HelperFunctions::test_bit(statusFlags, 0);
   extras.isPromptFinalState = HelperFunctions::test_bit(statusFlags, 0) && this->st==1;
   extras.isDirectPromptTauDecayProductFinalState = HelperFunctions::test_bit(statusFlags, 5) && this->st==1;
   extras.isHardProcess = HelperFunctions::test_bit(statusFlags, 7);

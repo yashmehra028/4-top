@@ -26,6 +26,8 @@ public:
   void setExternalMVAScore(int const& key, float const& val);
   bool getExternalMVAScore(int const& key, float& val) const;
 
+  static ParticleObject* getFirstMotherInChain_matchPDGId(ParticleObject* part, int const& id_req);
+
 };
 
 #endif

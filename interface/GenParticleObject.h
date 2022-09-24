@@ -17,6 +17,7 @@ GENPARTICLE_VARIABLE(float, mass, 0)
 GENPARTICLE_VARIABLE(int, genPartIdxMother, -1)
 
 #define GENPARTICLE_EXTRA_VARIABLES \
+GENPARTICLE_VARIABLE(bool, isPrompt, false) \
 GENPARTICLE_VARIABLE(bool, isPromptFinalState, false) \
 GENPARTICLE_VARIABLE(bool, isDirectPromptTauDecayProductFinalState, false) \
 GENPARTICLE_VARIABLE(bool, isHardProcess, false) \
