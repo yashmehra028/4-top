@@ -243,13 +243,19 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   // Open the output ROOT file
   TFile* foutput = TFile::Open(stroutput, "recreate");
   foutput->cd();
-  TH2D* hCat = new TH2D("hCat", "", 15, 0, 15, 2, 0, 2); hCat->Sumw2();
-  for (int ix=1; ix<=15; ix++){
-    if (ix<15) hCat->GetXaxis()->SetBinLabel(ix, Form("SR%i", ix));
-    else hCat->GetXaxis()->SetBinLabel(ix, "CRW");
+
+  std::vector<TString> const gencats{ "AllLeptonsGenMatched_SameCharge", "hasGenPromptLepton_ChargeFlip", "hasGenMatchedPromptPhotonProduct", "hasNonPromptLepton" };
+  std::vector<TH2D*> hCats; hCats.reserve(gencats.size());
+  for (auto const& gencat:gencats){
+    TH2D* hCat = new TH2D(Form("hCat_%s", gencat.Data()), "", 15, 0, 15, 2, 0, 2); hCat->Sumw2();
+    for (int ix=1; ix<=15; ix++){
+      if (ix<15) hCat->GetXaxis()->SetBinLabel(ix, Form("SR%i", ix));
+      else hCat->GetXaxis()->SetBinLabel(ix, "CRW");
+    }
+    hCat->GetYaxis()->SetBinLabel(1, "SR");
+    hCat->GetYaxis()->SetBinLabel(2, "CRZ");
+    hCats.push_back(hCat);
   }
-  hCat->GetYaxis()->SetBinLabel(1, "SR");
-  hCat->GetYaxis()->SetBinLabel(2, "CRZ");
   curdir->cd();
 
   // Acquire input tree/chains
@@ -473,14 +479,14 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
       bool const printObjInfo = runSyncExercise
         &&
-        HelperFunctions::checkListVariable(std::vector<int>{ 525, 1136, 1696, 2370 }, ev);
-        //HelperFunctions::checkListVariable(std::vector<int>{ 1902, 5855, 6073, 7046, 11794, 16603 }, ev);
-        //HelperFunctions::checkListVariable(std::vector<int>{ 1233, 1475, 1546, 1696, 2011, 2103, 2801, 2922, 3378, 3407, 3575, 3645, 5021, 5127, 6994, 7000, 7046, 7341, 7351, 8050, 9931, 10063, 10390, 10423, 10623, 10691, 10791, 10796, 11127, 11141, 11279, 11794, 12231, 12996, 13115, 13294, 13550, 14002, 14319, 15062, 15754, 16153, 16166, 16316, 16896, 16911, 17164 }, ev);
-        //HelperFunctions::checkListVariable(std::vector<int>{663, 1469, 3087, 3281}, ev);
-        //HelperFunctions::checkListVariable(std::vector<int>{204, 353, 438, 1419}, ev);
-        //HelperFunctions::checkListVariable(std::vector<int>{3, 15, 30, 31, 32, 41, 153, 154, 162, 197, 215, 284, 317, 360, 572, 615, 747, 1019, 1119, 1129}, ev);
+        HelperFunctions::checkListVariable(std::vector<int>{ 16603 }, ev);
+      //HelperFunctions::checkListVariable(std::vector<int>{ 1902, 5855, 6073, 7046, 11794, 16603 }, ev);
+      //HelperFunctions::checkListVariable(std::vector<int>{ 1233, 1475, 1546, 1696, 2011, 2103, 2801, 2922, 3378, 3407, 3575, 3645, 5021, 5127, 6994, 7000, 7046, 7341, 7351, 8050, 9931, 10063, 10390, 10423, 10623, 10691, 10791, 10796, 11127, 11141, 11279, 11794, 12231, 12996, 13115, 13294, 13550, 14002, 14319, 15062, 15754, 16153, 16166, 16316, 16896, 16911, 17164 }, ev);
+      //HelperFunctions::checkListVariable(std::vector<int>{663, 1469, 3087, 3281}, ev);
+      //HelperFunctions::checkListVariable(std::vector<int>{204, 353, 438, 1419}, ev);
+      //HelperFunctions::checkListVariable(std::vector<int>{3, 15, 30, 31, 32, 41, 153, 154, 162, 197, 215, 284, 317, 360, 572, 615, 747, 1019, 1119, 1129}, ev);
 
-      // Muon sync. write variables
+    // Muon sync. write variables
 #define SYNC_MUONS_BRANCH_VECTOR_COMMANDS \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, muons, is_loose) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, muons, is_fakeable) \
@@ -619,8 +625,6 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
           muons_loose.push_back(part);
           is_loose = true;
         }
-
-        genparticles;
 
         float ptrel_final = part->ptrel();
         float ptratio_final = part->ptratio();
@@ -972,7 +976,8 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         if (printObjInfo){
           IVYout
             << "\t- Dilepton: pt = " << dilepton->pt() << ", mass = " << dilepton->mass()
-            << ", daughter ids = { " << dilepton->getDaughter(0)->pdgId() << ", " << dilepton->getDaughter(1)->pdgId() << " }"
+            << ", daughter ids = { " << dilepton->getDaughter(0)->pdgId() << " [" << dilepton->getDaughter(0)->getUniqueIdentifier()
+            << "], " << dilepton->getDaughter(1)->pdgId() << " [" << dilepton->getDaughter(1)->getUniqueIdentifier()  << "] }"
             << '\n';
           IVYout << "\t\t- isSS = " << isSS << '\n';
           IVYout << "\t\t- isTight = " << isTight << '\n';
@@ -1022,8 +1027,6 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       seltracker.accumulate("Pass triggers after matching", (event_weight_triggers_dilepton_matched>0.)*wgt, printObjInfo);
 
 
-      // Accumulate any ME weights and K factors that might be present
-
       /*************************************************/
       /* NO MORE CALLS TO SELECTION BEYOND THIS POINT! */
       /*************************************************/
@@ -1057,7 +1060,12 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         }
       }
       if (icat>=0){
-        hCat->Fill(static_cast<double>(icat-1)+0.5, static_cast<double>(iCRZ)+0.5, wgt);
+        unsigned short idx_gencat = 0;
+        if (hasGenPromptLepton_ChargeFlip) idx_gencat = 1;
+        else if (hasGenMatchedPromptPhotonProduct) idx_gencat = 2;
+        else if (hasNonPromptLepton) idx_gencat = 3;
+
+        hCats.at(idx_gencat)->Fill(static_cast<double>(icat-1)+0.5, static_cast<double>(iCRZ)+0.5, wgt);
         if (printObjInfo){
           if (dilepton_OS_DYCand_tight) IVYout
             << "OS Z candidate found to have "
@@ -1112,19 +1120,16 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     double const sum_ntotal_scale = sum_ntotal_req/sum_ntotal_traversed;
     IVYout << "Total number of events traversed / requested: " << sum_ntotal_traversed << " / " << sum_ntotal_req << endl;
     IVYout << "Scaling the yield by " << sum_ntotal_scale << "..." << endl;
-    hCat->Scale(sum_ntotal_scale);
+    for (auto& hCat:hCats) hCat->Scale(sum_ntotal_scale);
   }
-  {
+  for (unsigned short igencat=0; igencat<gencats.size(); igencat++){
+    auto const& hCat = hCats.at(igencat);
+    IVYout << "Event counts for gen. cat. '" << gencats.at(igencat) << "':" << endl;
     double integral_error=0;
-    IVYout << "Event counts for the SR:" << endl;
     for (int ix=1; ix<=hCat->GetNbinsX(); ix++) IVYout << "\t- " << hCat->GetXaxis()->GetBinLabel(ix) << ": " << hCat->GetBinContent(ix, 1) << " +- " << hCat->GetBinError(ix, 1) << endl;
-    IVYout << "\t- Total: " << HelperFunctions::getHistogramIntegralAndError(hCat, 1, hCat->GetNbinsX()-1, 1, 1, false, &integral_error) << " +- " << integral_error << endl;
+    IVYout << "\t- CRZ: " << HelperFunctions::getHistogramIntegralAndError(hCat, 0, hCat->GetNbinsX()+1, 2, 2, false, &integral_error) << " +- " << integral_error << endl;
+    IVYout << "\t- Total SR: " << HelperFunctions::getHistogramIntegralAndError(hCat, 1, hCat->GetNbinsX()-1, 1, 1, false, &integral_error) << " +- " << integral_error << endl;
     IVYout << "\t- Failed: " << hCat->GetBinContent(0, 1) << " +- " << hCat->GetBinError(0, 1) << endl;
-    integral_error = 0;
-    IVYout << "Event counts for the CRZ:" << endl;
-    for (int ix=1; ix<=hCat->GetNbinsX(); ix++) IVYout << "\t- " << hCat->GetXaxis()->GetBinLabel(ix) << ": " << hCat->GetBinContent(ix, 2) << " +- " << hCat->GetBinError(ix, 2) << endl;
-    IVYout << "\t- Total: " << HelperFunctions::getHistogramIntegralAndError(hCat, 1, hCat->GetNbinsX()-1, 2, 2, false, &integral_error) << " +- " << integral_error << endl;
-    IVYout << "\t- Failed: " << hCat->GetBinContent(0, 2) << " +- " << hCat->GetBinError(0, 2) << endl;
   }
 
   if (tout_sync_objects){
@@ -1138,8 +1143,10 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     SampleHelpers::splitFileAndAddForTransfer(stroutput_sync);
   }
 
-  foutput->WriteTObject(hCat);
-  delete hCat;
+  for (auto& hCat:hCats){
+    foutput->WriteTObject(hCat);
+    delete hCat;
+  }
   foutput->Close();
 
   curdir->cd();

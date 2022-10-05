@@ -33,6 +33,7 @@ SIMEVENT_L1PREFIRINGVARIABLES
 
 SimEventHandler::SimEventHandler() :
   IvyBase(),
+  doPUReweighting(true),
   hasHEM2018Issue(false),
   pileupWeights(3, -1)
 {
@@ -119,6 +120,12 @@ void SimEventHandler::setupPUHistograms(){
       }
     );
     break;
+  case 2022:
+  {
+    doPUReweighting = false;
+    IVYout << "SimEventHandler::setupPUHistograms: WARNING! Data year " << SampleHelpers::getDataYear() << " does not have PU histograms defined yet." << endl;
+    return;
+  }
   default:
     if (this->verbosity>=MiscUtils::ERROR) IVYerr << "SimEventHandler::setupPUHistograms: Data year " << SampleHelpers::getDataYear() << " is not defined." << endl;
     assert(0);
@@ -292,6 +299,11 @@ bool SimEventHandler::constructRandomNumbers(){
   return true;
 }
 bool SimEventHandler::constructPUWeight(){
+  if (!doPUReweighting){
+    for (auto& pileupWeight:pileupWeights) pileupWeight = 1.f;
+    return true;
+  }
+
 #define SIMEVENT_PUVARIABLE(TYPE, NAME) TYPE const* NAME = nullptr;
   SIMEVENT_PUVARIABLES;
 #undef SIMEVENT_PUVARIABLE

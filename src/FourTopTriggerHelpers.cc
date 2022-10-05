@@ -140,6 +140,8 @@ void TriggerHelpers::assignTriggerObjectCheckException(std::string const& name, 
 // If one would like to match jets (why???), one has to edit both this function
 // and EventFilterHandler::getTriggerWeight (i.e., search for the call blocks to TriggerObject::getMatchedPhysicsObjects in EventFilterHandler).
 std::vector<std::pair<TriggerObjectType, unsigned long long int>> TriggerHelpers::getTriggerObjectReqs(HLTTriggerPathProperties const& hltprop){
+  static bool print_warnings = true;
+
   std::vector<std::pair<TriggerObjectType, unsigned long long int>> res;
 
   auto const& dy = SampleHelpers::getDataYear();
@@ -171,6 +173,8 @@ std::vector<std::pair<TriggerObjectType, unsigned long long int>> TriggerHelpers
   // Mask requirements taken directly from NanoAOD code
   // because the documentation is illegible:
   // https://github.com/cms-sw/cmssw/blob/master/PhysicsTools/NanoAOD/python/triggerObjects_cff.py
+
+  if (print_warnings && dy>2018) IVYout << "TriggerHelpers::getTriggerObjectReqs: WARNING! Year " << dy << " uses 2018 masks, but it might need to be validated." << endl;
 
   unsigned short nm = 0;
   unsigned long long int mask_mu = 0;
@@ -459,6 +463,8 @@ std::vector<std::pair<TriggerObjectType, unsigned long long int>> TriggerHelpers
   if (nm>0) res.emplace_back(TriggerMuon, mask_mu);
   if (ne>0) res.emplace_back(TriggerElectron, mask_e);
   if (npho>0) res.emplace_back(TriggerPhoton, mask_pho);
+
+  print_warnings = false;
 
   return res;
 }
@@ -1089,6 +1095,135 @@ void TriggerHelpers::configureHLTmap(){
         { 316153, 316239 }
       }
     );
+    break;
+  case 2022:
+    HLT_type_proplist_map[kDoubleMu] = std::vector<HLTTriggerPathProperties>{
+      // No gain from adding the Mass8 version of the one below
+      { "HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass3p8_v*",{ { HLTObjectProperties::kMuon },{ HLTObjectProperties::kMuon } } }
+    };
+    HLT_type_proplist_map[kDoubleMu_Extra] = std::vector<HLTTriggerPathProperties>{
+      { "HLT_Mu37_TkMu27_v*",{ { HLTObjectProperties::kMuon },{ HLTObjectProperties::kMuon } } }
+    };
+    HLT_type_proplist_map[kDoubleMu_Prescaled] = std::vector<HLTTriggerPathProperties>{
+      { "HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 17.f*1.1f } } },{ HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 8.f*1.1f } } } } }
+    };
+    HLT_type_proplist_map[kDoubleMu_PFHT] = std::vector<HLTTriggerPathProperties>();
+    HLT_type_proplist_map[kDoubleEle] = std::vector<HLTTriggerPathProperties>{
+      { "HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL_v*",{ { HLTObjectProperties::kElectron },{ HLTObjectProperties::kElectron } } }/*,
+      //{ "HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL_DZ_v*", { { HLTObjectProperties::kElectron }, { HLTObjectProperties::kElectron } } },
+      { "HLT_DoubleEle25_CaloIdL_MW_v*",{ { HLTObjectProperties::kElectron },{ HLTObjectProperties::kElectron } } }*/
+    };
+    HLT_type_proplist_map[kDoubleEle_HighPt] = std::vector<HLTTriggerPathProperties>{
+      { "HLT_DoublePhoton70_v*",{ { HLTObjectProperties::kElectron },{ HLTObjectProperties::kElectron } } }
+    };
+    HLT_type_proplist_map[kDoubleEle_PFHT] = std::vector<HLTTriggerPathProperties>();
+    HLT_type_proplist_map[kMuEle] = std::vector<HLTTriggerPathProperties>{
+      { "HLT_Mu8_TrkIsoVVL_Ele23_CaloIdL_TrackIdL_IsoVL_DZ_v*",{ { HLTObjectProperties::kMuon },{ HLTObjectProperties::kElectron } } },
+      { "HLT_Mu12_TrkIsoVVL_Ele23_CaloIdL_TrackIdL_IsoVL_DZ_v*",{ { HLTObjectProperties::kMuon },{ HLTObjectProperties::kElectron } } },
+      { "HLT_Mu23_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL_v*",{ { HLTObjectProperties::kMuon },{ HLTObjectProperties::kElectron } } },
+      { "HLT_Mu23_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL_DZ_v*",{ { HLTObjectProperties::kMuon },{ HLTObjectProperties::kElectron } } }
+    };
+    HLT_type_proplist_map[kMuEle_Extra] = std::vector<HLTTriggerPathProperties>();
+    HLT_type_proplist_map[kMuEle_PFHT] = std::vector<HLTTriggerPathProperties>();
+    HLT_type_proplist_map[kSingleMu] = std::vector<HLTTriggerPathProperties>{ { "HLT_IsoMu24_v*",{ { HLTObjectProperties::kMuon } } } };
+    HLT_type_proplist_map[kSingleMu_Prescaled] = std::vector<HLTTriggerPathProperties>{ { "HLT_IsoMu20_v*",{ { HLTObjectProperties::kMuon } } } };
+    HLT_type_proplist_map[kSingleMu_HighPt] = std::vector<HLTTriggerPathProperties>{
+      { "HLT_TkMu100_v*",{ { HLTObjectProperties::kMuon } } },
+      { "HLT_OldMu100_v*",{ { HLTObjectProperties::kMuon } } },
+      { "HLT_Mu50_v*",{ { HLTObjectProperties::kMuon } } }
+    };
+    HLT_type_proplist_map[kSingleEle] = std::vector<HLTTriggerPathProperties>{ { "HLT_Ele32_WPTight_Gsf_v*",{ { HLTObjectProperties::kElectron } } } };
+    HLT_type_proplist_map[kSingleEle_Prescaled] = std::vector<HLTTriggerPathProperties>();
+    HLT_type_proplist_map[kSingleEle_HighPt] = std::vector<HLTTriggerPathProperties>{ { "HLT_Photon200_v*",{ { HLTObjectProperties::kElectron } } } };
+    HLT_type_proplist_map[kSinglePho] = std::vector<HLTTriggerPathProperties>{
+      { "HLT_Photon200_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 200.f*1.15f } } } } }, // Unprescaled
+      { "HLT_Photon165_R9Id90_HE10_IsoM_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 165.f*1.1f },{ HLTObjectProperties::kPtHigh, 200.f*1.15f } } } } },
+      { "HLT_Photon120_R9Id90_HE10_IsoM_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 120.f*1.1f },{ HLTObjectProperties::kPtHigh, 165.f*1.1f } } } } },
+      { "HLT_Photon90_R9Id90_HE10_IsoM_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 90.f*1.1f },{ HLTObjectProperties::kPtHigh, 120.f*1.1f } } } } },
+      { "HLT_Photon75_R9Id90_HE10_IsoM_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 90.f },{ HLTObjectProperties::kPtHigh, 90.f*1.1f } } } } },
+      { "HLT_Photon50_R9Id90_HE10_IsoM_v*",{ { HLTObjectProperties::kPhoton,{ { HLTObjectProperties::kPt, 50.f*1.1f },{ HLTObjectProperties::kPtHigh, 90.f } } } } }
+    };
+    HLT_type_proplist_map[kTripleLep] = std::vector<HLTTriggerPathProperties>{
+      { "HLT_Mu8_DiEle12_CaloIdL_TrackIdL_DZ_v*",{ { HLTObjectProperties::kMuon },{ HLTObjectProperties::kElectron },{ HLTObjectProperties::kElectron } } },
+      { "HLT_DiMu9_Ele9_CaloIdL_TrackIdL_DZ_v*",{ { HLTObjectProperties::kMuon },{ HLTObjectProperties::kMuon },{ HLTObjectProperties::kElectron } } },
+      { "HLT_TripleMu_10_5_5_DZ_v*",{ { HLTObjectProperties::kMuon },{ HLTObjectProperties::kMuon },{ HLTObjectProperties::kMuon } } },
+      { "HLT_TripleMu_12_10_5_v*",{ { HLTObjectProperties::kMuon },{ HLTObjectProperties::kMuon },{ HLTObjectProperties::kMuon } } }//,
+      //{ "HLT_Ele16_Ele12_Ele8_CaloIdL_TrackIdL_v*", { { HLTObjectProperties::kElectron }, { HLTObjectProperties::kElectron }, { HLTObjectProperties::kElectron } } } // Somehow its effective lumi is not the same as active lumi, and it does not show up in the spreadsheets
+    };
+    HLT_type_proplist_map[kSingleMu_Control] = std::vector<HLTTriggerPathProperties>{
+      { "HLT_Mu17_TrkIsoVVL_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 17.f } } } } }, // Has L1 and HLT prescales
+      { "HLT_Mu17_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 17.f } } } } }, // Has L1 and HLT prescales
+      { "HLT_Mu8_TrkIsoVVL_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 8.f } } } } }, // Has L1 and HLT prescales
+      { "HLT_Mu8_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 8.f } } } } } // Has L1 and HLT prescales
+    };
+    HLT_type_proplist_map[kSingleMu_Control_NoIso] = std::vector<HLTTriggerPathProperties>{
+      { "HLT_Mu17_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 17.f } } } } }, // Has L1 and HLT prescales
+      { "HLT_Mu8_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 8.f } } } } } // Has L1 and HLT prescales
+    };
+    HLT_type_proplist_map[kSingleMu_Control_Iso] = std::vector<HLTTriggerPathProperties>{
+      { "HLT_Mu17_TrkIsoVVL_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 17.f } } } } }, // Has L1 and HLT prescales
+      { "HLT_Mu8_TrkIsoVVL_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 8.f } } } } } // Has L1 and HLT prescales
+    };
+    HLT_type_proplist_map[kSingleEle_Control] = std::vector<HLTTriggerPathProperties>{
+      { "HLT_Ele17_CaloIdM_TrackIdM_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 17.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } }, // Has L1 and HLT prescales
+      { "HLT_Ele12_CaloIdL_TrackIdL_IsoVL_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 12.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } }, // Has L1 and HLT prescales
+      { "HLT_Ele8_CaloIdM_TrackIdM_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 8.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } }, // Has L1 prescales
+      { "HLT_Ele8_CaloIdL_TrackIdL_IsoVL_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 8.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } } // Has L1 prescales
+    };
+    HLT_type_proplist_map[kSingleEle_Control_NoIso] = std::vector<HLTTriggerPathProperties>{
+      { "HLT_Ele17_CaloIdM_TrackIdM_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 17.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } }, // Has L1 and HLT prescales
+      { "HLT_Ele8_CaloIdM_TrackIdM_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 8.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } } // Has L1 prescales
+    };
+    HLT_type_proplist_map[kSingleEle_Control_Iso] = std::vector<HLTTriggerPathProperties>{
+      { "HLT_Ele12_CaloIdL_TrackIdL_IsoVL_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 12.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } }, // Has L1 and HLT prescales
+      { "HLT_Ele8_CaloIdL_TrackIdL_IsoVL_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 8.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } } // Has L1 prescales
+    };
+    HLT_type_proplist_map[kAK8PFJet_Control] = std::vector<HLTTriggerPathProperties>{
+      { "HLT_AK8PFJet400_TrimMass30_v*",{ { HLTObjectProperties::kAK8Jet,{ { HLTObjectProperties::kPt, 400.f },{ HLTObjectProperties::kMass, 30.f } } } } }
+    };
+    HLT_type_proplist_map[kVBFJets_Control] = std::vector<HLTTriggerPathProperties>{
+      { "HLT_DiJet110_35_Mjj650_PFMET110_v*",{ { HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 110.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 35.f } } },{ HLTObjectProperties::kAK4DiJetSumWithDEtaDPhi,{ { HLTObjectProperties::kMass, 650.f } } },{ HLTObjectProperties::kMET,{ { HLTObjectProperties::kPt, 110.f } } } } },
+      { "HLT_DiJet110_35_Mjj650_PFMET120_v*",{ { HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 110.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 35.f } } },{ HLTObjectProperties::kAK4DiJetSumWithDEtaDPhi,{ { HLTObjectProperties::kMass, 650.f } } },{ HLTObjectProperties::kMET,{ { HLTObjectProperties::kPt, 120.f } } } } },
+      { "HLT_DiJet110_35_Mjj650_PFMET130_v*",{ { HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 110.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 35.f } } },{ HLTObjectProperties::kAK4DiJetSumWithDEtaDPhi,{ { HLTObjectProperties::kMass, 650.f } } },{ HLTObjectProperties::kMET,{ { HLTObjectProperties::kPt, 130.f } } } } }
+    };
+    HLT_type_proplist_map[kPFHT_Control] = std::vector<HLTTriggerPathProperties>{
+      { "HLT_PFHT1050_v*",{ { HLTObjectProperties::kHT,{ { HLTObjectProperties::kPt, 1150.f } } } } },
+      { "HLT_PFHT890_v*",{ { HLTObjectProperties::kHT,{ { HLTObjectProperties::kPt, 1000.f },{ HLTObjectProperties::kPtHigh, 1150.f } } } } },
+      { "HLT_PFHT780_v*",{ { HLTObjectProperties::kHT,{ { HLTObjectProperties::kPt, 900.f },{ HLTObjectProperties::kPtHigh, 1000.f } } } } }, // Prescaled
+      { "HLT_PFHT680_v*",{ { HLTObjectProperties::kHT,{ { HLTObjectProperties::kPt, 800.f },{ HLTObjectProperties::kPtHigh, 900.f } } } } }, // Prescaled
+      { "HLT_PFHT590_v*",{ { HLTObjectProperties::kHT,{ { HLTObjectProperties::kPt, 750.f },{ HLTObjectProperties::kPtHigh, 800.f } } } } }, // Prescaled
+      { "HLT_PFHT510_v*",{ { HLTObjectProperties::kHT,{ { HLTObjectProperties::kPt, 700.f },{ HLTObjectProperties::kPtHigh, 750.f } } } } }, // Prescaled
+      { "HLT_PFHT430_v*",{ { HLTObjectProperties::kHT,{ { HLTObjectProperties::kPt, 680.f },{ HLTObjectProperties::kPtHigh, 700.f } } } } }, // Prescaled
+      { "HLT_PFHT370_v*",{ { HLTObjectProperties::kHT,{ { HLTObjectProperties::kPt, 600.f },{ HLTObjectProperties::kPtHigh, 680.f } } } } }, // Prescaled
+      { "HLT_PFHT350_v*",{ { HLTObjectProperties::kHT,{ { HLTObjectProperties::kPt, 580.f },{ HLTObjectProperties::kPtHigh, 600.f } } } } }, // Prescaled
+      { "HLT_PFHT250_v*",{ { HLTObjectProperties::kHT,{ { HLTObjectProperties::kPt, 550.f },{ HLTObjectProperties::kPtHigh, 580.f } } } } }, // Prescaled
+      { "HLT_PFHT180_v*",{ { HLTObjectProperties::kHT,{ { HLTObjectProperties::kPt, 500.f },{ HLTObjectProperties::kPtHigh, 550.f } } } } } // Prescaled
+    };
+    HLT_type_proplist_map[kMET_Control] = std::vector<HLTTriggerPathProperties>();
+    HLT_type_proplist_map[kPFMET_Control] = std::vector<HLTTriggerPathProperties>{
+      { "HLT_PFMET300_HBHECleaned_v*",{ { HLTObjectProperties::kMET,{ { HLTObjectProperties::kPt, 300.f } } } } },
+      { "HLT_PFMET250_HBHECleaned_v*",{ { HLTObjectProperties::kMET,{ { HLTObjectProperties::kPt, 250.f } } } } },
+      { "HLT_PFMET200_HBHE_BeamHaloCleaned_v*",{ { HLTObjectProperties::kMET,{ { HLTObjectProperties::kPt, 200.f } } } } }
+    };
+    HLT_type_proplist_map[kPFHT_PFMET_Control] = std::vector<HLTTriggerPathProperties>();
+    HLT_type_proplist_map[kPFMET_MHT_Control] = std::vector<HLTTriggerPathProperties>{
+      { "HLT_PFMETNoMu120_PFMHTNoMu120_IDTight_PFHT60_v*",{ { HLTObjectProperties::kMET_NoMu,{ { HLTObjectProperties::kPt, 120.f } } },{ HLTObjectProperties::kHT_NoMu,{ { HLTObjectProperties::kMass, 120.f } } },{ HLTObjectProperties::kHT,{ { HLTObjectProperties::kPt, 60.f } } } } },
+      { "HLT_PFMET120_PFMHT120_IDTight_PFHT60_v*",{ { HLTObjectProperties::kMET,{ { HLTObjectProperties::kPt, 120.f } } },{ HLTObjectProperties::kHT,{ { HLTObjectProperties::kMass, 120.f },{ HLTObjectProperties::kPt, 60.f } } } } },
+      { "HLT_PFMETNoMu120_PFMHTNoMu120_IDTight_v*",{ { HLTObjectProperties::kMET_NoMu,{ { HLTObjectProperties::kPt, 120.f } } },{ HLTObjectProperties::kHT_NoMu,{ { HLTObjectProperties::kMass, 120.f } } } } },
+      { "HLT_PFMET120_PFMHT120_IDTight_v*",{ { HLTObjectProperties::kMET,{ { HLTObjectProperties::kPt, 120.f } } },{ HLTObjectProperties::kHT,{ { HLTObjectProperties::kMass, 120.f } } } } }
+    };
+    HLT_type_proplist_map[kPFHT_PFMET_MHT_Control] = std::vector<HLTTriggerPathProperties>{
+      { "HLT_PFHT500_PFMET100_PFMHT100_IDTight_v*",{ { HLTObjectProperties::kHT,{ { HLTObjectProperties::kPt, 500.f },{ HLTObjectProperties::kMass, 100.f } } },{ HLTObjectProperties::kMET,{ { HLTObjectProperties::kPt, 100.f } } } } },
+      { "HLT_PFHT500_PFMET110_PFMHT110_IDTight_v*",{ { HLTObjectProperties::kHT,{ { HLTObjectProperties::kPt, 500.f },{ HLTObjectProperties::kMass, 110.f } } },{ HLTObjectProperties::kMET,{ { HLTObjectProperties::kPt, 110.f } } } } },
+      { "HLT_PFHT700_PFMET85_PFMHT85_IDTight_v*",{ { HLTObjectProperties::kHT,{ { HLTObjectProperties::kPt, 700.f },{ HLTObjectProperties::kMass, 85.f } } },{ HLTObjectProperties::kMET,{ { HLTObjectProperties::kPt, 85.f } } } } },
+      { "HLT_PFHT700_PFMET95_PFMHT95_IDTight_v*",{ { HLTObjectProperties::kHT,{ { HLTObjectProperties::kPt, 700.f },{ HLTObjectProperties::kMass, 95.f } } },{ HLTObjectProperties::kMET,{ { HLTObjectProperties::kPt, 95.f } } } } },
+      { "HLT_PFHT800_PFMET75_PFMHT75_IDTight_v*",{ { HLTObjectProperties::kHT,{ { HLTObjectProperties::kPt, 800.f },{ HLTObjectProperties::kMass, 75.f } } },{ HLTObjectProperties::kMET,{ { HLTObjectProperties::kPt, 75.f } } } } },
+      { "HLT_PFHT800_PFMET85_PFMHT85_IDTight_v*",{ { HLTObjectProperties::kHT,{ { HLTObjectProperties::kPt, 800.f },{ HLTObjectProperties::kMass, 85.f } } },{ HLTObjectProperties::kMET,{ { HLTObjectProperties::kPt, 85.f } } } } }
+    };
+
+    // No run exclusions yet
+    IVYout << "TriggerHelpers::configureHLTmap: WARNING! Run exclusions for " << SampleHelpers::getDataYear() << " are not investigated yet." << endl;
+
     break;
   default:
     break;

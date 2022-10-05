@@ -36,11 +36,14 @@ void SampleHelpers::setDataPeriod(TString s){
       assert(0);
     }
   }
-  else if (theDataPeriod.Contains("2017")) theDataYear = 2017;
-  else if (theDataPeriod.Contains("2018")) theDataYear = 2018;
   else{
-    IVYerr << "SampleHelpers::setDataPeriod: Could not recognize the data period string " << s << " to assign the data year." << endl;
-    assert(0);
+    try{
+      theDataYear = std::stoi(theDataPeriod.Data());
+    }
+    catch(std::invalid_argument& e){
+      IVYerr << "SampleHelpers::setDataPeriod: Could not recognize the data period string " << s << " to assign the data year." << endl;
+      assert(0);
+    }
   }
 }
 void SampleHelpers::setInputDirectory(TString s){
@@ -111,6 +114,8 @@ int SampleHelpers::getDataYearFromPeriod(TString const& period){
 }
 
 std::vector<TString> SampleHelpers::getValidDataPeriods(){
+  static bool printWarnings = true;
+
   std::vector<TString> res;
   if (theDataYear == 2016){
     std::vector<TString> res_apv{ "2016B", "2016C", "2016D", "2016E", "2016F_APV" };
@@ -124,6 +129,10 @@ std::vector<TString> SampleHelpers::getValidDataPeriods(){
   }
   else if (theDataYear == 2017) res = std::vector<TString>{ "2017B", "2017C", "2017D", "2017E", "2017F" };
   else if (theDataYear == 2018) res = std::vector<TString>{ "2018A", "2018B", "2018C", "2018D" };
+  else if (theDataYear == 2022){
+    res = std::vector<TString>{ "2022C", "2022D" };
+    if (printWarnings) IVYout << "SampleHelpers::getValidDataPeriods: WARNING! Data periods for year " << theDataYear << " need to be revised." << endl;
+  }
   else{
     IVYerr << "SampleHelpers::getValidDataPeriods: Data periods for year " << theDataYear << " are undefined." << endl;
     assert(0);
@@ -134,6 +143,9 @@ std::vector<TString> SampleHelpers::getValidDataPeriods(){
       break;
     }
   }
+
+  printWarnings = false;
+
   return res;
 }
 TString SampleHelpers::getDataPeriodFromRunNumber(unsigned int run){

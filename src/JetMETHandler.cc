@@ -271,9 +271,14 @@ bool JetMETHandler::assignMETXYShifts(){
 bool JetMETHandler::wrapTree(BaseTree* tree){
   if (!tree) return false;
 
+  static bool printWarnings = true;
+
   // 200314: The following is taken from https://lathomas.web.cern.ch/lathomas/METStuff/XYCorrections/XYMETCorrection.h
   // The formula is corr = -(A*npv + B).
+  pfmet_XYcorr_xCoeffA = pfmet_XYcorr_xCoeffB = pfmet_XYcorr_yCoeffA = pfmet_XYcorr_yCoeffB = 0;
+
   TString theDP = SampleHelpers::getDataPeriod();
+  auto const theDY = SampleHelpers::getDataYear();
   bool const isData = SampleHelpers::checkSampleIsData(tree->sampleIdentifier, &theDP);
   if (isData){
     if (theDP == "2016B"){
@@ -344,16 +349,19 @@ bool JetMETHandler::wrapTree(BaseTree* tree){
       pfmet_XYcorr_xCoeffA = 0.457327; pfmet_XYcorr_xCoeffB = -1.56856;
       pfmet_XYcorr_yCoeffA = 0.0684071; pfmet_XYcorr_yCoeffB = -0.928372;
     }
+    else if (theDP.Contains("2022")){
+      if (printWarnings) IVYout << "JetMETHandler::wrapTree: WARNING! Data period " << theDP << " does not currently feature the data MET corrections yet." << endl;
+    }
     else{
       IVYerr << "JetMETHandler::wrapTree: Data period " << theDP << " is undefined for the data MET corrections." << endl;
       return false;
     }
   }
   else{
-    switch (SampleHelpers::getDataYear()){
+    switch (theDY){
     case 2016:
     {
-      if (SampleHelpers::getDataPeriod().Contains("NonAPV")){
+      if (!SampleHelpers::isAPV2016Affected(theDP)){
         pfmet_XYcorr_xCoeffA = -0.153497; pfmet_XYcorr_xCoeffB = -0.231751;
         pfmet_XYcorr_yCoeffA = 0.00731978; pfmet_XYcorr_yCoeffB = 0.243323;
       }
@@ -371,12 +379,17 @@ bool JetMETHandler::wrapTree(BaseTree* tree){
       pfmet_XYcorr_xCoeffA = 0.183518; pfmet_XYcorr_xCoeffB = 0.546754;
       pfmet_XYcorr_yCoeffA = 0.192263; pfmet_XYcorr_yCoeffB = -0.42121;
       break;
+    case 2022:
+      if (printWarnings) IVYout << "JetMETHandler::wrapTree: WARNING! Data year " << theDY << " does not feature the MC MET corrections yet." << endl;
+      break;
     default:
       IVYerr << "JetMETHandler::wrapTree: Year " << SampleHelpers::getDataYear() << " is undefined for the MC MET corrections." << endl;
       return false;
       break;
     }
   }
+
+  printWarnings = false;
 
   return IvyBase::wrapTree(tree);
 }

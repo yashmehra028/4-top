@@ -584,6 +584,8 @@ bool EventFilterHandler::testDataCert(){
 std::vector<std::string> EventFilterHandler::acquireMETFilterFlags(BaseTree* intree){
   std::vector<std::string> res;
 
+  static bool printWarnings = true;
+
   switch (SampleHelpers::theDataYear){
   case 2016:
   {
@@ -619,12 +621,18 @@ std::vector<std::string> EventFilterHandler::acquireMETFilterFlags(BaseTree* int
     }
     break;
   }
+  case 2022:
+  {
+    if (printWarnings) IVYout << "EventFilterHandler::acquireMETFilterFlags: WARNING! Data year " << SampleHelpers::theDataYear << " does not have MET filter flags implemented yet." << endl;
+    break;
+  }
   default:
     IVYerr << "EventFilterHandler::acquireMETFilterFlags: Data year " << SampleHelpers::theDataYear << " is not implemented!" << endl;
     assert(0);
   }
 
   for (auto& strmetfilter:res) strmetfilter = EventFilterHandler::colName_metfilters + "_" + strmetfilter;
+  printWarnings = false;
   return res;
 }
 

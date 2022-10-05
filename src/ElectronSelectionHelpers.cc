@@ -25,6 +25,9 @@ namespace ElectronSelectionHelpers{
   void loadMVA();
 
   // Common functions
+  bool getNanoMVANoIsoBDTWPL(ElectronObject const& part);
+  float getNanoMVANoIsoBDTScore(ElectronObject const& part);
+  float getNanoMVAIsoBDTScore(ElectronObject const& part);
   float convert_BDTscore_raw(float const& mva); // This is for the MVA scores recorded in NanoAOD from e/gamma standard VIDs.
 
   bool testTriggerSafety(ElectronObject const& part);
@@ -140,9 +143,14 @@ void ElectronSelectionHelpers::loadMVA(){
       "ak4jet:btagDeepFlavB", // B-tagging discriminant score
       "sip3d",
       "log_abs_dxy", // = log(|dxy|)
-      "log_abs_dz", // = log(|dz|)
-      "mvaFall17V2noIso"
+      "log_abs_dz" // = log(|dz|)
     };
+    if (dy>=2016 && dy<=2018) varnames.push_back("mvaFall17V2noIso");
+    else if (dy==2022) varnames.push_back("mvaNoIso");
+    else{
+      IVYerr << "ElectronSelectionHelpers::loadMVA: Could not determine the name of the no-iso. MVA variable name for year " << dy << "." << endl;
+      assert(0);
+    }
     if (selection_type==kTopMVAv2_Run2) varnames.push_back("lostHits");
     // No need to set missing_entry_val
   }
@@ -201,6 +209,39 @@ float ElectronSelectionHelpers::computeMVAScore(ElectronObject const& part, Sele
   }
   return res;
 }
+
+
+bool ElectronSelectionHelpers::getNanoMVANoIsoBDTWPL(ElectronObject const& part){
+  auto const& dy = SampleHelpers::getDataYear();
+  if (dy>=2015 && dy<=2018) return part.extras.mvaFall17V2noIso_WPL;
+  else if (dy==2022) return part.extras.mvaNoIso_WPL;
+  else{
+    IVYerr << "ElectronSelectionHelpers::getNanoMVANoIsoBDTWPL: Could not determine the name of the no-iso. MVA variable for year " << dy << "." << endl;
+    assert(0);
+  }
+  return -99;
+}
+float ElectronSelectionHelpers::getNanoMVANoIsoBDTScore(ElectronObject const& part){
+  auto const& dy = SampleHelpers::getDataYear();
+  if (dy>=2015 && dy<=2018) return part.extras.mvaFall17V2noIso;
+  else if (dy==2022) return part.extras.mvaNoIso;
+  else{
+    IVYerr << "ElectronSelectionHelpers::getNanoMVANoIsoBDTScore: Could not determine the name of the no-iso. MVA variable for year " << dy << "." << endl;
+    assert(0);
+  }
+  return -99;
+}
+float ElectronSelectionHelpers::getNanoMVAIsoBDTScore(ElectronObject const& part){
+  auto const& dy = SampleHelpers::getDataYear();
+  if (dy>=2015 && dy<=2018) return part.extras.mvaFall17V2Iso;
+  else if (dy==2022) return part.extras.mvaIso;
+  else{
+    IVYerr << "ElectronSelectionHelpers::getNanoMVAIsoBDTScore: Could not determine the name of the iso. MVA variable for year " << dy << "." << endl;
+    assert(0);
+  }
+  return -99;
+}
+
 
 float ElectronSelectionHelpers::convert_BDTscore_raw(float const& mva){
   return 0.5 * std::log((1. + mva)/(1. - mva)); // Unsquashed MVA value
@@ -293,7 +334,7 @@ bool ElectronSelectionHelpers::testLooseId_IsoTrig(ElectronObject const& part){
     }
     double wpcut = wpcutCoeffA + wpcutCoeffB * (part_pt - ptThr_cat2);
 
-    float const raw_mva = convert_BDTscore_raw(part.extras.mvaFall17V2noIso);
+    float const raw_mva = convert_BDTscore_raw(getNanoMVANoIsoBDTScore(part));
     return raw_mva >= wpcut;
   }
   case kTopMVA_Run2:
@@ -339,7 +380,7 @@ bool ElectronSelectionHelpers::testLooseId_NoIsoTrig(ElectronObject const& part)
     }
     double wpcut = wpcutCoeffA + wpcutCoeffB * (part_pt - ptThr_cat2);
 
-    float const raw_mva = convert_BDTscore_raw(part.extras.mvaFall17V2noIso);
+    float const raw_mva = convert_BDTscore_raw(getNanoMVANoIsoBDTScore(part));
     return raw_mva >= wpcut;
   }
   case kTopMVA_Run2:
@@ -445,7 +486,7 @@ bool ElectronSelectionHelpers::testFakeableId_IsoTrig(ElectronObject const& part
     }
     double wpcut = wpcutCoeffA + wpcutCoeffB * (part_pt - ptThr_cat2);
 
-    float const raw_mva = convert_BDTscore_raw(part.extras.mvaFall17V2noIso);
+    float const raw_mva = convert_BDTscore_raw(getNanoMVANoIsoBDTScore(part));
     return raw_mva >= wpcut;
   }
   case kTopMVA_Run2:
@@ -488,7 +529,7 @@ bool ElectronSelectionHelpers::testFakeableId_NoIsoTrig(ElectronObject const& pa
     }
     double wpcut = wpcutCoeffA + wpcutCoeffB * (part_pt - ptThr_cat2);
 
-    float const raw_mva = convert_BDTscore_raw(part.extras.mvaFall17V2noIso);
+    float const raw_mva = convert_BDTscore_raw(getNanoMVANoIsoBDTScore(part));
     return raw_mva >= wpcut;
   }
   case kTopMVA_Run2:
@@ -545,7 +586,7 @@ bool ElectronSelectionHelpers::testTightId(ElectronObject const& part){
     }
     double wpcut = wpcutCoeffA + wpcutCoeffB * (part_pt - ptThr_cat2);
 
-    float const raw_mva = convert_BDTscore_raw(part.extras.mvaFall17V2noIso);
+    float const raw_mva = convert_BDTscore_raw(getNanoMVANoIsoBDTScore(part));
     return raw_mva >= wpcut;
   }
   case kTopMVA_Run2:

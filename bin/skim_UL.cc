@@ -121,7 +121,7 @@ int ScanChain(std::vector<TString> const& inputfnames, std::string const& output
 
   // These are called handlers, but they are more like helpers.
   DileptonHandler dileptonHandler;
-  //ParticleDisambiguator particleDisambiguator;
+  ParticleDisambiguator particleDisambiguator;
 
   // Setup K factors
   genInfoHandler.setupKFactorHandles(kfactoropts);
@@ -241,22 +241,60 @@ if (MAXSIZE>0) tin->getSelectedTree()->SetBranchStatus(Form("n%s", GlobalCollect
     // Therefore, whatever you call 'tight' is not really as tight.
 
     muonHandler.constructMuons();
+    electronHandler.constructElectrons();
+
+    // Not a bug. ParticleDisambiguator needs to be called to set lepton selection bits,
+    // but we call it for each handler separately so that the different flavors do not affect each other.
+    particleDisambiguator.disambiguateParticles(&muonHandler, nullptr, nullptr, nullptr);
+    particleDisambiguator.disambiguateParticles(nullptr, &electronHandler, nullptr, nullptr);
+
     std::vector<MuonObject*> muons_selected;
     {
       auto const& muons = muonHandler.getProducts();
       muons_selected.reserve(muons.size());
-      for (auto const& muon:muons){
-        if (muon->testSelectionBit(MuonSelectionHelpers::kKinOnly)) muons_selected.push_back(muon);
+      for (auto const& part:muons){
+        if (part->testSelectionBit(MuonSelectionHelpers::kKinOnly)) muons_selected.push_back(part);
+        /*
+        if (ev<10){
+          IVYout
+            << "\t- PDG id = " << part->pdgId()
+            << ", pt = " << part->pt() << ", eta = " << part->eta() << ", phi = " << part->phi()
+            << ", array index = " << part->getUniqueIdentifier()
+            << ", selection bits = " << HelperFunctions::displayBitsAsString(part->getSelectionBits(), MuonSelectionHelpers::nSelectionBits)
+            << endl;
+#define MUON_VARIABLE(TYPE, NAME, DEFVAL) << "\t\t- " << #NAME << ": " << static_cast<double>(part->extras.NAME) << "\n"
+          IVYout
+            MUON_EXTRA_VARIABLES
+            << endl;
+#undef MUON_VARIABLE
+        }
+        */
       }
     }
     unsigned int const n_muons = muons_selected.size();
 
-    electronHandler.constructElectrons();
     std::vector<ElectronObject*> electrons_selected;
     {
       auto const& electrons = electronHandler.getProducts();
       electrons_selected.reserve(electrons.size());
-      for (auto const& electron:electrons){ if (electron->testSelectionBit(ElectronSelectionHelpers::kKinOnly)) electrons_selected.push_back(electron); }
+      for (auto const& part:electrons){
+        if (part->testSelectionBit(ElectronSelectionHelpers::kKinOnly)) electrons_selected.push_back(part);
+        /*
+        if (ev<10){
+          IVYout
+            << "\t- PDG id = " << part->pdgId()
+            << ", pt = " << part->pt() << ", eta = " << part->eta() << ", phi = " << part->phi()
+            << ", array index = " << part->getUniqueIdentifier()
+            << ", selection bits = " << HelperFunctions::displayBitsAsString(part->getSelectionBits(), ElectronSelectionHelpers::nSelectionBits)
+            << endl;
+#define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) << "\t\t- " << #NAME << ": " << static_cast<double>(part->extras.NAME) << "\n"
+          IVYout
+            ELECTRON_EXTRA_VARIABLES
+            << endl;
+#undef ELECTRON_VARIABLE
+        }
+        */
+      }
     }
     unsigned int const n_electrons = electrons_selected.size();
 
@@ -309,6 +347,13 @@ if (MAXSIZE>0) tin->getSelectedTree()->SetBranchStatus(Form("n%s", GlobalCollect
         if (dilepton->isSF() && std::abs(dilepton->m()-91.2)<15.) found_dilepton_OSSF_Zcand = true;
       }
     }
+
+    /*
+    seltracker.accumulate("Has a dilepton pair", wgt_gensim_nominal*double((found_dilepton_SS || found_dilepton_OS || found_dilepton_OSSF_Zcand)));
+    seltracker.accumulate("Has a single lepton", wgt_gensim_nominal*double(((n_muons + n_electrons)>=1)));
+    seltracker.accumulate("Pass jet requirements for SS/OS dilepton", wgt_gensim_nominal*double((n_ak4jets_tight>=2 && n_ak4jets_tight_btagged_loose>=1)));
+    seltracker.accumulate("Pass jet requirements for single lepton", wgt_gensim_nominal*double((n_ak4jets_tight>=1)));
+    */
 
     bool const pass_loose_dilepton = (
       (found_dilepton_SS || found_dilepton_OS) && (n_ak4jets_tight>=2 && n_ak4jets_tight_btagged_loose>=1)

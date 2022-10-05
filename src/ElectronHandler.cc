@@ -2,6 +2,7 @@
 
 #include "IvyFramework/IvyDataTools/interface/ParticleObjectHelpers.h"
 #include "GlobalCollectionNames.h"
+#include "SamplesCore.h"
 #include "ElectronHandler.h"
 #include "ElectronSelectionHelpers.h"
 
@@ -26,7 +27,22 @@ ElectronHandler::ElectronHandler() :
   this->addConsumed<GlobalCollectionNames::collsize_t>(Form("n%s", ElectronHandler::colName.data()));
 #define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) this->addConsumed<TYPE* const>(ElectronHandler::colName + "_" + #NAME);
   ELECTRON_MOMENTUM_VARIABLES;
-  ELECTRON_EXTRA_VARIABLES;
+  ELECTRON_EXTRA_UNUSED_VARIABLES_COMMON;
+  ELECTRON_EXTRA_USED_VARIABLES_COMMON;
+
+  auto const& dy = SampleHelpers::getDataYear();
+  if (dy>=2015 && dy<=2018){
+    ELECTRON_EXTRA_UNUSED_VARIABLES_RUN2;
+    ELECTRON_EXTRA_USED_VARIABLES_RUN2;
+  }
+  else if (dy==2022){
+    ELECTRON_EXTRA_UNUSED_VARIABLES_RUN3;
+    ELECTRON_EXTRA_USED_VARIABLES_RUN3;
+  }
+  else{
+    IVYerr << "ElectronHandler::ElectronHandler: Could not identify data year to determine year-dependent variable names." << endl;
+    assert(0);
+  }
 #undef ELECTRON_VARIABLE
 }
 
@@ -44,6 +60,8 @@ bool ElectronHandler::constructElectrons(){
 }
 
 bool ElectronHandler::constructElectronObjects(){
+  auto const& dy = SampleHelpers::getDataYear();
+
   GlobalCollectionNames::collsize_t nProducts;
 #define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) TYPE* const* arr_##NAME = nullptr;
   ELECTRON_MOMENTUM_VARIABLES;
@@ -54,7 +72,21 @@ bool ElectronHandler::constructElectronObjects(){
   bool allVariablesPresent = this->getConsumedValue(Form("n%s", ElectronHandler::colName.data()), nProducts);
 #define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) allVariablesPresent &= this->getConsumed<TYPE* const>(ElectronHandler::colName + "_" + #NAME, arr_##NAME);
   ELECTRON_MOMENTUM_VARIABLES;
-  ELECTRON_EXTRA_VARIABLES;
+  ELECTRON_EXTRA_UNUSED_VARIABLES_COMMON;
+  ELECTRON_EXTRA_USED_VARIABLES_COMMON;
+
+  if (dy>=2015 && dy<=2018){
+    ELECTRON_EXTRA_UNUSED_VARIABLES_RUN2;
+    ELECTRON_EXTRA_USED_VARIABLES_RUN2;
+  }
+  else if (dy==2022){
+    ELECTRON_EXTRA_UNUSED_VARIABLES_RUN3;
+    ELECTRON_EXTRA_USED_VARIABLES_RUN3;
+  }
+  else{
+    IVYerr << "ElectronHandler::constructElectronObjects: Could not identify data year to determine year-dependent variable names." << endl;
+    assert(0);
+  }
 #undef ELECTRON_VARIABLE
 
   if (!allVariablesPresent){
@@ -67,7 +99,7 @@ bool ElectronHandler::constructElectronObjects(){
   if (nProducts==0) return true; // Construction is successful, it is just that no electrons exist.
 
   productList.reserve(nProducts);
-#define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) TYPE* it_##NAME = &((*arr_##NAME)[0]);
+#define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) TYPE* it_##NAME = (arr_##NAME ? &((*arr_##NAME)[0]) : nullptr);
   ELECTRON_MOMENTUM_VARIABLES;
   ELECTRON_EXTRA_VARIABLES
 #undef ELECTRON_VARIABLE
@@ -82,7 +114,7 @@ bool ElectronHandler::constructElectronObjects(){
       ElectronObject*& obj = productList.back();
 
       // Set extras
-#define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) obj->extras.NAME = *it_##NAME;
+#define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) if (it_##NAME) obj->extras.NAME = *it_##NAME;
       ELECTRON_EXTRA_VARIABLES;
 #undef ELECTRON_VARIABLE
 
@@ -113,7 +145,22 @@ void ElectronHandler::bookBranches(BaseTree* tree){
   tree->bookBranch<GlobalCollectionNames::collsize_t>(Form("n%s", ElectronHandler::colName.data()), 0);
 #define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) tree->bookArrayBranch<TYPE>(ElectronHandler::colName + "_" + #NAME, DEFVAL, GlobalCollectionNames::colMaxSize_electrons);
   ELECTRON_MOMENTUM_VARIABLES;
-  ELECTRON_EXTRA_VARIABLES;
+  ELECTRON_EXTRA_UNUSED_VARIABLES_COMMON;
+  ELECTRON_EXTRA_USED_VARIABLES_COMMON;
+
+  auto const& dy = SampleHelpers::getDataYear();
+  if (dy>=2015 && dy<=2018){
+    ELECTRON_EXTRA_UNUSED_VARIABLES_RUN2;
+    ELECTRON_EXTRA_USED_VARIABLES_RUN2;
+  }
+  else if (dy==2022){
+    ELECTRON_EXTRA_UNUSED_VARIABLES_RUN3;
+    ELECTRON_EXTRA_USED_VARIABLES_RUN3;
+  }
+  else{
+    IVYerr << "ElectronHandler::bookBranches: Could not identify data year to determine year-dependent variable names." << endl;
+    assert(0);
+  }
 #undef ELECTRON_VARIABLE
 }
 

@@ -28,6 +28,7 @@ protected:
   std::unordered_map<EventRandomNumberType, unsigned long long> product_rnds;
   // These are in fact the random numbers:
   std::unordered_map<EventRandomNumberType, double> product_rndnums;
+  bool doPUReweighting;
   bool hasHEM2018Issue;
   std::vector<float> pileupWeights; // sNominal, ePUDn, ePUUp
   std::vector<float const*> l1prefiringWeights; // sNominal, eL1PrefiringDn, eL1PrefiringUp
