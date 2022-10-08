@@ -251,4 +251,6 @@ done
 
 wait
 
+declare -i nTOTAL=$(( nOK + nCOPYFAIL + nFILEDNE + nFAIL + nUNKNOWN ))
+echo "Total jobs checked: ${nTOTAL}"
 echo "(OK:COPY_FAIL:FILE_DNE:FAIL:UNKNOWN) = (${nOK}:${nCOPYFAIL}:${nFILEDNE}:${nFAIL}:${nUNKNOWN})"
