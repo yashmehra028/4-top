@@ -28,7 +28,10 @@ for farg in "$@"; do
   fi
 done
 
+# Set X509_USER_PROXY
+eval $(python3 -c 'from getVOMSProxy import getVOMSProxy; getVOMSProxy(True)')
 
+# Check the jobs
 declare -i nOK=0
 declare -i nCOPYFAIL=0
 declare -i nFAIL=0
@@ -107,6 +110,7 @@ checkDirectory(){
     local resb=( )
     local rese=( )
     local resf=( )
+    local resrf=( )
     local ress=( )
 
     let job_is_running=0
@@ -156,6 +160,8 @@ checkDirectory(){
           rese+=( "$line" )
         elif [[ "$line" == *"OUTPUTFILE: "* ]]; then
           resf+=( "$line" )
+        elif [[ "$line" == *"Running: "*"gfal-copy"* ]]; then
+          resrf+=( "${line##* }" )
         elif [[ "$line" == *"Copied successfully"* ]]; then
           ress+=( "$line" )
         fi
@@ -169,17 +175,27 @@ checkDirectory(){
     let size_resb=${#resb[@]}
     let size_rese=${#rese[@]}
     let size_resf=${#resf[@]}
+    let size_resrf=${#resrf[@]}
     let size_ress=${#ress[@]}
 
-    if [[ $size_resb -gt 0 ]] && [[ $size_resb -eq $size_rese ]] && [[ $size_resb -eq $size_ress ]] && [[ $size_resb -eq $size_resf ]]; then
+    if [[ $size_resb -gt 0 ]] && [[ $size_resb -eq $size_rese ]] && [[ $size_resb -eq $size_ress ]] && [[ $size_resb -eq $size_resf ]] && [[ $size_resb -eq $size_resrf ]]; then
       {
       local nOutputExist=0
+      local ifile=0
       for rf in "${resf[@]}";do
         rf="${rf//*'OUTPUTFILE: '}"
+        rrf="${resrf[$ifile]}"
 
-        if [[ -s $rf ]];then
+        if [[ -s $rf ]]; then
           let nOutputExist=${nOutputExist}+1
+        else
+          local eccres=$( ExecuteCompiledCommand FileExists $rrf )
+          if [[ "$eccres" == "true" ]]; then
+            let nOutputExist=${nOutputExist}+1
+          fi
         fi
+
+        let ifile=${ifile}+1
       done
       if [[ $nOutputExist -eq $size_resf ]];then
         echo "Job $jobnumber for $d ran successfully with $nOutputExist files."

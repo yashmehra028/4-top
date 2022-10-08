@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 import os
 import sys
+import socket
+import subprocess
 import csv
 import re
-import subprocess
 import multiprocessing as mp
 from copy import deepcopy
 from argparse import ArgumentParser
@@ -36,7 +37,19 @@ def run_single(job_args):
 
 def run(args):
    nthreads = min(args.nthreads, mp.cpu_count())
+   hostname = socket.gethostname()
    grid_proxy, grid_user = getVOMSProxy()
+
+   allowed_sites = args.sites
+   if allowed_sites is None:
+      if "t2.ucsd.edu" in hostname:
+         allowed_sites = "T2_US_UCSD,T2_US_Caltech,T2_US_MIT,T3_US_UCR,T3_US_Baylor,T3_US_Colorado,T3_US_NotreDame,T3_US_Cornell,T3_US_Rice,T3_US_Rutgers,T3_US_UCD,T3_US_TAMU,T3_US_TTU,T3_US_FIU,T3_US_FIT,T3_US_UMD,T3_US_OSU,T3_US_OSG,T3_US_UMiss,T3_US_PuertoRico"
+      elif "uscms.org" in hostname:
+         #allowed_sites = "T2_US_Caltech,T2_US_MIT,T3_US_UCR,T3_US_Baylor,T3_US_Colorado,T3_US_NotreDame,T3_US_Cornell,T3_US_Rice,T3_US_Rutgers,T3_US_UCD,T3_US_TAMU,T3_US_TTU,T3_US_FIU,T3_US_FIT,T3_US_UMD,T3_US_OSU,T3_US_OSG,T3_US_UMiss,T3_US_PuertoRico,T2_CH_CERN,T2_BE_IIHE,T2_CN_Beijing,T2_RU_IHEP,T2_BE_UCL,T2_AT_Vienna,T2_BR_SPRACE,T2_BR_UERJ,T2_CH_CSCS,T2_DE_DESY,T2_DE_RWTH,T2_ES_CIEMAT,T2_ES_IFCA,T2_FI_HIP,T2_FR_CCIN2P3,T2_FR_GRIF_IRFU,T2_FR_GRIF_LLR,T2_FR_IPHC,T2_GR_Ioannina,T2_HU_Budapest,T2_IN_TIFR,T2_IT_Bari,T2_IT_Legnaro,T2_KR_KNU,T2_PK_NCP,T2_PL_Swierk,T2_PL_Warsaw,T2_PT_NCG_Lisbon,T2_RU_INR,T2_RU_ITEP,T2_RU_JINR,T2_RU_PNPI,T2_RU_RRC_KI,T2_RU_SINP,T2_TH_CUNSTDA,T2_TR_METU,T2_UA_KIPT,T2_UK_London_Brunel,T2_UK_London_IC,T2_UK_SGrid_Bristol,T2_UK_SGrid_RALPP,T3_CO_Uniandes,T3_FR_IPNL,T3_GR_IASA,T3_HU_Debrecen,T3_IT_Bologna,T3_IT_Napoli,T3_IT_Perugia,T3_IT_Trieste,T3_KR_KNU,T3_MX_Cinvestav,T3_RU_FIAN,T3_TW_NCU,T3_TW_NTU_HEP,T3_UK_London_QMUL,T3_UK_SGrid_Oxford,T3_CN_PKU"
+         #allowed_sites = "T2_US_Caltech,T2_US_MIT,T3_US_UCR,T3_US_Baylor,T3_US_Colorado,T3_US_NotreDame,T3_US_Cornell,T3_US_Rice,T3_US_Rutgers,T3_US_UCD,T3_US_TAMU,T3_US_TTU,T3_US_FIU,T3_US_FIT,T3_US_UMD,T3_US_OSU,T3_US_OSG,T3_US_UMiss,T3_US_PuertoRico,T2_CH_CERN,T2_BE_IIHE,T2_CN_Beijing,T2_RU_IHEP,T2_BE_UCL,T2_AT_Vienna,T2_BR_SPRACE,T2_BR_UERJ,T2_CH_CSCS,T2_DE_DESY,T2_DE_RWTH,T2_ES_CIEMAT,T2_ES_IFCA,T2_FI_HIP,T2_FR_CCIN2P3,T2_FR_GRIF_IRFU,T2_FR_GRIF_LLR,T2_FR_IPHC,T2_GR_Ioannina,T2_HU_Budapest,T2_IN_TIFR,T2_IT_Bari,T2_IT_Legnaro,T2_KR_KNU,T2_PK_NCP,T2_PL_Swierk,T2_PL_Warsaw,T2_PT_NCG_Lisbon,T2_RU_INR,T2_RU_ITEP,T2_RU_JINR,T2_RU_PNPI,T2_RU_RRC_KI,T2_RU_SINP,T2_TH_CUNSTDA,T2_TR_METU,T2_UA_KIPT,T2_UK_London_Brunel,T2_UK_London_IC,T2_UK_SGrid_Bristol,T2_UK_SGrid_RALPP,T3_CO_Uniandes,T3_FR_IPNL,T3_GR_IASA,T3_HU_Debrecen,T3_IT_Bologna,T3_IT_Napoli,T3_IT_Perugia,T3_IT_Trieste,T3_KR_KNU,T3_MX_Cinvestav,T3_RU_FIAN,T3_TW_NCU,T3_TW_NTU_HEP,T3_UK_London_QMUL,T3_UK_SGrid_Oxford,T3_CN_PKU"
+         allowed_sites = "T2_US_UCSD,T2_US_Caltech,T2_US_MIT,T3_US_UCR,T3_US_Baylor,T3_US_Colorado,T3_US_NotreDame,T3_US_Cornell,T3_US_Rice,T3_US_Rutgers,T3_US_UCD,T3_US_TAMU,T3_US_UMD,T3_US_OSU,T3_US_OSG,T3_US_UMiss,T3_US_PuertoRico,T2_CH_CERN,T2_BE_IIHE,T2_CN_Beijing,T2_RU_IHEP,T2_BE_UCL,T2_DE_DESY,T2_DE_RWTH,T2_FR_CCIN2P3,T2_FR_GRIF_IRFU,T2_FR_GRIF_LLR,T2_FR_IPHC,T2_TR_METU"
+      else:
+         allowed_sites = "T2_CH_CERN,T2_BE_IIHE,T2_CN_Beijing,T2_RU_IHEP,T2_BE_UCL,T2_AT_Vienna,T2_BR_SPRACE,T2_BR_UERJ,T2_CH_CSCS,T2_DE_DESY,T2_DE_RWTH,T2_ES_CIEMAT,T2_ES_IFCA,T2_FI_HIP,T2_FR_CCIN2P3,T2_FR_GRIF_IRFU,T2_FR_GRIF_LLR,T2_FR_IPHC,T2_GR_Ioannina,T2_HU_Budapest,T2_IN_TIFR,T2_IT_Bari,T2_IT_Legnaro,T2_KR_KNU,T2_PK_NCP,T2_PL_Swierk,T2_PL_Warsaw,T2_PT_NCG_Lisbon,T2_RU_INR,T2_RU_ITEP,T2_RU_JINR,T2_RU_PNPI,T2_RU_RRC_KI,T2_RU_SINP,T2_TH_CUNSTDA,T2_TR_METU,T2_UA_KIPT,T2_UK_London_Brunel,T2_UK_London_IC,T2_UK_SGrid_Bristol,T2_UK_SGrid_RALPP,T3_CO_Uniandes,T3_FR_IPNL,T3_GR_IASA,T3_HU_Debrecen,T3_IT_Bologna,T3_IT_Napoli,T3_IT_Perugia,T3_IT_Trieste,T3_KR_KNU,T3_MX_Cinvestav,T3_RU_FIAN,T3_TW_NCU,T3_TW_NTU_HEP,T3_UK_London_QMUL,T3_UK_SGrid_Oxford,T3_CN_PKU"
 
    batch_script = os.path.expandvars("${CMSSW_BASE}/src/tttt/test/condor_executable_analysis.sh")
    condor_site = "t2.ucsd.edu"
@@ -51,6 +64,7 @@ def run(args):
    print("- Grid user = {}".format(grid_user))
    print("- Jobs directory = {}".format(jobs_cfgdir))
    print("- Batch script = {}".format(batch_script))
+   print("- Batch sites = {}".format(allowed_sites))
    print("- Destination site = {}".format(condor_site))
    print("- Destination directory = {}".format(condor_outdir))
    print("- Extra uploads command = {}".format(extratarcmd))
@@ -179,6 +193,11 @@ def run(args):
          nchunks = int(nevts / args.nevts)
          if nchunks*args.nevts<nevts:
             nchunks = nchunks + 1
+         if "AODSIM" not in dset:
+            period = dict_ent["period"]
+            runlumilist = subprocess.check_output(["print_runinfo period={}".format(period)], shell=True)
+            runlumilist = runlumilist.split()
+            nchunks = min(nchunks,len(runlumilist))
          for ichunk in range(0, max(1, nchunks)):
             tmp_args = deepcopy(dict_ent)
             if nchunks>0:
@@ -247,6 +266,7 @@ def run(args):
          jobargs={
             "BATCHQUEUE" : args.queue,
             "BATCHSCRIPT" : batch_script,
+            "BATCHSITES" : allowed_sites,
             "TARFILE" : tarfilename,
             "OUTDIR" : jobdir,
             "CONDORSITE" : condor_site,
@@ -254,15 +274,17 @@ def run(args):
             "OUTLOG" : "Logs/log_job",
             "ERRLOG" : "Logs/err_job",
             "REQMEM" : args.memory,
+            "REQDISK" : args.disk_space,
+            "REQNCPUS" : args.ncpus,
             "JOBFLAVOR" : args.flavor,
             "EXE" : args.exe,
             "EXEARGS" : strargs
          }
          runCmd=str(
-            "--dry --batchqueue={BATCHQUEUE} --batchscript={BATCHSCRIPT} --tarfile={TARFILE}" \
-            " --outdir={OUTDIR} --condorsite={CONDORSITE} --condoroutdir={CONDOROUTDIR}" \
-            " --outlog={OUTLOG} --errlog={ERRLOG}" \
-            " --required_memory={REQMEM} --job_flavor={JOBFLAVOR}" \
+            "--dry --batchqueue={BATCHQUEUE} --batchscript={BATCHSCRIPT} --batchsites={BATCHSITES} --tarfile={TARFILE}" \
+            " --condorsite={CONDORSITE} --condoroutdir={CONDOROUTDIR}" \
+            " --outdir={OUTDIR} --outlog={OUTLOG} --errlog={ERRLOG}" \
+            " --required_memory={REQMEM} --required_disk={REQDISK} --required_ncpus={REQNCPUS} --job_flavor={JOBFLAVOR}" \
             " --exe={EXE} {EXEARGS}"
          ).format(**jobargs)
 
@@ -270,11 +292,6 @@ def run(args):
 
    print("Executing {} jobs...".format(len(run_cmds)))
    [ run_single(runCmd) for runCmd in run_cmds ]
-
-   #pool2 = mp.Pool(nthreads)
-   #[ pool2.apply_async(run_single, args=(runCmd)) for runCmd in run_cmds ]
-   #pool2.close()
-   #pool2.join()
 
 
 if __name__ == '__main__':
@@ -285,9 +302,12 @@ if __name__ == '__main__':
    parser.add_argument("--tag", type=str, help="Job tag", required=True)
    parser.add_argument("--nthreads", type=int, default=1, help="Number of threads to use in order to configure the batch jobs. Default=1.", required=False)
    parser.add_argument("--nevts", type=int, default=-1, help="Number of events per job. Default is -1 for no event splitting.", required=False)
-   parser.add_argument("--memory", type=str, default="2048M", help="Condor job memory", required=False)
    parser.add_argument("--queue", type=str, default="vanilla", help="Condor job queue", required=False)
-   parser.add_argument("--flavor", type=str, default="tomorrow", help="Condor job flavor (walltime)", required=False)
+   parser.add_argument("--flavor", type=str, default="tomorrow", help="Condor job flavor (walltime). Default=tomorrow", required=False)
+   parser.add_argument("--sites", type=str, default=None, help="Condor job sites. Default is determined by the host name.", required=False)
+   parser.add_argument("--memory", type=str, default="2048M", help="Condor job memory", required=False)
+   parser.add_argument("--disk_space", type=str, default="5G", help="Condor job disk space", required=False)
+   parser.add_argument("--ncpus", type=int, default=1, help="Number of CPUs to request for the condor job", required=False)
    parser.add_argument("--extra_tar", type=str, default=None, help="An extra tar file to include for specific execution needs", required=False)
    parser.add_argument("--group_eras", action="store_true", help="Group data sets for real data into data eras", required=False)
    parser.add_argument("--pkgtar", type=str, default=None, help="Use the precompiled tarball", required=False)

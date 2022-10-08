@@ -8,10 +8,12 @@ for farg in "$@"; do
   if [[ "${fargl}" == "priority="* ]]; then
     jobprio=${fargl//'priority='}
   elif [[ "$fargl" == "maxparallel="* ]]; then
-    let maxparallel=${fargl//'maxparallel='}
+    maxparallel=${fargl//'maxparallel='}
   fi
 done
 
+# Set X509_USER_PROXY
+eval $(python3 -c 'from getVOMSProxy import getVOMSProxy; getVOMSProxy(True)')
 
 job_limit(){
   local joblist=( )

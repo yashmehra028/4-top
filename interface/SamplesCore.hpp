@@ -1570,7 +1570,12 @@ std::unordered_map< TString, std::vector< std::pair<unsigned int, double> > > Sa
   // This is an ordered list, so it is safe to iterate
   for (auto const& rrlist_dp:runRangeList_dataPeriod_pair_list){
     TString const& period = rrlist_dp.second;
-    TString stryear = Form("%i", getDataYearFromPeriod(period));
+    int dy = getDataYearFromPeriod(period);
+    TString stryear = Form("%i", dy);
+    if (dy==2016){
+      if (SampleHelpers::isAPV2016Affected(period)) stryear += "_APV";
+      else stryear += "_NonAPV";
+    }
 
     std::unordered_map< TString, std::vector< std::pair<unsigned int, double> > >::iterator it;
     if (!HelperFunctions::getUnorderedMapIterator(stryear, res, it)) res[stryear] = res[period];

@@ -2,7 +2,7 @@ import os
 import subprocess
 
 
-def getVOMSProxy():
+def getVOMSProxy(printenvinstr=False):
    grid_proxy = None
    grid_proxycheckfiles = [
       "{home}/x509up_u{uid}".format(home=os.path.expanduser("~"), uid=os.getuid()),
@@ -34,5 +34,9 @@ def getVOMSProxy():
    if not grid_user:
       grid_user = os.environ.get("USER")
    grid_user = grid_user.strip()
+
+   if printenvinstr:
+      if grid_proxy is not None:
+         print("export X509_USER_PROXY={}".format(grid_proxy))
 
    return grid_proxy, grid_user
