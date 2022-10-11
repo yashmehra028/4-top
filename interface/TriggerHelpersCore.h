@@ -19,6 +19,7 @@ namespace TriggerHelpers{
     kDoubleMu_Prescaled,
 
     kDoubleEle,
+    kDoubleEle_Extra,
     kDoubleEle_HighPt,
     kDoubleEle_PFHT,
 
@@ -28,7 +29,10 @@ namespace TriggerHelpers{
 
     kSingleMu,
     kSingleMu_Prescaled,
+    kSingleMu_Eta2p1_Prescaled,
     kSingleMu_HighPt,
+    kSingleMu_HighPt_Extra,
+    kSingleMu_HighPt_Extra_Prescaled,
     kSingleMu_Control,
     // Subdivisions of kSingleMu_Control
     kSingleMu_Control_NoIso,
@@ -37,6 +41,8 @@ namespace TriggerHelpers{
     kSingleEle,
     kSingleEle_Prescaled,
     kSingleEle_HighPt,
+    kSingleEle_HighPt_Extra,
+    kSingleEle_HighPt_Extra_Prescaled,
     kSingleEle_Control,
     // Subdivisions of kSingleEle_Control
     kSingleEle_Control_NoIso,

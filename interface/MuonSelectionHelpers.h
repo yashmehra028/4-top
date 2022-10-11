@@ -89,7 +89,9 @@ namespace MuonSelectionHelpers{
 
   constexpr float isoThr_TopMVAany_Run2_UL_I1 = 0.4;
   constexpr float isoThr_TopMVAany_Run2_UL_Fakeable_ALT_I2 = 0.45;
-  // bscoreThr is handled in MuonSelectionHelpers.cc::get_bscoreThr_TopMVAAny_Run2_UL_Fakeable_ALT.
+  constexpr float bscoreThr_TopMVAAny_Run2_UL_Fakeable_ALT_fixed = 0.025;
+  // A running bscoreThr could be computed using MuonSelectionHelpers.cc::get_bscoreThr_TopMVAAny_Run2_UL_Fakeable_ALT,
+  // but we do not use it.
 
   constexpr float dxyThr_TopMVAany_Run2_UL = 0.05;
   constexpr float dzThr_TopMVAany_Run2_UL = 0.1;

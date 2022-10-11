@@ -105,8 +105,9 @@ namespace ElectronSelectionHelpers{
   constexpr float ptThr_TopMVAany_Run2_UL_tight = 10.;
 
   constexpr float isoThr_TopMVAany_Run2_UL_I1 = 0.4;
-  constexpr float isoThr_TopMVAany_Run2_UL_Fakeable_ALT_I2 = 0.5;
-  constexpr float bscoreThr_TopMVAany_Run2_UL_Fakeable_ALT = 0.5;
+  constexpr float isoThr_TopMVAany_Run2_UL_Fakeable_ALT_I2_Phase0 = 0.5;
+  constexpr float isoThr_TopMVAany_Run2_UL_Fakeable_ALT_I2_Phase1 = 0.4;
+  constexpr float bscoreThr_TopMVAany_Run2_UL_Fakeable_ALT = 0.1;
 
   constexpr int maxMissingHits_TopMVAany_Run2_UL = 1;
   constexpr float dxyThr_TopMVAany_Run2_UL = 0.05;

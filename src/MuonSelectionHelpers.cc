@@ -278,7 +278,7 @@ bool MuonSelectionHelpers::testFakeableId(MuonObject const& part){
       && (
         mvascore>(selection_type==kTopMVA_Run2 ? wp_medium_TopMVA_Run2_UL : wp_medium_TopMVAv2_Run2_UL)
         ||
-        (bscore<get_bscoreThr_TopMVAAny_Run2_UL_Fakeable_ALT(part) && ptratio>=isoThr_TopMVAany_Run2_UL_Fakeable_ALT_I2)
+        (bscore<bscoreThr_TopMVAAny_Run2_UL_Fakeable_ALT_fixed && ptratio>=isoThr_TopMVAany_Run2_UL_Fakeable_ALT_I2)
         )
       );
   }

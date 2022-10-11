@@ -432,6 +432,8 @@ bool ElectronSelectionHelpers::testFakeableId_Common(ElectronObject const& part)
     }
     if (mother) bscore = mother->extras.btagDeepFlavB;
 
+    float const isoThr_TopMVAany_Run2_UL_Fakeable_ALT_I2 = (SampleHelpers::getDataYear()<=2016 ? isoThr_TopMVAany_Run2_UL_Fakeable_ALT_I2_Phase0 : isoThr_TopMVAany_Run2_UL_Fakeable_ALT_I2_Phase1);
+
     return (
       part.extras.lostHits<=maxMissingHits_TopMVAany_Run2_UL
       && std::abs(part.extras.dxy)<dxyThr_TopMVAany_Run2_UL
