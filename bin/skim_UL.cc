@@ -101,6 +101,9 @@ int ScanChain(std::vector<TString> const& inputfnames, std::string const& output
     TriggerHelpers::kDoubleMu_Extra,
     TriggerHelpers::kDoubleEle_Extra,
     TriggerHelpers::kMuEle_Extra,
+    // Also include this trigger, just for fun...
+    TriggerHelpers::kDoubleEle_HighPt,
+    // Single-lepton triggers used in the TOP lepton MVA analysis
     TriggerHelpers::kSingleMu,
     TriggerHelpers::kSingleMu_Prescaled,
     TriggerHelpers::kSingleMu_Eta2p1_Prescaled,
@@ -109,7 +112,8 @@ int ScanChain(std::vector<TString> const& inputfnames, std::string const& output
     TriggerHelpers::kSingleEle_Prescaled,
     TriggerHelpers::kSingleEle_HighPt,
     TriggerHelpers::kSingleEle_HighPt_Extra,
-    TriggerHelpers::kSingleEle_HighPt_Extra_Prescaled
+    TriggerHelpers::kSingleEle_HighPt_Extra_Prescaled,
+    TriggerHelpers::kAuxiliary
   };
   std::vector<std::string> const hltnames_Dilepton = TriggerHelpers::getHLTMenus(requiredTriggers_Dilepton);
   HelperFunctions::appendVector(requiredTriggers, requiredTriggers_Dilepton);
@@ -118,10 +122,17 @@ int ScanChain(std::vector<TString> const& inputfnames, std::string const& output
     TriggerHelpers::kSingleEle_Control_Iso,
     // These nonisolated triggers were used in the 2016 analysis and are used in the TOP lepton MVA analysis. We keep them for now, but we could drop them later.
     TriggerHelpers::kSingleMu_Control_NoIso,
-    TriggerHelpers::kSingleEle_Control_NoIso
+    TriggerHelpers::kSingleEle_Control_NoIso,
+    TriggerHelpers::kAuxiliary
   };
   std::vector<std::string> const hltnames_SingleLeptonControl = TriggerHelpers::getHLTMenus(requiredTriggers_SingleLeptonControl);
   HelperFunctions::appendVector(requiredTriggers, requiredTriggers_SingleLeptonControl);
+
+  IVYout << "Required triggers:" << endl;
+  IVYout << "- Dilepton triggers:" << endl;
+  for (auto const& hltname:hltnames_Dilepton) IVYout << hltname << endl;
+  IVYout << "- Single lepton triggers:" << endl;
+  for (auto const& hltname:hltnames_SingleLeptonControl) IVYout << hltname << endl;
 
   // Declare handlers
   GenInfoHandler genInfoHandler;

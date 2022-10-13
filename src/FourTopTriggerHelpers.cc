@@ -583,14 +583,6 @@ void TriggerHelpers::configureHLTmap(){
       { "HLT_TripleMu_12_10_5_v*",{ { HLTObjectProperties::kMuon },{ HLTObjectProperties::kMuon },{ HLTObjectProperties::kMuon } } },
       { "HLT_Ele16_Ele12_Ele8_CaloIdL_TrackIdL_v*",{ { HLTObjectProperties::kElectron },{ HLTObjectProperties::kElectron },{ HLTObjectProperties::kElectron } } }
     };
-    HLT_type_proplist_map[kSingleMu_Control] = std::vector<HLTTriggerPathProperties>{
-      { "HLT_Mu27_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 27.f } } } } }, // Has HLT prescales only
-      { "HLT_Mu20_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 20.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Mu17_TrkIsoVVL_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 17.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Mu17_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 17.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Mu8_TrkIsoVVL_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 8.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Mu8_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 8.f } } } } } // Has L1 and HLT prescales
-    };
     HLT_type_proplist_map[kSingleMu_Control_NoIso] = std::vector<HLTTriggerPathProperties>{
       { "HLT_Mu27_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 27.f } } } } }, // Has HLT prescales only
       { "HLT_Mu20_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 20.f } } } } }, // Has L1 and HLT prescales
@@ -600,16 +592,6 @@ void TriggerHelpers::configureHLTmap(){
     HLT_type_proplist_map[kSingleMu_Control_Iso] = std::vector<HLTTriggerPathProperties>{
       { "HLT_Mu17_TrkIsoVVL_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 17.f } } } } }, // Has L1 and HLT prescales
       { "HLT_Mu8_TrkIsoVVL_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 8.f } } } } } // Has L1 and HLT prescales
-    };
-    HLT_type_proplist_map[kSingleEle_Control] = std::vector<HLTTriggerPathProperties>{
-      { "HLT_Ele23_CaloIdM_TrackIdM_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 23.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Ele23_CaloIdL_TrackIdL_IsoVL_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 23.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Ele17_CaloIdM_TrackIdM_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 17.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Ele17_CaloIdL_TrackIdL_IsoVL_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 17.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Ele12_CaloIdM_TrackIdM_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 12.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Ele12_CaloIdL_TrackIdL_IsoVL_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 12.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Ele8_CaloIdM_TrackIdM_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 8.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } }, // Has L1 prescales
-      { "HLT_Ele8_CaloIdL_TrackIdL_IsoVL_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 8.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } } // Has L1 prescales
     };
     HLT_type_proplist_map[kSingleEle_Control_NoIso] = std::vector<HLTTriggerPathProperties>{
       { "HLT_Ele23_CaloIdM_TrackIdM_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 23.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } }, // Has L1 and HLT prescales
@@ -663,6 +645,9 @@ void TriggerHelpers::configureHLTmap(){
       { "HLT_PFMET120_PFMHT120_IDTight_v*",{ { HLTObjectProperties::kMET,{ { HLTObjectProperties::kPt, 120.f } } },{ HLTObjectProperties::kHT,{ { HLTObjectProperties::kMass, 120.f } } } } }
     };
     HLT_type_proplist_map[kPFHT_PFMET_MHT_Control] = std::vector<HLTTriggerPathProperties>();
+    HLT_type_proplist_map[kAuxiliary] = std::vector<HLTTriggerPathProperties>{
+      { "HLT_TkMu17_TrkIsoVVL_TkMu8_TrkIsoVVL_v*",{ { HLTObjectProperties::kMuon },{ HLTObjectProperties::kMuon } } }, // HLT_TkMu17_TrkIsoVVL_TkMu8_TrkIsoVVL_v* is prescaled, do not use it!
+    };
 
     // Assign run range exclusions
     assignRunRangeExclusions(
@@ -836,14 +821,6 @@ void TriggerHelpers::configureHLTmap(){
       { "HLT_TripleMu_12_10_5_v*",{ { HLTObjectProperties::kMuon },{ HLTObjectProperties::kMuon },{ HLTObjectProperties::kMuon } } },
       { "HLT_Ele16_Ele12_Ele8_CaloIdL_TrackIdL_v*",{ { HLTObjectProperties::kElectron },{ HLTObjectProperties::kElectron },{ HLTObjectProperties::kElectron } } }
     };
-    HLT_type_proplist_map[kSingleMu_Control] = std::vector<HLTTriggerPathProperties>{
-      { "HLT_Mu27_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 27.f } } } } }, // Has HLT prescales only
-      { "HLT_Mu20_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 20.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Mu17_TrkIsoVVL_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 17.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Mu17_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 17.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Mu8_TrkIsoVVL_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 8.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Mu8_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 8.f } } } } } // Has L1 and HLT prescales
-    };
     HLT_type_proplist_map[kSingleMu_Control_NoIso] = std::vector<HLTTriggerPathProperties>{
       { "HLT_Mu27_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 27.f } } } } }, // Has HLT prescales only
       { "HLT_Mu20_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 20.f } } } } }, // Has L1 and HLT prescales
@@ -853,14 +830,6 @@ void TriggerHelpers::configureHLTmap(){
     HLT_type_proplist_map[kSingleMu_Control_Iso] = std::vector<HLTTriggerPathProperties>{
       { "HLT_Mu17_TrkIsoVVL_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 17.f } } } } }, // Has L1 and HLT prescales
       { "HLT_Mu8_TrkIsoVVL_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 8.f } } } } } // Has L1 and HLT prescales
-    };
-    HLT_type_proplist_map[kSingleEle_Control] = std::vector<HLTTriggerPathProperties>{
-      { "HLT_Ele23_CaloIdM_TrackIdM_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 23.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Ele23_CaloIdL_TrackIdL_IsoVL_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 23.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Ele17_CaloIdM_TrackIdM_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 17.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Ele12_CaloIdL_TrackIdL_IsoVL_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 12.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Ele8_CaloIdM_TrackIdM_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 8.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } }, // Has L1 prescales
-      { "HLT_Ele8_CaloIdL_TrackIdL_IsoVL_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 8.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } } // Has L1 prescales
     };
     HLT_type_proplist_map[kSingleEle_Control_NoIso] = std::vector<HLTTriggerPathProperties>{
       { "HLT_Ele23_CaloIdM_TrackIdM_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 23.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } }, // Has L1 and HLT prescales
@@ -914,6 +883,13 @@ void TriggerHelpers::configureHLTmap(){
       { "HLT_PFHT700_PFMET95_PFMHT95_IDTight_v*",{ { HLTObjectProperties::kHT,{ { HLTObjectProperties::kPt, 700.f },{ HLTObjectProperties::kMass, 95.f } } },{ HLTObjectProperties::kMET,{ { HLTObjectProperties::kPt, 95.f } } } } },
       { "HLT_PFHT800_PFMET75_PFMHT75_IDTight_v*",{ { HLTObjectProperties::kHT,{ { HLTObjectProperties::kPt, 800.f },{ HLTObjectProperties::kMass, 75.f } } },{ HLTObjectProperties::kMET,{ { HLTObjectProperties::kPt, 75.f } } } } },
       { "HLT_PFHT800_PFMET85_PFMHT85_IDTight_v*",{ { HLTObjectProperties::kHT,{ { HLTObjectProperties::kPt, 800.f },{ HLTObjectProperties::kMass, 85.f } } },{ HLTObjectProperties::kMET,{ { HLTObjectProperties::kPt, 85.f } } } } }
+    };
+    HLT_type_proplist_map[kAuxiliary] = std::vector<HLTTriggerPathProperties>{
+      { "HLT_IsoMu24_eta2p1_v*",{ { HLTObjectProperties::kMuon } } },
+      { "HLT_IsoMu24_v*", { { HLTObjectProperties::kMuon } } },
+      { "HLT_Ele115_CaloIdVT_GsfTrkIdT_v*",{ { HLTObjectProperties::kElectron } } },
+      { "HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_v*",{ { HLTObjectProperties::kMuon },{ HLTObjectProperties::kMuon } } },
+      { "HLT_TripleMu_5_3_3_Mass3p8to60_DZ_v*",{ { HLTObjectProperties::kMuon },{ HLTObjectProperties::kMuon },{ HLTObjectProperties::kMuon } } }
     };
 
     assignRunRangeExclusions(
@@ -1071,14 +1047,6 @@ void TriggerHelpers::configureHLTmap(){
       { "HLT_TripleMu_12_10_5_v*",{ { HLTObjectProperties::kMuon },{ HLTObjectProperties::kMuon },{ HLTObjectProperties::kMuon } } }//,
       //{ "HLT_Ele16_Ele12_Ele8_CaloIdL_TrackIdL_v*", { { HLTObjectProperties::kElectron }, { HLTObjectProperties::kElectron }, { HLTObjectProperties::kElectron } } } // Somehow its effective lumi is not the same as active lumi, and it does not show up in the spreadsheets
     };
-    HLT_type_proplist_map[kSingleMu_Control] = std::vector<HLTTriggerPathProperties>{
-      { "HLT_Mu27_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 27.f } } } } }, // Has HLT prescales only
-      { "HLT_Mu20_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 20.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Mu17_TrkIsoVVL_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 17.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Mu17_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 17.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Mu8_TrkIsoVVL_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 8.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Mu8_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 8.f } } } } } // Has L1 and HLT prescales
-    };
     HLT_type_proplist_map[kSingleMu_Control_NoIso] = std::vector<HLTTriggerPathProperties>{
       { "HLT_Mu27_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 27.f } } } } }, // Has HLT prescales only
       { "HLT_Mu20_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 20.f } } } } }, // Has L1 and HLT prescales
@@ -1088,14 +1056,6 @@ void TriggerHelpers::configureHLTmap(){
     HLT_type_proplist_map[kSingleMu_Control_Iso] = std::vector<HLTTriggerPathProperties>{
       { "HLT_Mu17_TrkIsoVVL_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 17.f } } } } }, // Has L1 and HLT prescales
       { "HLT_Mu8_TrkIsoVVL_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 8.f } } } } } // Has L1 and HLT prescales
-    };
-    HLT_type_proplist_map[kSingleEle_Control] = std::vector<HLTTriggerPathProperties>{
-      { "HLT_Ele23_CaloIdM_TrackIdM_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 23.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Ele23_CaloIdL_TrackIdL_IsoVL_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 23.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Ele17_CaloIdM_TrackIdM_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 17.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Ele12_CaloIdL_TrackIdL_IsoVL_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 12.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Ele8_CaloIdM_TrackIdM_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 8.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } }, // Has L1 prescales
-      { "HLT_Ele8_CaloIdL_TrackIdL_IsoVL_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 8.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } } // Has L1 prescales
     };
     HLT_type_proplist_map[kSingleEle_Control_NoIso] = std::vector<HLTTriggerPathProperties>{
       { "HLT_Ele23_CaloIdM_TrackIdM_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 23.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } }, // Has L1 and HLT prescales
@@ -1148,6 +1108,12 @@ void TriggerHelpers::configureHLTmap(){
       { "HLT_PFHT700_PFMET95_PFMHT95_IDTight_v*",{ { HLTObjectProperties::kHT,{ { HLTObjectProperties::kPt, 700.f },{ HLTObjectProperties::kMass, 95.f } } },{ HLTObjectProperties::kMET,{ { HLTObjectProperties::kPt, 95.f } } } } },
       { "HLT_PFHT800_PFMET75_PFMHT75_IDTight_v*",{ { HLTObjectProperties::kHT,{ { HLTObjectProperties::kPt, 800.f },{ HLTObjectProperties::kMass, 75.f } } },{ HLTObjectProperties::kMET,{ { HLTObjectProperties::kPt, 75.f } } } } },
       { "HLT_PFHT800_PFMET85_PFMHT85_IDTight_v*",{ { HLTObjectProperties::kHT,{ { HLTObjectProperties::kPt, 800.f },{ HLTObjectProperties::kMass, 85.f } } },{ HLTObjectProperties::kMET,{ { HLTObjectProperties::kPt, 85.f } } } } }
+    };
+    HLT_type_proplist_map[kAuxiliary] = std::vector<HLTTriggerPathProperties>{
+      { "HLT_IsoMu27_v*",{ { HLTObjectProperties::kMuon } } },
+      { "HLT_Ele115_CaloIdVT_GsfTrkIdT_v*",{ { HLTObjectProperties::kElectron } } },
+      { "HLT_TripleMu_5_3_3_Mass3p8_DZ_v*",{ { HLTObjectProperties::kMuon },{ HLTObjectProperties::kMuon },{ HLTObjectProperties::kMuon } } },
+      { "HLT_Ele16_Ele12_Ele8_CaloIdL_TrackIdL_v*", { { HLTObjectProperties::kElectron }, { HLTObjectProperties::kElectron }, { HLTObjectProperties::kElectron } } }
     };
 
     // Prescale=0 for a small portion of 2018A
@@ -1230,14 +1196,6 @@ void TriggerHelpers::configureHLTmap(){
       { "HLT_TripleMu_12_10_5_v*",{ { HLTObjectProperties::kMuon },{ HLTObjectProperties::kMuon },{ HLTObjectProperties::kMuon } } }//,
       //{ "HLT_Ele16_Ele12_Ele8_CaloIdL_TrackIdL_v*", { { HLTObjectProperties::kElectron }, { HLTObjectProperties::kElectron }, { HLTObjectProperties::kElectron } } } // Somehow its effective lumi is not the same as active lumi, and it does not show up in the spreadsheets
     };
-    HLT_type_proplist_map[kSingleMu_Control] = std::vector<HLTTriggerPathProperties>{
-      { "HLT_Mu27_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 27.f } } } } }, // Has HLT prescales only
-      { "HLT_Mu20_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 20.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Mu17_TrkIsoVVL_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 17.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Mu17_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 17.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Mu8_TrkIsoVVL_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 8.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Mu8_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 8.f } } } } } // Has L1 and HLT prescales
-    };
     HLT_type_proplist_map[kSingleMu_Control_NoIso] = std::vector<HLTTriggerPathProperties>{
       { "HLT_Mu27_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 27.f } } } } }, // Has HLT prescales only
       { "HLT_Mu20_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 20.f } } } } }, // Has L1 and HLT prescales
@@ -1247,14 +1205,6 @@ void TriggerHelpers::configureHLTmap(){
     HLT_type_proplist_map[kSingleMu_Control_Iso] = std::vector<HLTTriggerPathProperties>{
       { "HLT_Mu17_TrkIsoVVL_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 17.f } } } } }, // Has L1 and HLT prescales
       { "HLT_Mu8_TrkIsoVVL_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 8.f } } } } } // Has L1 and HLT prescales
-    };
-    HLT_type_proplist_map[kSingleEle_Control] = std::vector<HLTTriggerPathProperties>{
-      { "HLT_Ele23_CaloIdM_TrackIdM_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 23.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Ele23_CaloIdL_TrackIdL_IsoVL_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 23.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Ele17_CaloIdM_TrackIdM_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 17.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Ele12_CaloIdL_TrackIdL_IsoVL_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 12.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } }, // Has L1 and HLT prescales
-      { "HLT_Ele8_CaloIdM_TrackIdM_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 8.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } }, // Has L1 prescales
-      { "HLT_Ele8_CaloIdL_TrackIdL_IsoVL_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 8.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } } // Has L1 prescales
     };
     HLT_type_proplist_map[kSingleEle_Control_NoIso] = std::vector<HLTTriggerPathProperties>{
       { "HLT_Ele23_CaloIdM_TrackIdM_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 23.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } }, // Has L1 and HLT prescales
@@ -1307,6 +1257,12 @@ void TriggerHelpers::configureHLTmap(){
       { "HLT_PFHT700_PFMET95_PFMHT95_IDTight_v*",{ { HLTObjectProperties::kHT,{ { HLTObjectProperties::kPt, 700.f },{ HLTObjectProperties::kMass, 95.f } } },{ HLTObjectProperties::kMET,{ { HLTObjectProperties::kPt, 95.f } } } } },
       { "HLT_PFHT800_PFMET75_PFMHT75_IDTight_v*",{ { HLTObjectProperties::kHT,{ { HLTObjectProperties::kPt, 800.f },{ HLTObjectProperties::kMass, 75.f } } },{ HLTObjectProperties::kMET,{ { HLTObjectProperties::kPt, 75.f } } } } },
       { "HLT_PFHT800_PFMET85_PFMHT85_IDTight_v*",{ { HLTObjectProperties::kHT,{ { HLTObjectProperties::kPt, 800.f },{ HLTObjectProperties::kMass, 85.f } } },{ HLTObjectProperties::kMET,{ { HLTObjectProperties::kPt, 85.f } } } } }
+    };
+    HLT_type_proplist_map[kAuxiliary] = std::vector<HLTTriggerPathProperties>{
+      { "HLT_IsoMu27_v*",{ { HLTObjectProperties::kMuon } } },
+      { "HLT_Ele115_CaloIdVT_GsfTrkIdT_v*",{ { HLTObjectProperties::kElectron } } },
+      { "HLT_TripleMu_5_3_3_Mass3p8_DZ_v*",{ { HLTObjectProperties::kMuon },{ HLTObjectProperties::kMuon },{ HLTObjectProperties::kMuon } } },
+      { "HLT_Ele16_Ele12_Ele8_CaloIdL_TrackIdL_v*",{ { HLTObjectProperties::kElectron },{ HLTObjectProperties::kElectron },{ HLTObjectProperties::kElectron } } }
     };
 
     break;

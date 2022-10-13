@@ -33,8 +33,6 @@ namespace TriggerHelpers{
     kSingleMu_HighPt,
     kSingleMu_HighPt_Extra,
     kSingleMu_HighPt_Extra_Prescaled,
-    kSingleMu_Control,
-    // Subdivisions of kSingleMu_Control
     kSingleMu_Control_NoIso,
     kSingleMu_Control_Iso,
 
@@ -43,8 +41,6 @@ namespace TriggerHelpers{
     kSingleEle_HighPt,
     kSingleEle_HighPt_Extra,
     kSingleEle_HighPt_Extra_Prescaled,
-    kSingleEle_Control,
-    // Subdivisions of kSingleEle_Control
     kSingleEle_Control_NoIso,
     kSingleEle_Control_Iso,
 
@@ -58,6 +54,9 @@ namespace TriggerHelpers{
     kPFHT_PFMET_Control,
     kPFMET_MHT_Control,
     kPFHT_PFMET_MHT_Control,
+
+    // Any other trigger that probably does not make sense and/or needs investigation
+    kAuxiliary,
 
     nTriggerTypes
   };
