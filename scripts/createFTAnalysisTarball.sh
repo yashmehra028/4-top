@@ -64,6 +64,8 @@ src/tttt \
 --exclude=src/*{/*,}/test/*.DAT \
 --exclude=src/*{/*,}/test/tmp* \
 --exclude=src/*{/*,}/test/temp* \
+--exclude=src/tttt/test/analysis \
+--exclude=src/tttt/test/**/tasks \
 --exclude=src/tttt/test/*.root \
 --exclude=src/tttt/test/*.txt \
 --exclude=src/tttt/test/*.csv \
