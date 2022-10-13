@@ -28,7 +28,7 @@ GenInfoHandler::GenInfoHandler() :
 
   acquireCoreGenInfo(true),
   acquireLHEMEWeights(true),
-  //acquireLHEParticles(true),
+  acquireLHEParticles(true),
   acquireGenParticles(true),
   //acquireGenAK4Jets(false),
   //acquireGenAK8Jets(false),
@@ -49,8 +49,8 @@ void GenInfoHandler::clear(){
 
   delete genInfo; genInfo=nullptr;
 
-  //for (auto& part:lheparticles) delete part;
-  //lheparticles.clear();
+  for (auto& part:lheparticles) delete part;
+  lheparticles.clear();
 
   for (auto& part:genparticles) delete part;
   genparticles.clear();
@@ -72,8 +72,8 @@ bool GenInfoHandler::constructGenInfo(){
   bool const require_kfactor_computations = !kfactor_num_denum_list.empty();
   bool res = (
     ((!acquireCoreGenInfo && !require_kfactor_computations) || constructCoreGenInfo())
-    //&& (!acquireLHEParticles || constructLHEParticles())
     && ((!acquireGenParticles && !require_kfactor_computations) || constructGenParticles())
+    && (!(acquireLHEParticles || require_kfactor_computations) || constructLHEParticles())
     //&& (!acquireGenAK4Jets || constructGenAK4Jets())
     //&& (!acquireGenAK8Jets || constructGenAK8Jets())
     && (!require_kfactor_computations || computeKFactors())
@@ -142,6 +142,7 @@ bool GenInfoHandler::constructCoreGenInfo(){
 
   return true;
 }
+
 bool GenInfoHandler::constructGenParticles(){
   GlobalCollectionNames::collsize_t nProducts;
 #define GENPARTICLE_VARIABLE(TYPE, NAME, DEFVAL) TYPE* const* arr_##NAME = nullptr;
@@ -227,10 +228,60 @@ bool GenInfoHandler::constructGenParticles(){
   return true;
 }
 
+bool GenInfoHandler::constructLHEParticles(){
+  GlobalCollectionNames::collsize_t nProducts;
+#define LHEPARTICLE_VARIABLE(TYPE, NAME, DEFVAL) TYPE* const* arr_##NAME = nullptr;
+  LHEPARTICLE_VARIABLES;
+#undef LHEPARTICLE_VARIABLE
+
+  // Beyond this point starts checks and selection
+  bool allVariablesPresent = this->getConsumedValue(Form("n%s", colName_lheparticles.data()), nProducts);
+#define LHEPARTICLE_VARIABLE(TYPE, NAME, DEFVAL) allVariablesPresent &= this->getConsumed<TYPE* const>(colName_lheparticles + "_" + #NAME, arr_##NAME);
+  LHEPARTICLE_VARIABLES;
+#undef LHEPARTICLE_VARIABLE
+
+  if (!allVariablesPresent){
+    if (this->verbosity>=MiscUtils::ERROR) IVYerr << "GenInfoHandler::constructLHEParticles: Not all variables are consumed properly!" << endl;
+    assert(0);
+  }
+  if (this->verbosity>=MiscUtils::DEBUG) IVYout << "GenInfoHandler::constructLHEParticles: All variables are set up!" << endl;
+
+  if (nProducts>GlobalCollectionNames::colMaxSize_lheparticles){
+    if (this->verbosity>=MiscUtils::ERROR) IVYerr << "GenInfoHandler::constructLHEParticles: The size of the collection (" << nProducts << ") exceeds maximum size (" << GlobalCollectionNames::colMaxSize_lheparticles << ")." << endl;
+    assert(0);
+  }
+  lheparticles.reserve(nProducts);
+#define LHEPARTICLE_VARIABLE(TYPE, NAME, DEFVAL) TYPE* it_##NAME = nullptr; if (arr_##NAME) it_##NAME = &((*arr_##NAME)[0]);
+  LHEPARTICLE_VARIABLES;
+#undef LHEPARTICLE_VARIABLE
+  {
+    GlobalCollectionNames::collsize_t ip=0;
+    while (ip != nProducts){
+      if (this->verbosity>=MiscUtils::DEBUG) IVYout << "GenInfoHandler::constructGenParticles: Attempting gen. particle " << ip << "..." << endl;
+
+      ParticleObject::LorentzVector_t momentum;
+      if ((*it_status)!=-1) momentum = ParticleObject::PolarLorentzVector_t(*it_pt, *it_eta, *it_phi, *it_mass); // Yes you have to do this on a separate line because CMSSW...
+      else momentum = ParticleObject::LorentzVector_t(0, 0, *it_incomingpz, std::sqrt(std::pow(*it_mass, 2)+std::pow(*it_incomingpz, 2)));
+      lheparticles.push_back(new LHEParticleObject(*it_pdgId, *it_status, momentum));
+
+      if (this->verbosity>=MiscUtils::DEBUG) IVYout << "\t- Success!" << endl;
+
+      ip++;
+#define LHEPARTICLE_VARIABLE(TYPE, NAME, DEFVAL) if (it_##NAME) it_##NAME++;
+      LHEPARTICLE_VARIABLES;
+#undef LHEPARTICLE_VARIABLE
+    }
+  }
+
+  return true;
+}
+
 void GenInfoHandler::bookBranches(BaseTree* tree){
   if (!tree) return;
 
   if (SampleHelpers::checkSampleIsData(tree->sampleIdentifier)) return;
+
+  bool const require_kfactor_computations = !kfactor_num_denum_list.empty();
 
   std::vector<TString> allbranchnames; tree->getValidBranchNamesWithoutAlias(allbranchnames, false);
 
@@ -262,6 +313,17 @@ this->defineConsumedSloppy(#NAME);
   GENPARTICLE_NANOAOD_VARIABLES;
 #undef GENPARTICLE_VARIABLE
 
+  if (acquireLHEParticles || require_kfactor_computations){
+    tree->bookBranch<GlobalCollectionNames::collsize_t>(Form("n%s", colName_lheparticles.data()), 0);
+#define LHEPARTICLE_VARIABLE(TYPE, NAME, DEFVAL) tree->bookArrayBranch<TYPE>(colName_lheparticles + "_" + #NAME, DEFVAL, GlobalCollectionNames::colMaxSize_lheparticles);
+    LHEPARTICLE_VARIABLES;
+#undef LHEPARTICLE_VARIABLE
+  }
+  this->addConsumed<GlobalCollectionNames::collsize_t>(Form("n%s", colName_lheparticles.data())); this->defineConsumedSloppy(Form("n%s", colName_lheparticles.data()));
+#define LHEPARTICLE_VARIABLE(TYPE, NAME, DEFVAL) this->addConsumed<TYPE* const>(colName_lheparticles + "_" + #NAME); this->defineConsumedSloppy(colName_lheparticles + "_" + #NAME);
+  LHEPARTICLE_VARIABLES;
+#undef LHEPARTICLE_VARIABLE
+
   // K factor and ME reweighting branches are defined as sloppy
   std::vector<TString> kfactorlist;
   std::vector<TString> melist;
@@ -279,7 +341,7 @@ this->defineConsumedSloppy(#NAME);
       this->defineConsumedSloppy(bname);
       melist.push_back(bname);
     }
-    else if (acquireLHEParticles && bname.Contains(colName_lheparticles)) has_lheparticles = true;
+    else if ((acquireLHEParticles || require_kfactor_computations) && bname.Contains(colName_lheparticles)) has_lheparticles = true;
   }
 
   tree_kfactorlist_map[tree] = kfactorlist;
@@ -449,6 +511,28 @@ bool GenInfoHandler::computeKFactors(){
       V1pair, V2pair
     );
 
+    float PDF_x1=0, PDF_x2=0;
+    {
+      double const xsf = 2./(SampleHelpers::getSqrts()*1000.);
+      int id1=-9000, id2=-9000;
+      float pz1=0, pz2=0;
+      for (auto const& part:lheparticles){
+        if (part->status()!=-1) continue;
+        if (id1==-9000){
+          id1 = part->pdgId();
+          pz1 = part->pz();
+        }
+        else{
+          id2 = part->pdgId();
+          pz2 = part->pz();
+        }
+      }
+      PDF_x1 = (pz1>pz2 ? pz1 : pz2);
+      PDF_x2 = (pz1>pz2 ? pz2 : pz1);
+      PDF_x1 *= xsf;
+      PDF_x2 *= xsf;
+    }
+
     for (auto const& kfpair:kfactor_num_denum_list){
       if (
         kfpair.first == KFactorHelpers::kf_QCD_NNLO_QQZZ_BKG
@@ -464,7 +548,7 @@ bool GenInfoHandler::computeKFactors(){
         ||
         kfpair.first == KFactorHelpers::kf_EW_NLO_QQWW_BKG
         ) KFactor_EW_qqVV_Bkg_handle->eval(
-          genInfo->extras.PDF_x1, genInfo->extras.PDF_x2,
+          PDF_x1, PDF_x2,
           incomingQuarks, V1pair, V2pair,
           genInfo->extras.Kfactors
         );

@@ -109,8 +109,6 @@ void GenInfoObject::acquireGenInfo(
 #undef GENINFO_NANOAOD_ARRAY_VARIABLE
 #undef GENINFO_NANOAOD_SCALAR_VARIABLE
 
-  extras.PDF_x1 = Generator_x1;
-  extras.PDF_x2 = Generator_x2;
   // FIXME: I don't know the conventions just yet, so for now, set all systematics to 1, and central weight to wgts[0]
   extras.genHEPMCweight = genWeight;
   // Weight vairations are supposed to be ratios to genHEPMCweight!

@@ -4,7 +4,7 @@
 #include <vector>
 #include "IvyBase.h"
 #include "GenInfoObject.h"
-//#include "LHEParticleObject.h"
+#include "LHEParticleObject.h"
 #include "GenParticleObject.h"
 //#include "GenJetObject.h"
 #include "KFactorHelpers.h"
@@ -30,13 +30,13 @@ protected:
   KFactorHelpers::KFactorHandler_EW_qqVV_Bkg* KFactor_EW_qqVV_Bkg_handle;
 
   GenInfoObject* genInfo;
-  //std::vector<LHEParticleObject*> lheparticles;
+  std::vector<LHEParticleObject*> lheparticles;
   std::vector<GenParticleObject*> genparticles;
   //std::vector<GenJetObject*> genak4jets;
   //std::vector<GenJetObject*> genak8jets;
 
   bool constructCoreGenInfo();
-  //bool constructLHEParticles();
+  bool constructLHEParticles();
   bool constructGenParticles();
   //bool constructGenAK4Jets();
   //bool constructGenAK8Jets();
@@ -56,7 +56,7 @@ public:
   bool constructGenInfo();
 
   GenInfoObject* const& getGenInfo() const{ return genInfo; }
-  //std::vector<LHEParticleObject*> const& getLHEParticles() const{ return lheparticles; }
+  std::vector<LHEParticleObject*> const& getLHEParticles() const{ return lheparticles; }
   std::vector<GenParticleObject*> const& getGenParticles() const{ return genparticles; }
   //std::vector<GenJetObject*> const& getGenAK4Jets() const{ return genak4jets; }
   //std::vector<GenJetObject*> const& getGenAK8Jets() const{ return genak8jets; }

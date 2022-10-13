@@ -60,6 +60,25 @@ int const& SampleHelpers::getDataYear(){ return theDataYear; }
 TString const& SampleHelpers::getDataPeriod(){ return theDataPeriod; }
 TString const& SampleHelpers::getInputDirectory(){ return theInputDirectory; }
 TString const& SampleHelpers::getInputTag(){ return theInputTag; }
+double SampleHelpers::getSqrts(){
+  switch (theDataYear){
+  case 2011:
+    return 7;
+  case 2012:
+    return 8;
+  case 2015:
+  case 2016:
+  case 2017:
+  case 2018:
+    return 13;
+  case 2022:
+    return 13.6;
+  default:
+    IVYerr << "SampleHelpers::getSqrts: Undefined year " << theDataYear << "." << endl;
+    assert(0);
+    return -1;
+  }
+}
 TString SampleHelpers::getSqrtsString(){
   switch (theDataYear){
   case 2011:
@@ -71,6 +90,8 @@ TString SampleHelpers::getSqrtsString(){
   case 2017:
   case 2018:
     return "13";
+  case 2022:
+    return "13p6";
   default:
     IVYerr << "SampleHelpers::getSqrtsString: Undefined year " << theDataYear << "." << endl;
     assert(0);
@@ -170,7 +191,7 @@ std::vector< std::pair<unsigned int, unsigned int> > SampleHelpers::getRunRanges
     bool doAccept = false;
     if (period=="2016_APV" || period=="2016_NonAPV"){
       bool isAPVaffected = isAPV2016Affected(rrlist_dp.second);
-      doAccept=((period=="2016_APV" && isAPVaffected) || (period=="2016_NonAPV" && !isAPVaffected));
+      doAccept=rrlist_dp.second.Contains("2016") && ((period=="2016_APV" && isAPVaffected) || (period=="2016_NonAPV" && !isAPVaffected));
     }
     else doAccept=rrlist_dp.second.Contains(period);
     if (doAccept) HelperFunctions::appendVector(res, rrlist_dp.first);

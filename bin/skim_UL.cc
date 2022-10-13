@@ -96,14 +96,27 @@ int ScanChain(std::vector<TString> const& inputfnames, std::string const& output
     // These PFHT triggers were used in the 2016 analysis. We keep them for now, but we could drop them later.
     TriggerHelpers::kDoubleMu_PFHT,
     TriggerHelpers::kDoubleEle_PFHT,
-    TriggerHelpers::kMuEle_PFHT
+    TriggerHelpers::kMuEle_PFHT,
+    // These are extra triggers used by the analysis using TOP lepton MVAs
+    TriggerHelpers::kDoubleMu_Extra,
+    TriggerHelpers::kDoubleEle_Extra,
+    TriggerHelpers::kMuEle_Extra,
+    TriggerHelpers::kSingleMu,
+    TriggerHelpers::kSingleMu_Prescaled,
+    TriggerHelpers::kSingleMu_Eta2p1_Prescaled,
+    TriggerHelpers::kSingleMu_HighPt,
+    TriggerHelpers::kSingleEle,
+    TriggerHelpers::kSingleEle_Prescaled,
+    TriggerHelpers::kSingleEle_HighPt,
+    TriggerHelpers::kSingleEle_HighPt_Extra,
+    TriggerHelpers::kSingleEle_HighPt_Extra_Prescaled
   };
   std::vector<std::string> const hltnames_Dilepton = TriggerHelpers::getHLTMenus(requiredTriggers_Dilepton);
   HelperFunctions::appendVector(requiredTriggers, requiredTriggers_Dilepton);
   std::vector<TriggerHelpers::TriggerType> const requiredTriggers_SingleLeptonControl{
     TriggerHelpers::kSingleMu_Control_Iso,
     TriggerHelpers::kSingleEle_Control_Iso,
-    // These nonisolated triggers were used in the 2016 analysis. We keep them for now, but we could drop them later.
+    // These nonisolated triggers were used in the 2016 analysis and are used in the TOP lepton MVA analysis. We keep them for now, but we could drop them later.
     TriggerHelpers::kSingleMu_Control_NoIso,
     TriggerHelpers::kSingleEle_Control_NoIso
   };

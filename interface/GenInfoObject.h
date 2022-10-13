@@ -10,10 +10,6 @@
 
 // NanoAOD variables
 #define GENINFO_NANOAOD_SCALAR_VARIABLES \
-GENINFO_NANOAOD_SCALAR_VARIABLE(int, Generator_id1, -9000) \
-GENINFO_NANOAOD_SCALAR_VARIABLE(int, Generator_id2, -9000) \
-GENINFO_NANOAOD_SCALAR_VARIABLE(float, Generator_x1, 0) \
-GENINFO_NANOAOD_SCALAR_VARIABLE(float, Generator_x2, 0) \
 GENINFO_NANOAOD_SCALAR_VARIABLE(float, genWeight, 1) \
 GENINFO_NANOAOD_SCALAR_VARIABLE(float, LHEWeight_originalXWGTUP, 1)
 
@@ -28,8 +24,6 @@ GENINFO_NANOAOD_ARRAY_VARIABLES
 
 // Framework translation
 #define GENINFO_EXTRA_VARIABLES \
-GENINFO_VARIABLE(float, PDF_x1, 0) \
-GENINFO_VARIABLE(float, PDF_x2, 0) \
 GENINFO_VARIABLE(float, genHEPMCweight, 1) \
 GENINFO_VARIABLE(float, LHEweight_unscaledOriginalWeight, 1) /* = LHEEventProduct::originalXWGTUP() */ \
 GENINFO_VARIABLE(float, LHEweight_defaultMemberZero, 1) /* = PDFweights[0] */ \

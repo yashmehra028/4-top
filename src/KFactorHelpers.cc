@@ -92,20 +92,21 @@ namespace KFactorHelpers{
     for (auto const& part:incomingQuarks) IVYout << "Incoming quark (id, status) = ( " << part->pdgId() << " , " << part->status() << " )" << endl;
     for (auto const& part:incomingGluons) IVYout << "Incoming gluon (id, status) = ( " << part->pdgId() << " , " << part->status() << " )" << endl;
     for (unsigned short c=0; c<3; c++){
-    for (unsigned short d=0; d<2; d++){
-    for (auto const& part:lepMinusPlus[c][d]) IVYout << "Lepton[" << c << "][" << d << "] (id, status) = ( " << part->pdgId() << " , " << part->status() << " )" << endl;
-    }
+      for (unsigned short d=0; d<2; d++){
+        for (auto const& part:lepMinusPlus[c][d]) IVYout << "Lepton[" << c << "][" << d << "] (id, status) = ( " << part->pdgId() << " , " << part->status() << " )" << endl;
+      }
     }
     for (unsigned short c=0; c<3; c++){
-    for (unsigned short d=0; d<2; d++){
-    for (auto const& part:lepNuNubar[c][d]) IVYout << "Neutrino[" << c << "][" << d << "] (id, status) = ( " << part->pdgId() << " , " << part->status() << " )" << endl;
-    }
+      for (unsigned short d=0; d<2; d++){
+        for (auto const& part:lepNuNubar[c][d]) IVYout << "Neutrino[" << c << "][" << d << "] (id, status) = ( " << part->pdgId() << " , " << part->status() << " )" << endl;
+      }
     }
     for (unsigned short c=0; c<6; c++){
-    for (unsigned short d=0; d<2; d++){
-    for (auto const& part:quarkAntiquark[c][d]) IVYout << "Quark[" << c << "][" << d << "] (id, status) = ( " << part->pdgId() << " , " << part->status() << " )" << endl;
+      for (unsigned short d=0; d<2; d++){
+        for (auto const& part:quarkAntiquark[c][d]) IVYout << "Quark[" << c << "][" << d << "] (id, status) = ( " << part->pdgId() << " , " << part->status() << " )" << endl;
+      }
     }
-    }
+    IVYout << "Attempting to reconstruct " << (doZZ ? "ZZ" : (doWZ ? "WZ" : (doWW ? "WW" : ""))) << " pairs..." << endl;
     */
 
     // First, construct all possible Vs
