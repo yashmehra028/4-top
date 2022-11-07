@@ -152,6 +152,8 @@ if [[ "${INPUTFILENAMES}" == *"/hadoop/cms"* ]] || [[ "${INPUTFILENAMES}" == *"/
   echo "New list of input files: ${INPUTFILENAMES}"
 fi
 
+# Create this file in order to detect that a Condor job is running
+touch RUNNING_ON_CONDOR
 
 cmdRun="skim_UL inputs=${INPUTFILENAMES} output=${OUTPUTNAME}.root ${SKIMARGS}"
 echo "Running: ${cmdRun}"

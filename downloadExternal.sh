@@ -24,7 +24,7 @@ get_files(){
 
 
 
-main_url="https://github.com/HephyAnalysisSW/tWZ/raw/UL/Tools/data/mvaWeights"
+main_url="https://github.com/cmstas/TopLeptonMVAInputs/blob/master/Run2_UL"
 files=( \
   el_TOPUL16APV_XGB.weights.bin \
   el_TOPUL16_XGB.weights.bin \

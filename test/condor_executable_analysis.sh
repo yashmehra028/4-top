@@ -176,7 +176,7 @@ ls -lrth
 ##############
 echo -e "\n--- Begin RUN ---\n"
 
-# Create this file in order for IvyDataTools to detect that a Condor job is running
+# Create this file in order to detect that a Condor job is running
 touch RUNNING_ON_CONDOR
 
 cmdRun="${RUNEXE} ${RUNEXEARGS}"

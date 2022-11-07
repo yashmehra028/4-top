@@ -67,7 +67,8 @@ void SelectionTracker::print() const{
 }
 
 int ScanChain(std::string const& strdate, std::string const& dset, std::string const& proc, double const& xsec, int const& ichunk, int const& nchunks, SimpleEntry const& extra_arguments){
-  if (!SampleHelpers::checkRunOnCondor()) std::signal(SIGINT, SampleHelpers::setSignalInterrupt);
+  bool const isCondorRun = SampleHelpers::checkRunOnCondor();
+  if (!isCondorRun) std::signal(SIGINT, SampleHelpers::setSignalInterrupt);
 
   TDirectory* curdir = gDirectory;
 
@@ -85,6 +86,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   // Output should always be recorded as if you are running the job locally.
   // We will inform the Condor job later on that some files would need transfer if we are running on Condor.
   TString coutput_main = TString("output/Analysis_FakeRates/") + strdate.data() + "/" + SampleHelpers::getDataPeriod();
+  if (!isCondorRun) coutput_main = ANALYSISPKGPATH + "/test/" + coutput_main;
   HostHelpers::ExpandEnvironmentVariables(coutput_main);
   gSystem->mkdir(coutput_main, true);
 

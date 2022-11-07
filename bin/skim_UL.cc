@@ -160,6 +160,17 @@ int ScanChain(std::vector<TString> const& inputfnames, std::string const& output
 
   // Acquire input tree/chain
   BaseTree* tin = new BaseTree(inputfnames, std::vector<TString>{ "Events" }, "");
+  if (!tin->isValid()){
+    std::vector<TString> inputfnames_ALT = inputfnames;
+    for (auto& fname:inputfnames_ALT) HelperFunctions::replaceString<TString, TString const>(fname, "root://xcache-redirector.t2.ucsd.edu:2042/", "root://cms-xrd-global.cern.ch/");
+    delete tin;
+    tin = new BaseTree(inputfnames_ALT, std::vector<TString>{ "Events" }, "");
+  }
+  if (!tin->isValid()){
+    IVYerr << "The input tree is not valid. Exiting..." << endl;
+    delete tin;
+    return 1;
+  }
   tin->sampleIdentifier = SampleHelpers::getSampleIdentifier(dset);
   bool const isData = SampleHelpers::checkSampleIsData(tin->sampleIdentifier);
 
