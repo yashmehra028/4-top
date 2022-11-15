@@ -25,6 +25,7 @@ int main(int argc, char** argv){
 
   bool print_help=false, has_help=false;
   std::string str_period;
+  bool print_lumi=false;
   for (int iarg=iarg_offset; iarg<argc; iarg++){
     std::string strarg = argv[iarg];
     std::string wish, value;
@@ -32,6 +33,7 @@ int main(int argc, char** argv){
 
     if (wish.empty()){
       if (value=="help"){ print_help=has_help=true; }
+      else if (value=="lumi") print_lumi=true;
       else{
         IVYerr << "ERROR: Unknown argument " << value << endl;
         print_help=true;
@@ -58,8 +60,11 @@ int main(int argc, char** argv){
   }
 
   SampleHelpers::setDataPeriod(str_period);
-  auto const& runnumber_lumi_pairs = SampleHelpers::getRunNumberLumiPairsForDataPeriod(SampleHelpers::getDataPeriod());
-  for (auto const& pp:runnumber_lumi_pairs) IVYout << pp.first << ":" << pp.second << endl;
+  if (print_lumi) IVYout << SampleHelpers::getIntegratedLuminosity(SampleHelpers::getDataPeriod()) << endl;
+  else{
+    auto const& runnumber_lumi_pairs = SampleHelpers::getRunNumberLumiPairsForDataPeriod(SampleHelpers::getDataPeriod());
+    for (auto const& pp:runnumber_lumi_pairs) IVYout << pp.first << ":" << pp.second << endl;
+  }
 
   return 0;
 }
