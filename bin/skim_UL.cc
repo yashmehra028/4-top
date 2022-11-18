@@ -77,6 +77,8 @@ int ScanChain(std::vector<TString> const& inputfnames, std::string const& output
       gSystem->mkdir(output_dir.data(), true);
     }
   }
+
+  bool skipSkimReqs = false;
   std::string strjsonfile;
   std::vector<std::string> kfactoropts;
   for (auto const& pp:extra_arguments){
@@ -85,6 +87,7 @@ int ScanChain(std::vector<TString> const& inputfnames, std::string const& output
       HelperFunctions::castStringToValue(pp.second, flag);
       if (flag) kfactoropts.push_back(pp.first);
     }
+    else if (pp.first.find("skipSkimReqs")!=std::string::npos) HelperFunctions::castStringToValue(pp.second, skipSkimReqs);
     else if (pp.first == "goldenjson") strjsonfile = pp.second;
   }
 
@@ -356,17 +359,22 @@ if (MAXSIZE>0) tin->getSelectedTree()->SetBranchStatus(Form("n%s", GlobalCollect
     seltracker.accumulate("Full sample", wgt_gensim_nominal);
 
     // Do not apply HEM veto since it depends on the jet pT threshold, which itself depends on JES/JER variations.
-    //if (!eventFilter.test2018HEMFilter(&simEventHandler, nullptr, nullptr, &ak4jets)) continue; // Test for 2018 partial HEM failure
+    //if (!skipSkimReqs && !eventFilter.test2018HEMFilter(&simEventHandler, nullptr, nullptr, &ak4jets)) continue; // Test for 2018 partial HEM failure
     //seltracker.accumulate("Pass HEM veto", wgt_gensim_nominal);
 
-    //if (!eventFilter.passMETFilters()) continue; // Test for MET filters
+    //if (!skipSkimReqs && !eventFilter.passMETFilters()) continue; // Test for MET filters
     //seltracker.accumulate("Pass MET filters", wgt_gensim_nominal);
 
+    // No trigger selection anymore
+    constexpr float event_weight_triggers_dilepton = 1;
+    constexpr float event_weight_triggers_singleleptoncontrol = 1;
+    /*
     float event_weight_triggers_dilepton = eventFilter.getTriggerWeight(hltnames_Dilepton);
     float event_weight_triggers_singleleptoncontrol = eventFilter.getTriggerWeight(hltnames_SingleLeptonControl);
     seltracker.accumulate("Pass dilepton triggers", wgt_gensim_nominal*double(event_weight_triggers_dilepton!=0.));
     seltracker.accumulate("Pass single lepton control triggers", wgt_gensim_nominal*double(event_weight_triggers_singleleptoncontrol!=0.));
-    if ((event_weight_triggers_dilepton+event_weight_triggers_singleleptoncontrol)==0.) continue; // Test if any triggers passed at all
+    */
+    if (!skipSkimReqs && ((event_weight_triggers_dilepton+event_weight_triggers_singleleptoncontrol)==0.)) continue; // Test if any triggers passed at all
     seltracker.accumulate("Pass any trigger", wgt_gensim_nominal);
 
     // Construct all possible dilepton pairs
@@ -398,7 +406,7 @@ if (MAXSIZE>0) tin->getSelectedTree()->SetBranchStatus(Form("n%s", GlobalCollect
     bool const pass_loose_singlelepton = (n_muons + n_electrons)>=1 && n_ak4jets_tight>=1 && event_weight_triggers_singleleptoncontrol!=0.;
     seltracker.accumulate("Pass loose dilepton selection", wgt_gensim_nominal*double(pass_loose_dilepton));
     seltracker.accumulate("Pass loose single lepton control selection", wgt_gensim_nominal*double(pass_loose_singlelepton));
-    if (!pass_loose_dilepton && !pass_loose_singlelepton) continue;
+    if (!skipSkimReqs && !pass_loose_dilepton && !pass_loose_singlelepton) continue;
     seltracker.accumulate("Pass loose object selection", wgt_gensim_nominal);
 
     if (global_include_veto_isotracks){
@@ -420,11 +428,11 @@ if (MAXSIZE>0) tin->getSelectedTree()->SetBranchStatus(Form("n%s", GlobalCollect
         }
         if (min_dR>0.4){ pass_loose_isotrack_veto=false; break; }
       }
-      if (!pass_loose_isotrack_veto) continue;
+      if (!skipSkimReqs && !pass_loose_isotrack_veto) continue;
       seltracker.accumulate("Pass isotrack veto", wgt_gensim_nominal);
     }
 
-    if (!eventFilter.isUniqueDataEvent() || !eventFilter.passDataCert()) continue;
+    if (!eventFilter.isUniqueDataEvent() || !eventFilter.passDataCert()) continue; // Unaffected by skipSkimReqs
     seltracker.accumulate("Pass unique event check and data certification", wgt_gensim_nominal);
 
     // Accumulate any ME weights and K factors that might be present

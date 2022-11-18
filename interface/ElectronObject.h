@@ -32,6 +32,7 @@ ELECTRON_EXTRA_UNUSED_VARIABLES_RUN3
 ELECTRON_VARIABLE(bool, convVeto, 0) \
 ELECTRON_VARIABLE(unsigned char, lostHits, 0) \
 ELECTRON_VARIABLE(unsigned char, jetNDauCharged, 0) \
+ELECTRON_VARIABLE(int, jetIdx, -1) \
 ELECTRON_VARIABLE(int, tightCharge, 0) \
 ELECTRON_VARIABLE(float, hoe, 0) \
 ELECTRON_VARIABLE(float, eInvMinusPInv, 0) \

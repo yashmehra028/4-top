@@ -8,8 +8,8 @@ dataset,short_name,period,extra_arguments
 /SingleMuon/Run2022C-PromptNanoAODv10-v1/NANOAOD,SingleMuon_2022C,2022,goldenjson=Cert_355862_357482_13p6TeV_Prompt_Collisions22_eraC_JSON.txt
 # 2022D,from /*/Run2022D*/NANOAOD,,
 #/DoubleMuon/Run2022D-PromptNanoAODv10-v1/NANOAOD,DoubleMuon_2022D,2022,goldenjson=Cert_357538_357900_13p6TeV_Prompt_Collisions22_eraD_JSON.txt
-/EGamma/Run2022D-PromptNanoAODv10-v2/NANOAOD,EGamma_2022D,2022,goldenjson=Cert_357538_357900_13p6TeV_Prompt_Collisions22_eraD_JSON.txt
+/EGamma/Run2022D-PromptNanoAODv10_v2-v1/NANOAOD,EGamma_2022D,2022,goldenjson=Cert_357538_357900_13p6TeV_Prompt_Collisions22_eraD_JSON.txt
 #/JetHT/Run2022D-PromptNanoAODv10-v1/NANOAOD,JetHT_2022D,2022,goldenjson=Cert_357538_357900_13p6TeV_Prompt_Collisions22_eraD_JSON.txt
 #/MET/Run2022D-PromptNanoAODv10-v1/NANOAOD,MET_2022D,2022,goldenjson=Cert_357538_357900_13p6TeV_Prompt_Collisions22_eraD_JSON.txt
-/MuonEG/Run2022D-PromptNanoAODv10-v1/NANOAOD,MuonEG_2022D,2022,goldenjson=Cert_357538_357900_13p6TeV_Prompt_Collisions22_eraD_JSON.txt
+/MuonEG/Run2022D-PromptNanoAODv10_v2-v1/NANOAOD,MuonEG_2022D,2022,goldenjson=Cert_357538_357900_13p6TeV_Prompt_Collisions22_eraD_JSON.txt
 #/SingleMuon/Run2022D-PromptNanoAODv10-v1/NANOAOD,SingleMuon_2022D,2022,goldenjson=Cert_357538_357900_13p6TeV_Prompt_Collisions22_eraD_JSON.txt

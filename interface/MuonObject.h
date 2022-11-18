@@ -19,6 +19,7 @@ MUON_VARIABLE(float, pfRelIso03_chg, 0)
 MUON_VARIABLE(bool, looseId, 0) \
 MUON_VARIABLE(bool, mediumId, 0) \
 MUON_VARIABLE(unsigned char, jetNDauCharged, 0) \
+MUON_VARIABLE(int, jetIdx, -1) \
 MUON_VARIABLE(float, segmentComp, 0) \
 MUON_VARIABLE(float, miniPFRelIso_all, 0) \
 MUON_VARIABLE(float, miniPFRelIso_chg, 0) \
