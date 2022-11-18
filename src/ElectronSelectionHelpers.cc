@@ -447,7 +447,7 @@ bool ElectronSelectionHelpers::testFakeableId_Common(ElectronObject const& part)
       && (
         mvascore>(selection_type==kTopMVA_Run2 ? wp_tight_TopMVA_Run2_UL : wp_tight_TopMVAv2_Run2_UL)
         ||
-        (part.extras.mvaFall17V2noIso_WPL && ptratio>=isoThr_TopMVAany_Run2_UL_Fakeable_ALT_I2 && bscore<bscoreThr_TopMVAany_Run2_UL_Fakeable_ALT)
+        (getNanoMVANoIsoBDTWPL(part) && ptratio>=isoThr_TopMVAany_Run2_UL_Fakeable_ALT_I2 && bscore<bscoreThr_TopMVAany_Run2_UL_Fakeable_ALT)
         )
       );
   }
