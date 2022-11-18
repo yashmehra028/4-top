@@ -500,6 +500,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, muons, is_genmatched_prompt_chargeFlip) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, muons, is_genmatched_prompt_photonProduct) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(int, muons, genmatch_pdgId) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(int, muons, matchedJetIdentifier) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, pt) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, eta) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, phi) \
@@ -520,6 +521,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, electrons, is_genmatched_prompt_chargeFlip) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, electrons, is_genmatched_prompt_photonProduct) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(int, electrons, genmatch_pdgId) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(int, electrons, matchedJetIdentifier) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, pt) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, eta) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, etaSC) \
@@ -536,6 +538,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, ak4jets, is_tight) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, ak4jets, is_btagged) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, ak4jets, is_clean) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(unsigned int, ak4jets, uniqueIdenntifier) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, ak4jets, pt) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, ak4jets, eta) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, ak4jets, phi) \
@@ -642,6 +645,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
           if (mother) break;
         }
         if (mother) bscore = mother->extras.btagDeepFlavB;
+        int matchedJetIdentifier = (mother ? mother->getUniqueIdentifier() : -1);
 
         if (printObjInfo){
           IVYout
@@ -727,6 +731,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
           if (mother) break;
         }
         if (mother) bscore = mother->extras.btagDeepFlavB;
+        int matchedJetIdentifier = (mother ? mother->getUniqueIdentifier() : -1);
 
         if (printObjInfo){
           IVYout
@@ -804,6 +809,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         bool is_tight = ParticleSelectionHelpers::isTightJet(jet);
         bool is_btagged = jet->testSelectionBit(bit_preselection_btag);
         constexpr bool is_clean = true;
+        unsigned int uniqueIdenntifier = jet->getUniqueIdentifier();
 
         if (printObjInfo) IVYout
           << "\t- pt = " << pt << ", eta = " << eta << ", phi = " << phi
@@ -844,6 +850,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
           bool is_tight = ParticleSelectionHelpers::isTightJet(jet);
           bool is_btagged = jet->testSelectionBit(bit_preselection_btag);
           constexpr bool is_clean = false;
+          unsigned int uniqueIdenntifier = jet->getUniqueIdentifier();
 
           if (printObjInfo) IVYout
             << "\t- pt = " << pt << ", eta = " << eta << ", phi = " << phi
