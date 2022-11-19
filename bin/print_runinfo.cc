@@ -55,6 +55,7 @@ int main(int argc, char** argv){
     IVYout << argv[0] << " options:\n\n";
     IVYout << "- help: Prints this help message.\n";
     IVYout << "- period: Data period. Mandatory.\n";
+    IVYout << "- lumi: Print only the integrated luminosity. Optional.\n";
     IVYout << endl;
     return (has_help ? 0 : 1);
   }

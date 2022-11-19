@@ -152,22 +152,35 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
 
   // Shorthand option for the Run 2 UL analysis proposal
-  bool use_shorthand_Run2_UL_proposal_config;
+  bool use_shorthand_Run2_UL_proposal_config = false;
   extra_arguments.getNamedVal("shorthand_Run2_UL_proposal_config", use_shorthand_Run2_UL_proposal_config);
 
   // Options to set alternative muon and electron IDs, or b-tagging WP
   std::string muon_id_name;
   std::string electron_id_name;
   std::string btag_WPname;
+  double minpt_jets = 40;
+  double minpt_bjets = 25;
+  double minpt_l3 = 20;
   if (use_shorthand_Run2_UL_proposal_config){
     muon_id_name = electron_id_name = "TopMVA_Run2";
     btag_WPname = "loose";
+    minpt_jets = minpt_bjets = 25;
+    minpt_l3 = 10;
   }
   else{
     extra_arguments.getNamedVal("muon_id", muon_id_name);
     extra_arguments.getNamedVal("electron_id", electron_id_name);
     extra_arguments.getNamedVal("btag", btag_WPname);
+    extra_arguments.getNamedVal("minpt_jets", minpt_jets);
+    extra_arguments.getNamedVal("minpt_bjets", minpt_bjets);
+    extra_arguments.getNamedVal("minpt_l3", minpt_l3);
   }
+
+  double minpt_miss = 50;
+  extra_arguments.getNamedVal("minpt_miss", minpt_miss);
+  double minHT_jets = 300;
+  extra_arguments.getNamedVal("minHT_jets", minHT_jets);
 
   if (muon_id_name!=""){
     IVYout << "Switching to muon id " << muon_id_name << "..." << endl;
@@ -181,6 +194,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   }
   else IVYout << "Using default electron id = " << ElectronSelectionHelpers::selection_type << "..." << endl;
 
+  double const minpt_anyjet = std::min(minpt_jets, minpt_bjets);
   AK4JetSelectionHelpers::SelectionBits bit_preselection_btag = AK4JetSelectionHelpers::kPreselectionTight_BTagged_Medium;
   if (btag_WPname!=""){
     std::string btag_WPname_lower;
@@ -796,10 +810,10 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       }
 
       if (printObjInfo) IVYout << "Jet info for event " << ev << ":" << endl;
-      double ak4jets_pt40_HT=0;
+      double HT_ak4jets=0;
       auto const& ak4jets = jetHandler.getAK4Jets();
-      std::vector<AK4JetObject*> ak4jets_tight_pt40;
-      std::vector<AK4JetObject*> ak4jets_tight_pt25_btagged;
+      std::vector<AK4JetObject*> ak4jets_tight_selected;
+      std::vector<AK4JetObject*> ak4jets_tight_selected_btagged;
       for (auto const& jet:ak4jets){
         float pt = jet->pt();
         float eta = jet->eta();
@@ -832,11 +846,11 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 #undef SYNC_OBJ_BRANCH_VECTOR_COMMAND
         }
 
-        if (is_tight && pt>=25. && std::abs(eta)<absEtaThr_ak4jets){
-          if (is_btagged) ak4jets_tight_pt25_btagged.push_back(jet);
-          if (pt>=40.){
-            ak4jets_tight_pt40.push_back(jet);
-            ak4jets_pt40_HT += pt;
+        if (is_tight && pt>=minpt_anyjet && std::abs(eta)<absEtaThr_ak4jets){
+          if (is_btagged && pt>=minpt_bjets) ak4jets_tight_selected_btagged.push_back(jet);
+          if (pt>=minpt_jets){
+            ak4jets_tight_selected.push_back(jet);
+            HT_ak4jets += pt;
           }
         }
       }
@@ -874,8 +888,8 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
           }
         }
       }
-      unsigned int const nak4jets_tight_pt40 = ak4jets_tight_pt40.size();
-      unsigned int const nak4jets_tight_pt25_btagged = ak4jets_tight_pt25_btagged.size();
+      unsigned int const nak4jets_tight_selected = ak4jets_tight_selected.size();
+      unsigned int const nak4jets_tight_selected_btagged = ak4jets_tight_selected_btagged.size();
 
       auto const& eventmet = jetHandler.getPFMET();
 
@@ -934,13 +948,13 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       // BEGIN PRESELECTION
       seltracker.accumulate("Full sample", wgt, printObjInfo);
 
-      if (applyPreselection && (nak4jets_tight_pt25_btagged<2 || nak4jets_tight_pt40<2)) continue;
+      if (applyPreselection && (nak4jets_tight_selected_btagged<2 || nak4jets_tight_selected<2)) continue;
       seltracker.accumulate("Pass Nj and Nb", wgt, printObjInfo);
 
-      if (applyPreselection && eventmet->pt()<50.) continue;
+      if (applyPreselection && eventmet->pt()<minpt_miss) continue;
       seltracker.accumulate("Pass pTmiss", wgt, printObjInfo);
 
-      if (applyPreselection && ak4jets_pt40_HT<300.) continue;
+      if (applyPreselection && HT_ak4jets<minHT_jets) continue;
       seltracker.accumulate("Pass HT", wgt, printObjInfo);
 
       if (nleptons_tight<2) continue; // Skims are required to apply this selection, so no additional test on applyPreselection.
@@ -950,7 +964,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       if (applyPreselection && (leptons_tight.front()->pt()<25. || leptons_tight.at(1)->pt()<20.)) continue;
       seltracker.accumulate("Pass pT1 and pT2", wgt, printObjInfo);
 
-      if (applyPreselection && (nleptons_tight>=3 && leptons_tight.at(2)->pt()<20.)) continue;
+      if (applyPreselection && (nleptons_tight>=3 && leptons_tight.at(2)->pt()<minpt_l3)) continue;
       seltracker.accumulate("Pass pT3 if >=3 tight leptons", wgt, printObjInfo);
 
       // Construct all possible dilepton pairs
@@ -1043,28 +1057,28 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       constexpr int idx_CRW = 15;
       int iCRZ = (dilepton_OS_DYCand_tight ? 1 : 0);
       int icat = 0;
-      if (nak4jets_tight_pt25_btagged>=2){
+      if (nak4jets_tight_selected_btagged>=2){
         if (nleptons_tight==2){
-          switch (nak4jets_tight_pt25_btagged){
+          switch (nak4jets_tight_selected_btagged){
           case 2:
-            if (nak4jets_tight_pt40<6) icat = idx_CRW;
-            else icat = 1 + std::min(nak4jets_tight_pt40, static_cast<unsigned int>(8))-6;
+            if (nak4jets_tight_selected<6) icat = idx_CRW;
+            else icat = 1 + std::min(nak4jets_tight_selected, static_cast<unsigned int>(8))-6;
             break;
           case 3:
-            if (nak4jets_tight_pt40>=5) icat = 4 + std::min(nak4jets_tight_pt40, static_cast<unsigned int>(8))-5;
+            if (nak4jets_tight_selected>=5) icat = 4 + std::min(nak4jets_tight_selected, static_cast<unsigned int>(8))-5;
             break;
           default: // Nb>=4
-            if (nak4jets_tight_pt40>=5) icat = 8;
+            if (nak4jets_tight_selected>=5) icat = 8;
             break;
           }
         }
         else{
-          switch (nak4jets_tight_pt25_btagged){
+          switch (nak4jets_tight_selected_btagged){
           case 2:
-            if (nak4jets_tight_pt40>=5) icat = 9 + std::min(nak4jets_tight_pt40, static_cast<unsigned int>(7))-5;
+            if (nak4jets_tight_selected>=5) icat = 9 + std::min(nak4jets_tight_selected, static_cast<unsigned int>(7))-5;
             break;
           default: // Nb>=3
-            if (nak4jets_tight_pt40>=4) icat = 12 + std::min(nak4jets_tight_pt40, static_cast<unsigned int>(6))-4;
+            if (nak4jets_tight_selected>=4) icat = 12 + std::min(nak4jets_tight_selected, static_cast<unsigned int>(6))-4;
             break;
           }
         }
@@ -1097,7 +1111,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
             << endl;
         }
       }
-      if (printObjInfo) IVYout << "Nb = " << nak4jets_tight_pt25_btagged << ", Nj = " << nak4jets_tight_pt40 << ", iCRZ = " << iCRZ << ", icat = " << icat << endl;
+      if (printObjInfo) IVYout << "Nb = " << nak4jets_tight_selected_btagged << ", Nj = " << nak4jets_tight_selected << ", iCRZ = " << iCRZ << ", icat = " << icat << endl;
 
       if (runSyncExercise && (!applyPreselection || iCRZ==1 || icat>0)) foutput_sync
         << *ptr_EventNumber << ","
@@ -1108,9 +1122,9 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         << nleptons_fakeable + nleptons_tight << ","
         << nleptons_tight << ","
         << (dilepton_SS_tight ? "SS" : "!SS") << ","
-        << ak4jets_pt40_HT << ","
-        << nak4jets_tight_pt40 << ","
-        << nak4jets_tight_pt25_btagged << ","
+        << HT_ak4jets << ","
+        << nak4jets_tight_selected << ","
+        << nak4jets_tight_selected_btagged << ","
         << (iCRZ ? "Z" : (icat==idx_CRW ? "W" : (icat==0 ? "N/A" : std::to_string(icat).data())))
         << endl;
 
@@ -1226,6 +1240,11 @@ int main(int argc, char** argv){
     }
     else if (wish=="nchunks") nchunks = std::stoi(value);
     else if (wish=="ichunk") ichunk = std::stoi(value);
+    else if (wish=="minpt_jets" || wish=="minpt_bjets" || wish=="minpt_l3" || wish=="minpt_miss" || wish=="minHT_jets"){
+      double tmpval;
+      HelperFunctions::castStringToValue(value, tmpval);
+      extra_arguments.setNamedVal(wish, tmpval);
+    }
     else{
       IVYerr << "ERROR: Unknown argument " << wish << "=" << value << endl;
       print_help=true;
@@ -1261,6 +1280,18 @@ int main(int argc, char** argv){
       << "- output_file: Identifier of the output file if different from 'short_name'. Optional.\n"
       << "  The full output file name is '[identifier](_[ichunk]_[nchunks]).root.'\n";
     IVYout << "- input_files: Input files to run. Optional. Default is to run on all files.\n";
+    IVYout
+      << "- muon_id: Can be 'Cutbased_Run2', 'TopMVA_Run2', or 'TopMVAv2_Run2'.\n"
+      << "  Default is whatever is in MuonSelectionHelpers (currently 'Cutbased_Run2') if no value is given.\n";
+    IVYout
+      << "- electron_id: Can be 'Cutbased_Run2', 'TopMVA_Run2', or 'TopMVAv2_Run2'.\n"
+      << "  Default is whatever is in ElectronSelectionHelpers (currently 'Cutbased_Run2') if no value is given.\n";
+    IVYout << "- btag: Name of the b-tagging WP. Can be 'medium' or 'loose' (case-insensitive). Default='medium'.\n";
+    IVYout << "- minpt_jets: Minimum pT of jets in units of GeV. Default=40.\n";
+    IVYout << "- minpt_bjets: Minimum pT of b-tagged jets in units of GeV. Default=25.\n";
+    IVYout << "- minpt_l3: Minimum pT of third lepton in units of GeV. Default=20.\n";
+    IVYout << "- minpt_miss: Minimum pTmiss in units of GeV. Default=50.\n";
+    IVYout << "- minHT_jets: Minimum HT over ak4 jets in units of GeV. Default=300.\n";
     IVYout << "- run_sync: Turn on synchronization output. Optional. Default is to run without synchronization output.\n";
     IVYout << "- write_sync_objects: Create a file that contains the info. for all leptons and jets, and event identifiers. Ignored if run_sync=false. Optional. Default is to not produce such a file.\n";
     IVYout << "- force_sync_preselection: When sync. mode is on, also apply SR/CR preselection.  Ignored if run_sync=false. Optional. Default is to run without preselection.\n";
@@ -1269,14 +1300,10 @@ int main(int argc, char** argv){
       << "  * muon_id='TopMVA_Run2'\n"
       << "  * electron_id='TopMVA_Run2'\n"
       << "  * btag='loose'\n"
+      << "  * minpt_jets=25\n"
+      << "  * minpt_bjets=25\n"
+      << "  * minpt_l3=10\n"
       << "  The use of this shorthand will ignore the user-defined setting of these options above.\n";
-    IVYout
-      << "- muon_id: Can be 'Cutbased_Run2', 'TopMVA_Run2', or 'TopMVAv2_Run2'.\n"
-      << "  Default is whatever is in MuonSelectionHelpers (currently 'Cutbased_Run2') if no value is given.\n";
-    IVYout
-      << "- electron_id: Can be 'Cutbased_Run2', 'TopMVA_Run2', or 'TopMVAv2_Run2'.\n"
-      << "  Default is whatever is in ElectronSelectionHelpers (currently 'Cutbased_Run2') if no value is given.\n";
-    IVYout << "- btag: Name of the b-tagging WP. Can be 'medium' or 'loose' (case-insensitive). Default='medium'.\n";
 
     IVYout << endl;
     return (has_help ? 0 : 1);
