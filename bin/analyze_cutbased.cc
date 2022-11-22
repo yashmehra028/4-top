@@ -119,6 +119,12 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   IVYout.open(stroutput_log.Data());
   IVYerr.open(stroutput_err.Data());
 
+  // Produce output trees instead of histograms
+  // Note: With this switch is on, keeping track of the sums of weights becomes meaningless.
+  bool produce_trees = false;
+  extra_arguments.getNamedVal("produce_trees", produce_trees);
+  if (produce_trees) IVYout << "Producing output tres instead of histograms..." << endl;
+
   // Turn on synchronization exercise options
   std::string input_files;
   extra_arguments.getNamedVal("input_files", input_files);
@@ -129,6 +135,11 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   if (runSyncExercise){
     extra_arguments.getNamedVal("write_sync_objects", writeSyncObjects);
     extra_arguments.getNamedVal("force_sync_preselection", forceApplyPreselection);
+  }
+
+  if (produce_trees && runSyncExercise){
+    IVYerr << "Tree output and sync exercise should not be run at the same time." << endl;
+    assert(0);
   }
 
   // Create the sync files
@@ -149,7 +160,6 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     tout_sync_objects->setAutoSave(0);
     curdir->cd();
   }
-
 
   // Shorthand option for the Run 2 UL analysis proposal
   bool use_shorthand_Run2_UL_proposal_config = false;
@@ -257,20 +267,28 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   // We conclude the setup of event processing specifications and move on to I/O configuration next.
 
   // Open the output ROOT file
-  TFile* foutput = TFile::Open(stroutput, "recreate");
-  foutput->cd();
+  TFile* foutput = TFile::Open(stroutput, "recreate"); foutput->cd();
+  BaseTree* tout = nullptr;
+  SimpleEntry rcd_output;
+  if (produce_trees){
+    tout = new BaseTree("SkimTree");
+    tout->setAutoSave(0);
+  }
 
   std::vector<TString> const gencats{ "AllLeptonsGenMatched_SameCharge", "hasGenPromptLepton_ChargeFlip", "hasGenMatchedPromptPhotonProduct", "hasNonPromptLepton" };
-  std::vector<TH2D*> hCats; hCats.reserve(gencats.size());
-  for (auto const& gencat:gencats){
-    TH2D* hCat = new TH2D(Form("hCat_%s", gencat.Data()), "", 15, 0, 15, 2, 0, 2); hCat->Sumw2();
-    for (int ix=1; ix<=15; ix++){
-      if (ix<15) hCat->GetXaxis()->SetBinLabel(ix, Form("SR%i", ix));
-      else hCat->GetXaxis()->SetBinLabel(ix, "CRW");
+  std::vector<TH2D*> hCats;
+  if (!produce_trees){
+    hCats.reserve(gencats.size());
+    for (auto const& gencat:gencats){
+      TH2D* hCat = new TH2D(Form("hCat_%s", gencat.Data()), "", 15, 0, 15, 2, 0, 2); hCat->Sumw2();
+      for (int ix=1; ix<=15; ix++){
+        if (ix<15) hCat->GetXaxis()->SetBinLabel(ix, Form("SR%i", ix));
+        else hCat->GetXaxis()->SetBinLabel(ix, "CRW");
+      }
+      hCat->GetYaxis()->SetBinLabel(1, "SR");
+      hCat->GetYaxis()->SetBinLabel(2, "CRZ");
+      hCats.push_back(hCat);
     }
-    hCat->GetYaxis()->SetBinLabel(1, "SR");
-    hCat->GetYaxis()->SetBinLabel(2, "CRZ");
-    hCats.push_back(hCat);
   }
   curdir->cd();
 
@@ -948,29 +966,39 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       // BEGIN PRESELECTION
       seltracker.accumulate("Full sample", wgt, printObjInfo);
 
-      if (applyPreselection && (nak4jets_tight_selected_btagged<2 || nak4jets_tight_selected<2)) continue;
-      seltracker.accumulate("Pass Nj and Nb", wgt, printObjInfo);
+      bool const pass_Nj_geq_2 = nak4jets_tight_selected>=2; rcd_output.setNamedVal("pass_Nj_geq_2", pass_Nj_geq_2);
+      bool const pass_Nb_geq_2 = nak4jets_tight_selected_btagged>=2; rcd_output.setNamedVal("pass_Nb_geq_2", pass_Nb_geq_2);
+      if (!produce_trees && applyPreselection && (!pass_Nj_geq_2 || !pass_Nb_geq_2)) continue;
+      seltracker.accumulate("Pass Nj>=2 and Nb>=2", wgt, printObjInfo);
 
-      if (applyPreselection && eventmet->pt()<minpt_miss) continue;
+      double const pTmiss = eventmet->pt();
+      bool const pass_pTmiss = pTmiss>=minpt_miss; rcd_output.setNamedVal("pass_pTmiss", pass_pTmiss);
+      if (!produce_trees && applyPreselection && !pass_pTmiss) continue;
       seltracker.accumulate("Pass pTmiss", wgt, printObjInfo);
 
-      if (applyPreselection && HT_ak4jets<minHT_jets) continue;
+      bool const pass_HTjets = HT_ak4jets>=minHT_jets; rcd_output.setNamedVal("pass_HTjets", pass_HTjets);
+      if (!produce_trees && applyPreselection && !pass_HTjets) continue;
       seltracker.accumulate("Pass HT", wgt, printObjInfo);
 
-      if (nleptons_tight<2) continue; // Skims are required to apply this selection, so no additional test on applyPreselection.
-      if (applyPreselection && (nleptons_tight<2 || nleptons_tight>=5)) continue;
+      bool const pass_Nleptons = (nleptons_tight>=2 && nleptons_tight<5); rcd_output.setNamedVal("pass_Nleptons", pass_Nleptons);
+      if (!produce_trees && nleptons_tight<2) continue; // Skims are required to apply this selection, so no additional test on applyPreselection.
+      if (!produce_trees && applyPreselection && !pass_Nleptons) continue;
       seltracker.accumulate("Has >=2 and <=4 leptons, >=2 of which are tight", wgt, printObjInfo);
 
-      if (applyPreselection && (leptons_tight.front()->pt()<25. || leptons_tight.at(1)->pt()<20.)) continue;
-      seltracker.accumulate("Pass pT1 and pT2", wgt, printObjInfo);
+      bool const pass_pTl1 = (nleptons_tight<1 || leptons_tight.front()->pt()>=25.); rcd_output.setNamedVal("pass_pTl1", pass_pTl1);
+      bool const pass_pTl2 = (nleptons_tight<2 || leptons_tight.at(1)->pt()>=20.); rcd_output.setNamedVal("pass_pTl2", pass_pTl2);
+      if (!produce_trees && applyPreselection && (!pass_pTl1 || !pass_pTl2)) continue;
+      seltracker.accumulate("Pass pTl1 and pTl2", wgt, printObjInfo);
 
-      if (applyPreselection && (nleptons_tight>=3 && leptons_tight.at(2)->pt()<minpt_l3)) continue;
-      seltracker.accumulate("Pass pT3 if >=3 tight leptons", wgt, printObjInfo);
+      bool const pass_pTl3 = (nleptons_tight<3 || leptons_tight.at(2)->pt()>=minpt_l3); rcd_output.setNamedVal("pass_pTl3", pass_pTl3);
+      if (!produce_trees && applyPreselection && !pass_pTl3) continue;
+      seltracker.accumulate("Pass pTl3 if >=3 tight leptons", wgt, printObjInfo);
 
       // Construct all possible dilepton pairs
       int nQ = 0;
       for (auto const& part:leptons_tight) nQ += (part->pdgId()>0 ? -1 : 1);
-      if (applyPreselection && (std::abs(nQ)>=(6-static_cast<int>(nleptons_tight)))) continue; // This req. necessarily vetoes Nleps>=5 because the actual number of same-sign leptons will always be >=3.
+      bool const pass_trileptonSameCharge = (std::abs(nQ)<(6-static_cast<int>(nleptons_tight))); rcd_output.setNamedVal("pass_trileptonSameCharge", pass_trileptonSameCharge); // This req. necessarily vetoes Nleps>=5 because the actual number of same-sign leptons will always be >=3.
+      if (!produce_trees && applyPreselection && !pass_trileptonSameCharge) continue;
       seltracker.accumulate("Pass 3-lepton same charge veto", wgt, printObjInfo);
 
       dileptonHandler.constructDileptons(&muons_selected, &electrons_selected);
@@ -1024,30 +1052,39 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         }
       }
 
-      if (applyPreselection && fail_vetos) continue;
+      bool const pass_dileptonVetos = !fail_vetos; rcd_output.setNamedVal("pass_dileptonVetos", pass_dileptonVetos);
+      if (!produce_trees && applyPreselection && fail_vetos) continue;
       seltracker.accumulate("Pass dilepton vetos", wgt, printObjInfo);
 
-      if (applyPreselection && !dilepton_SS_tight) continue;
+      bool const has_dilepton_SS_tight = (dilepton_SS_tight!=nullptr); rcd_output.setNamedVal("has_dilepton_SS_tight", has_dilepton_SS_tight);
+      bool const has_dilepton_OS_DYCand_tight = (dilepton_OS_DYCand_tight!=nullptr); rcd_output.setNamedVal("has_dilepton_OS_DYCand_tight", has_dilepton_OS_DYCand_tight);
+      if (!produce_trees && applyPreselection && !has_dilepton_SS_tight) continue;
       seltracker.accumulate("Has at least one tight SS dilepton", wgt, printObjInfo);
 
       // Put event filters to the last because data has unique event tracking enabled.
       eventFilter.constructFilters(&simEventHandler);
-      //if (!eventFilter.test2018HEMFilter(&simEventHandler, nullptr, nullptr, &ak4jets)) continue; // Test for 2018 partial HEM failure
-      //if (!eventFilter.test2018HEMFilter(&simEventHandler, &electrons, nullptr, nullptr)) continue; // Test for 2018 partial HEM failure
+      constexpr bool pass_HEMveto = true;
+      //bool const pass_HEMveto = eventFilter.test2018HEMFilter(&simEventHandler, nullptr, nullptr, &ak4jets);
+      //bool const pass_HEMveto = eventFilter.test2018HEMFilter(&simEventHandler, &electrons, nullptr, &ak4jets);
+      rcd_output.setNamedVal("pass_HEMveto", pass_HEMveto);
+      if (!produce_trees && applyPreselection && !pass_HEMveto) continue; // Test for 2018 partial HEM failure
       seltracker.accumulate("Pass HEM veto", wgt, printObjInfo);
-      if (applyPreselection && !eventFilter.passMETFilters()) continue; // Test for MET filters
+      bool const pass_METFilters = eventFilter.passMETFilters(); rcd_output.setNamedVal("pass_METFilters", pass_METFilters);
+      if (!produce_trees && applyPreselection && !pass_METFilters) continue; // Test for MET filters
       seltracker.accumulate("Pass MET filters", wgt, printObjInfo);
       if (!eventFilter.isUniqueDataEvent()) continue; // Test if the data event is unique (i.e., dorky). Does not do anything in the MC.
       seltracker.accumulate("Pass unique event check", wgt, printObjInfo);
 
       // Triggers
       float event_weight_triggers_dilepton = eventFilter.getTriggerWeight(hltnames_Dilepton);
-      if (applyPreselection && event_weight_triggers_dilepton==0.) continue; // Test if any triggers passed at all
+      bool const pass_triggers_dilepton = (event_weight_triggers_dilepton!=0.); rcd_output.setNamedVal("pass_triggers_dilepton", pass_triggers_dilepton);
+      if (!produce_trees && applyPreselection && !pass_triggers_dilepton) continue; // Test if any triggers passed at all
       seltracker.accumulate("Pass any trigger", wgt, printObjInfo);
       float event_weight_triggers_dilepton_matched = eventFilter.getTriggerWeight(
         triggerPropsCheckList_Dilepton,
         &muons, &electrons, nullptr, &ak4jets, nullptr, nullptr
       );
+      bool const pass_triggers_dilepton_matched = (event_weight_triggers_dilepton_matched!=0.); rcd_output.setNamedVal("pass_triggers_dilepton_matched", pass_triggers_dilepton_matched);
       seltracker.accumulate("Pass triggers after matching", (event_weight_triggers_dilepton_matched>0.)*wgt, printObjInfo);
 
 
@@ -1083,13 +1120,67 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
           }
         }
       }
+
+      if (tout){
+        rcd_output.setNamedVal("nak4jets_tight_selected", nak4jets_tight_selected);
+        rcd_output.setNamedVal("nak4jets_tight_selected_btagged", nak4jets_tight_selected_btagged);
+        rcd_output.setNamedVal("nleptons_tight", nleptons_tight);
+        rcd_output.setNamedVal("nleptons_fakeable", nleptons_fakeable);
+        rcd_output.setNamedVal("nleptons_loose", nleptons_loose);
+        rcd_output.setNamedVal("iCRZ_Run2Analysis", iCRZ);
+        rcd_output.setNamedVal("icat_Run2Analysis", icat);
+
+        rcd_output.setNamedVal<float>("HT_ak4jets", HT_ak4jets);
+        rcd_output.setNamedVal<float>("pTmiss", pTmiss);
+        for (int ilep=1; ilep<=4; ilep++){
+          if (nleptons_tight<ilep){
+            rcd_output.setNamedVal<float>(Form("pt_l%i", ilep), -1.f);
+            rcd_output.setNamedVal<float>(Form("eta_l%i", ilep), 0.f);
+            rcd_output.setNamedVal<float>(Form("phi_l%i", ilep), 0.f);
+            rcd_output.setNamedVal<float>(Form("mass_l%i", ilep), 0.f);
+            rcd_output.setNamedVal<int>(Form("pdgId_l%i", ilep), -9000);
+          }
+          else{
+            auto const& tmp_part = leptons_tight.at(ilep-1);
+            rcd_output.setNamedVal<float>(Form("pt_l%i", ilep), tmp_part->pt());
+            rcd_output.setNamedVal<float>(Form("eta_l%i", ilep), tmp_part->eta());
+            rcd_output.setNamedVal<float>(Form("phi_l%i", ilep), tmp_part->phi());
+            rcd_output.setNamedVal<float>(Form("mass_l%i", ilep), tmp_part->mass());
+            rcd_output.setNamedVal<int>(Form("pdgId_l%i", ilep), tmp_part->pdgId());
+          }
+        }
+
+        if (firstOutputEvent){
+#define SIMPLE_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.named##name_t##s.begin(); itb!=rcd_output.named##name_t##s.end(); itb++) tout->putBranch(itb->first, itb->second);
+#define VECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.namedV##name_t##s.begin(); itb!=rcd_output.namedV##name_t##s.end(); itb++) tout->putBranch(itb->first, &(itb->second));
+#define DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.namedVV##name_t##s.begin(); itb!=rcd_output.namedVV##name_t##s.end(); itb++) tout->putBranch(itb->first, &(itb->second));
+          SIMPLE_DATA_OUTPUT_DIRECTIVES;
+          VECTOR_DATA_OUTPUT_DIRECTIVES;
+          DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVES;
+#undef SIMPLE_DATA_OUTPUT_DIRECTIVE
+#undef VECTOR_DATA_OUTPUT_DIRECTIVE
+#undef DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE
+        }
+#define SIMPLE_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.named##name_t##s.begin(); itb!=rcd_output.named##name_t##s.end(); itb++) tout->setVal(itb->first, itb->second);
+#define VECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.namedV##name_t##s.begin(); itb!=rcd_output.namedV##name_t##s.end(); itb++) tout->setVal(itb->first, &(itb->second));
+#define DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.namedVV##name_t##s.begin(); itb!=rcd_output.namedVV##name_t##s.end(); itb++) tout->setVal(itb->first, &(itb->second));
+        SIMPLE_DATA_OUTPUT_DIRECTIVES;
+        VECTOR_DATA_OUTPUT_DIRECTIVES;
+        DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVES;
+#undef SIMPLE_DATA_OUTPUT_DIRECTIVE
+#undef VECTOR_DATA_OUTPUT_DIRECTIVE
+#undef DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE
+
+        tout->fill();
+      }
+
       if (icat>=0){
         unsigned short idx_gencat = 0;
         if (hasGenPromptLepton_ChargeFlip) idx_gencat = 1;
         else if (hasGenMatchedPromptPhotonProduct) idx_gencat = 2;
         else if (hasNonPromptLepton) idx_gencat = 3;
 
-        hCats.at(idx_gencat)->Fill(static_cast<double>(icat-1)+0.5, static_cast<double>(iCRZ)+0.5, wgt);
+        if (!hCats.empty()) hCats.at(idx_gencat)->Fill(static_cast<double>(icat-1)+0.5, static_cast<double>(iCRZ)+0.5, wgt);
         if (printObjInfo){
           if (dilepton_OS_DYCand_tight) IVYout
             << "OS Z candidate found to have "
@@ -1146,7 +1237,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     IVYout << "Scaling the yield by " << sum_ntotal_scale << "..." << endl;
     for (auto& hCat:hCats) hCat->Scale(sum_ntotal_scale);
   }
-  for (unsigned short igencat=0; igencat<gencats.size(); igencat++){
+  for (unsigned short igencat=0; igencat<hCats.size(); igencat++){
     auto const& hCat = hCats.at(igencat);
     IVYout << "Event counts for gen. cat. '" << gencats.at(igencat) << "':" << endl;
     double integral_error=0;
@@ -1170,6 +1261,10 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   for (auto& hCat:hCats){
     foutput->WriteTObject(hCat);
     delete hCat;
+  }
+  if (tout){
+    tout->writeToFile(foutput);
+    delete tout;
   }
   foutput->Close();
 
@@ -1206,7 +1301,7 @@ int main(int argc, char** argv){
 
     if (wish.empty()){
       if (value=="help"){ print_help=has_help=true; }
-      else if (value=="shorthand_Run2_UL_proposal_config") extra_arguments.setNamedVal<bool>(value, true);
+      else if (value=="shorthand_Run2_UL_proposal_config" || value=="produce_trees") extra_arguments.setNamedVal<bool>(value, true);
       else{
         IVYerr << "ERROR: Unknown argument " << value << endl;
         print_help=true;
@@ -1292,6 +1387,8 @@ int main(int argc, char** argv){
     IVYout << "- minpt_l3: Minimum pT of third lepton in units of GeV. Default=20.\n";
     IVYout << "- minpt_miss: Minimum pTmiss in units of GeV. Default=50.\n";
     IVYout << "- minHT_jets: Minimum HT over ak4 jets in units of GeV. Default=300.\n";
+    IVYout << "- produce_trees: Switch to tree output instead of histograms. Optional. Default is to produce histograms.\n";
+    IVYout << "  Note that tree production keeps all events, so one needs to use the selection bit map.\n";
     IVYout << "- run_sync: Turn on synchronization output. Optional. Default is to run without synchronization output.\n";
     IVYout << "- write_sync_objects: Create a file that contains the info. for all leptons and jets, and event identifiers. Ignored if run_sync=false. Optional. Default is to not produce such a file.\n";
     IVYout << "- force_sync_preselection: When sync. mode is on, also apply SR/CR preselection.  Ignored if run_sync=false. Optional. Default is to run without preselection.\n";
