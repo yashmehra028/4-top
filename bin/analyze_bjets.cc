@@ -187,7 +187,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   // Declare handlers
   GenInfoHandler genInfoHandler;
   SimEventHandler simEventHandler;
-  EventFilterHandler eventFilter(requiredTriggers_SingleLepton);
+  EventFilterHandler eventFilter(requiredTriggers_Dilepton);
   MuonHandler muonHandler;
   ElectronHandler electronHandler;
   JetMETHandler jetHandler;
@@ -308,7 +308,6 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
   // Keep track of the traversed events
   bool firstOutputEvent = true;
-  bool firstSyncObjectsOutputEvent = true;
   int eventIndex_begin = -1;
   int eventIndex_end = -1;
   int eventIndex_tracker = 0;
@@ -402,60 +401,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
       particleDisambiguator.disambiguateParticles(&muonHandler, &electronHandler, nullptr, &jetHandler);
 
-      // Muon sync. write variables
-#define SYNC_MUONS_BRANCH_VECTOR_COMMANDS \
-      SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, muons, is_loose) \
-      SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, muons, is_fakeable) \
-      SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, muons, is_tight) \
-      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, pt) \
-      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, eta) \
-      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, phi) \
-      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, mass) \
-      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, ptrel_final) \
-      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, ptratio_final) \
-      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, bscore) \
-      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, extMVAscore) \
-      MUON_EXTRA_VARIABLES
-      // Electron sync. write variables
-#define SYNC_ELECTRONS_BRANCH_VECTOR_COMMANDS \
-      SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, electrons, is_loose) \
-      SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, electrons, is_fakeable) \
-      SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, electrons, is_tight) \
-      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, pt) \
-      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, eta) \
-      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, etaSC) \
-      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, phi) \
-      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, mass) \
-      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, ptrel_final) \
-      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, ptratio_final) \
-      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, mvaFall17V2noIso_raw) \
-      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, bscore) \
-      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, extMVAscore) \
-      ELECTRON_EXTRA_VARIABLES
-      // ak4jet sync. write variables
-#define SYNC_AK4JETS_BRANCH_VECTOR_COMMANDS \
-      SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, ak4jets, is_tight) \
-      SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, ak4jets, is_btagged) \
-      SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, ak4jets, is_clean) \
-      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, ak4jets, pt) \
-      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, ak4jets, eta) \
-      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, ak4jets, phi) \
-      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, ak4jets, mass) \
-      AK4JET_EXTRA_INPUT_VARIABLES
-      // All sync. write objects
-#define SYNC_ALLOBJS_BRANCH_VECTOR_COMMANDS \
-      SYNC_MUONS_BRANCH_VECTOR_COMMANDS \
-      SYNC_ELECTRONS_BRANCH_VECTOR_COMMANDS \
-      SYNC_AK4JETS_BRANCH_VECTOR_COMMANDS
-#define SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, COLLNAME, NAME) std::vector<TYPE> COLLNAME##_##NAME;
-#define MUON_VARIABLE(TYPE, NAME, DEFVAL) SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, muons, NAME)
-#define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, electrons, NAME)
-#define AK4JET_VARIABLE(TYPE, NAME, DEFVAL) SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, ak4jets, NAME)
-      SYNC_ALLOBJS_BRANCH_VECTOR_COMMANDS;
-#undef AK4JET_VARIABLE
-#undef ELECTRON_VARIABLE
-#undef MUON_VARIABLE
-#undef SYNC_OBJ_BRANCH_VECTOR_COMMAND
+      std::vector<ParticleObject*> leptons_tight;
 
       auto const& muons = muonHandler.getProducts();
       std::vector<MuonObject*> muons_selected;
@@ -474,6 +420,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
         if (ParticleSelectionHelpers::isTightParticle(part)){
           muons_tight.push_back(part);
+          leptons_tight.push_back(dynamic_cast<ParticleObject*>(part));
           is_loose = is_fakeable = is_tight = true;
         }
         else if (ParticleSelectionHelpers::isFakeableParticle(part)){
@@ -501,11 +448,6 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         }
         if (mother) bscore = mother->extras.btagDeepFlavB;
 
-#define SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, COLLNAME, NAME) COLLNAME##_##NAME.push_back(NAME);
-#define MUON_VARIABLE(TYPE, NAME, DEFVAL) muons_##NAME.push_back(part->extras.NAME);
-        SYNC_MUONS_BRANCH_VECTOR_COMMANDS;
-#undef MUON_VARIABLE
-#undef SYNC_OBJ_BRANCH_VECTOR_COMMAND
       }
       HelperFunctions::appendVector(muons_selected, muons_tight);
       HelperFunctions::appendVector(muons_selected, muons_fakeable);
@@ -529,6 +471,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
         if (ParticleSelectionHelpers::isTightParticle(part)){
           electrons_tight.push_back(part);
+          leptons_tight.push_back(dynamic_cast<ParticleObject*>(part));
           is_loose = is_fakeable = is_tight = true;
         }
         else if (ParticleSelectionHelpers::isFakeableParticle(part)){
@@ -557,11 +500,6 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         }
         if (mother) bscore = mother->extras.btagDeepFlavB;
 
-#define SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, COLLNAME, NAME) COLLNAME##_##NAME.push_back(NAME);
-#define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) electrons_##NAME.push_back(part->extras.NAME);
-        SYNC_ELECTRONS_BRANCH_VECTOR_COMMANDS;
-#undef ELECTRON_VARIABLE
-#undef SYNC_OBJ_BRANCH_VECTOR_COMMAND
       }
       HelperFunctions::appendVector(electrons_selected, electrons_tight);
       HelperFunctions::appendVector(electrons_selected, electrons_fakeable);
@@ -572,8 +510,11 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       unsigned int const nleptons_loose = muons_loose.size() + electrons_loose.size();
       unsigned int const nleptons_selected = nleptons_tight + nleptons_fakeable + nleptons_loose;
 
+      ParticleObjectHelpers::sortByGreaterPt(leptons_tight);
+
       auto const& ak4jets = jetHandler.getAK4Jets();
-      unsigned int nak4jets_tight_pt25_etaCentral = 0;
+      std::vector<AK4JetObject*> ak4jets_tight;
+      unsigned int nbjets_tight = 0;
       for (auto const& jet:ak4jets){
         float pt = jet->pt();
         float eta = jet->eta();
@@ -583,28 +524,45 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         bool is_tight = ParticleSelectionHelpers::isTightJet(jet);
         bool is_btagged = jet->testSelectionBit(bit_preselection_btag);
         constexpr bool is_clean = true;
-
-#define SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, COLLNAME, NAME) COLLNAME##_##NAME.push_back(NAME);
-#define AK4JET_VARIABLE(TYPE, NAME, DEFVAL) ak4jets_##NAME.push_back(jet->extras.NAME);
-        SYNC_AK4JETS_BRANCH_VECTOR_COMMANDS;
-#undef AK4JET_VARIABLE
-#undef SYNC_OBJ_BRANCH_VECTOR_COMMAND
-
-        if (is_tight && pt>=25. && std::abs(eta)<absEtaThr_ak4jets) nak4jets_tight_pt25_etaCentral++;
+        if (is_tight && pt>=25. && std::abs(eta)<absEtaThr_ak4jets){
+          ak4jets_tight.push_back(jet);
+          if (is_btagged) nbjets_tight++;
+        }
       }
 
       // MET info
       auto const& eventmet = jetHandler.getPFMET();
 
-
       // BEGIN PRESELECTION
       seltracker.accumulate("Full sample", wgt);
 
-      if ((nleptons_tight + nleptons_fakeable)!=1) continue;
-      seltracker.accumulate("Has exactly one fakeable lepton", wgt);
+      if (nleptons_fakeable>0 || nleptons_loose>0) continue; 
+      seltracker.accumulate("Has exactly 0 loose and 0 fakeable leptons", wgt);
 
-      if (nak4jets_tight_pt25_etaCentral==0) continue;
-      seltracker.accumulate("Has at least one tight jet with pT>25 GeV and central eta", wgt);
+      if (electrons_tight.size()!=1) continue;
+      seltracker.accumulate("Has exactly one tight electron", wgt);
+
+      if (muons_tight.size()!=1) continue;
+      seltracker.accumulate("Has exactly one tight muon", wgt);
+
+      // check oppososite charge
+      if (electrons_tight.front()->pdgId() * muons_tight.front()->pdgId() > 0 ) continue;
+      seltracker.accumulate("Has opposite charge", wgt);
+
+      // check lep1 pt>25 lep2 pt>20
+      if (leptons_tight.front()->pt() < 25. || leptons_tight.back()->pt() < 20.) continue;
+      seltracker.accumulate("Has lep1 pt>25 lep2 pt>20", wgt);
+
+      // check MET (jet1 25, jet2 20)
+      if (eventmet->pt() < 25.f) continue;
+      seltracker.accumulate("MET > 25 GeV", wgt);
+
+      // check njet>2 and nbjets_tight>2
+      if (ak4jets_tight.size() < 2) continue;
+      seltracker.accumulate("njet > 2", wgt);
+
+      if (nbjets_tight < 2) continue;
+      seltracker.accumulate("nbjet > 2", wgt);
 
       // Put event filters to the last because data has unique event tracking enabled.
       eventFilter.constructFilters(&simEventHandler);
@@ -618,19 +576,105 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
       // Triggers
       float event_weight_triggers_dilepton = eventFilter.getTriggerWeight(hltnames_Dilepton);
-      if (applyPreselection && event_weight_triggers_dilepton==0.) continue; // Test if any triggers passed at all
-      seltracker.accumulate("Pass any trigger", wgt, printObjInfo);
+      if (event_weight_triggers_dilepton==0.) continue; // Test if any triggers passed at all
+      seltracker.accumulate("Pass any trigger", wgt);
       float event_weight_triggers_dilepton_matched = eventFilter.getTriggerWeight(
         triggerPropsCheckList_Dilepton,
         &muons, &electrons, nullptr, &ak4jets, nullptr, nullptr
       );
-      seltracker.accumulate("Pass triggers after matching", (event_weight_triggers_dilepton_matched>0.)*wgt, printObjInfo);
+      seltracker.accumulate("Pass triggers after matching", (event_weight_triggers_dilepton_matched>0.)*wgt);
+      rcd_output.setNamedVal("event_weight_triggers_dilepton_matched", event_weight_triggers_dilepton_matched);
       
       /*************************************************/
       /* NO MORE CALLS TO SELECTION BEYOND THIS POINT! */
       /*************************************************/
+      // calculate min_mlb, Ht, min_mbb, max_mbb
+
+      // min_mlb
+      // loop over tight leptons:
+      float min_mlb = -1;
+      for (auto const& lep:leptons_tight){
+        // loop over jets:
+        for (auto const& jet:ak4jets_tight){
+          if (!jet->testSelectionBit(bit_preselection_btag)) continue;
+          float mlb = (lep->p4() + jet->p4()).M();
+          if (mlb<min_mlb || min_mlb<0.f) min_mlb = mlb;
+        }
+      }
+
+      // Ht
+      float Ht = 0;
+      for (auto const& jet:ak4jets_tight){
+        Ht += jet->pt();
+      }
+
+      // min_mbb and max_mbb
+      float min_mbb = -1;
+      float max_mbb = -1;
+      for (auto jet1 = ak4jets_tight.begin(); jet1 != ak4jets_tight.end(); ++jet1){
+        for (auto jet2 = jet1+1; jet2 != ak4jets_tight.end(); ++jet2){
+          float mbb = ((*jet1)->p4() + (*jet2)->p4()).M();
+          if (mbb<min_mbb || min_mbb<0.f) min_mbb = mbb;
+          if (mbb>max_mbb || max_mbb<0.f) max_mbb = mbb;
+        }
+      }
+
       // Write output
+      rcd_output.setNamedVal("njet", static_cast<unsigned int>(ak4jets_tight.size()));
+      rcd_output.setNamedVal("nbjet", nbjets_tight);
       rcd_output.setNamedVal("event_wgt", wgt);
+      rcd_output.setNamedVal("min_mlb", min_mlb);
+      rcd_output.setNamedVal("min_mbb", min_mbb);
+      rcd_output.setNamedVal("max_mbb", max_mbb);
+      rcd_output.setNamedVal("Ht", Ht); 
+
+      // make vectors of pt, eta, phi, mass, pdgId for leptons
+      std::vector<float> lep_pt;
+      std::vector<float> lep_eta;
+      std::vector<float> lep_phi;
+      std::vector<float> lep_mass;
+      std::vector<int> lep_pdgId;
+      for (auto const& lep:leptons_tight){
+        lep_pt.push_back(lep->pt());
+        lep_eta.push_back(lep->eta());
+        lep_phi.push_back(lep->phi());
+        lep_mass.push_back(lep->mass());
+        lep_pdgId.push_back(lep->pdgId());
+      }
+
+      // setNamedVal for pt, eta, phi, mass, pdgId for leptons
+      rcd_output.setNamedVal("lep_pt", lep_pt);
+      rcd_output.setNamedVal("lep_eta", lep_eta);
+      rcd_output.setNamedVal("lep_phi", lep_phi);
+      rcd_output.setNamedVal("lep_mass", lep_mass);
+      rcd_output.setNamedVal("lep_pdgId", lep_pdgId);
+
+      // make vectors of pt eta phi, mass, is_btagged, partonFlavour, and hadronFlavour for jets
+      std::vector<float> jet_pt;
+      std::vector<float> jet_eta;
+      std::vector<float> jet_phi;
+      std::vector<float> jet_mass;
+      std::vector<bool> jet_is_btagged;
+      std::vector<int> jet_partonFlavour;
+      std::vector<int> jet_hadronFlavour;
+      for (auto const& jet:ak4jets_tight){
+        jet_pt.push_back(jet->pt());
+        jet_eta.push_back(jet->eta());
+        jet_phi.push_back(jet->phi());
+        jet_mass.push_back(jet->mass());
+        jet_is_btagged.push_back(jet->testSelectionBit(bit_preselection_btag));
+        jet_partonFlavour.push_back(jet->extras.partonFlavour);
+        jet_hadronFlavour.push_back(jet->extras.hadronFlavour);
+      }
+
+      // setNamedVal for pt, eta, phi, mass, is_btagged, genLevelInfo for jets
+      rcd_output.setNamedVal("jet_pt", jet_pt);
+      rcd_output.setNamedVal("jet_eta", jet_eta);
+      rcd_output.setNamedVal("jet_phi", jet_phi);
+      rcd_output.setNamedVal("jet_mass", jet_mass);
+      rcd_output.setNamedVal("jet_is_btagged", jet_is_btagged);
+      rcd_output.setNamedVal("jet_partonFlavour", jet_partonFlavour);
+      rcd_output.setNamedVal("jet_hadronFlavour", jet_hadronFlavour);
 
       rcd_output.setNamedVal("EventNumber", *ptr_EventNumber);
       if (isData){
@@ -639,16 +683,6 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       }
       rcd_output.setNamedVal("PFMET_pt_final", eventmet->pt());
       rcd_output.setNamedVal("PFMET_phi_final", eventmet->phi());
-
-#define SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, COLLNAME, NAME) rcd_output.setNamedVal(Form("%s_%s", #COLLNAME, #NAME), COLLNAME##_##NAME);
-#define MUON_VARIABLE(TYPE, NAME, DEFVAL) SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, muons, NAME)
-#define ELECTRON_VARIABLE(TYPE, NAME, DEFVAL) SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, electrons, NAME)
-#define AK4JET_VARIABLE(TYPE, NAME, DEFVAL) SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, ak4jets, NAME)
-      SYNC_ALLOBJS_BRANCH_VECTOR_COMMANDS;
-#undef AK4JET_VARIABLE
-#undef ELECTRON_VARIABLE
-#undef MUON_VARIABLE
-#undef SYNC_OBJ_BRANCH_VECTOR_COMMAND
 
       if (firstOutputEvent){
 #define SIMPLE_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.named##name_t##s.begin(); itb!=rcd_output.named##name_t##s.end(); itb++) tout->putBranch(itb->first, itb->second);
