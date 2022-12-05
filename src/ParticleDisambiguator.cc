@@ -33,15 +33,18 @@ void ParticleDisambiguator::disambiguateParticles(
       double min_dr = -1;
       AK4JetObject* ak4jet_chosen = nullptr;
       if (ak4jets){
-        if (use_muons_TopMVAany_Run2 && part->extras.jetIdx>=0){
-          for (auto*& jet:(*ak4jets)){
-            if (part->extras.jetIdx == static_cast<int>(jet->getUniqueIdentifier())){
-              ak4jet_chosen = jet;
-              break;
+        if (use_muons_TopMVAany_Run2){
+          if (part->extras.jetIdx>=0){
+            unsigned int const jetIdx_unsigned = static_cast<unsigned int>(part->extras.jetIdx);
+            for (auto*& jet:(*ak4jets)){
+              if (jetIdx_unsigned == jet->getUniqueIdentifier()){
+                ak4jet_chosen = jet;
+                break;
+              }
             }
           }
         }
-        if (!ak4jet_chosen){
+        else if (!ak4jet_chosen){
           for (auto*& jet:(*ak4jets)){
             double tmp_dr = jet->deltaR(part);
             if (use_muons_TopMVAany_Run2 && tmp_dr>=0.4) continue; // In the Top MVA ID implementation from Kirill Skovpen, jet matching is done only when dR<0.4.
@@ -63,18 +66,20 @@ void ParticleDisambiguator::disambiguateParticles(
       double min_dr = -1;
       AK4JetObject* ak4jet_chosen = nullptr;
       if (ak4jets){
-        if (use_electrons_TopMVAany_Run2 && part->extras.jetIdx>=0){
-          for (auto*& jet:(*ak4jets)){
-            if (part->extras.jetIdx == static_cast<int>(jet->getUniqueIdentifier())){
-              ak4jet_chosen = jet;
-              break;
+        if (use_electrons_TopMVAany_Run2){
+          if (part->extras.jetIdx>=0){
+            unsigned int const jetIdx_unsigned = static_cast<unsigned int>(part->extras.jetIdx);
+            for (auto*& jet:(*ak4jets)){
+              if (jetIdx_unsigned == jet->getUniqueIdentifier()){
+                ak4jet_chosen = jet;
+                break;
+              }
             }
           }
         }
-        if (!ak4jet_chosen){
+        else if (!ak4jet_chosen){
           for (auto*& jet:(*ak4jets)){
             double tmp_dr = jet->deltaR(part);
-            if (use_electrons_TopMVAany_Run2 && tmp_dr>=0.4) continue; // In the Top MVA ID implementation from Kirill Skovpen, jet matching is done only when dR<0.4.
             if (min_dr<0. || tmp_dr<min_dr){
               ak4jet_chosen = jet;
               min_dr = tmp_dr;

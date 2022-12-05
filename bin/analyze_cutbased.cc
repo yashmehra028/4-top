@@ -132,9 +132,11 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   if (!has_multiple_dsets) extra_arguments.getNamedVal("run_sync", runSyncExercise);
   bool writeSyncObjects = false;
   bool forceApplyPreselection = false;
+  std::string sync_evtno_filter_input;
   if (runSyncExercise){
     extra_arguments.getNamedVal("write_sync_objects", writeSyncObjects);
     extra_arguments.getNamedVal("force_sync_preselection", forceApplyPreselection);
+    extra_arguments.getNamedVal("sync_evtno_filter_input", sync_evtno_filter_input);
   }
 
   if (produce_trees && runSyncExercise){
@@ -160,6 +162,22 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     tout_sync_objects->setAutoSave(0);
     curdir->cd();
   }
+
+  std::vector<EventNumber_t> eventnumber_filter;
+  if (sync_evtno_filter_input!=""){
+    ifstream fin_evtnos(sync_evtno_filter_input.data());
+    while (!fin_evtnos.eof()){
+      std::string strline;
+      std::getline(fin_evtnos, strline);
+      HelperFunctions::lrstrip(strline, " \n\t{}");
+      if (strline.empty()) continue;
+      std::vector<std::string> tmpevtnos;
+      HelperFunctions::splitOptionRecursive(strline, tmpevtnos, ',', false);
+      for (auto const& evtno:tmpevtnos) eventnumber_filter.push_back(std::stoi(evtno));
+    }
+  }
+  bool const has_eventnumber_filter = !eventnumber_filter.empty();
+  if (has_eventnumber_filter) IVYout << "Applying filtering over " << eventnumber_filter.size() << " event numbers..." << endl;
 
   // Shorthand option for the Run 2 UL analysis proposal
   bool use_shorthand_Run2_UL_proposal_config = false;
@@ -373,7 +391,10 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
     // Book a few additional branches
     tin->bookBranch<EventNumber_t>("event", 0);
-    if (runSyncExercise && !isData) tin->bookBranch<float>("GenMET_pt", 0);
+    if ((runSyncExercise || produce_trees) && !isData){
+      tin->bookBranch<float>("GenMET_pt", 0);
+      tin->bookBranch<float>("GenMET_phi", 0);
+    }
     if (isData){
       tin->bookBranch<RunNumber_t>("run", 0);
       tin->bookBranch<LuminosityBlock_t>("luminosityBlock", 0);
@@ -421,8 +442,12 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     LuminosityBlock_t* ptr_LuminosityBlock = nullptr;
     EventNumber_t* ptr_EventNumber = nullptr;
     float* ptr_genmet_pt = nullptr;
+    float* ptr_genmet_phi = nullptr;
     tin->getValRef("event", ptr_EventNumber);
-    if (runSyncExercise && !isData) tin->getValRef("GenMET_pt", ptr_genmet_pt);
+    if ((runSyncExercise || produce_trees) && !isData){
+      tin->getValRef("GenMET_pt", ptr_genmet_pt);
+      tin->getValRef("GenMET_phi", ptr_genmet_phi);
+    }
     if (isData){
       tin->getValRef("run", ptr_RunNumber);
       tin->getValRef("luminosityBlock", ptr_LuminosityBlock);
@@ -457,6 +482,9 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       tin->getEvent(ev);
       HelperFunctions::progressbar(ev, nEntries);
       n_traversed++;
+
+      // Skip events if there is an event number filter
+      if (has_eventnumber_filter && !HelperFunctions::checkListVariable(eventnumber_filter, *ptr_EventNumber)) continue;
 
       genInfoHandler.constructGenInfo();
       auto const& genInfo = genInfoHandler.getGenInfo();
@@ -914,7 +942,10 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       // Write object sync. info.
       if (writeSyncObjects){
         rcd_sync_objects.setNamedVal("EventNumber", *ptr_EventNumber);
-        if (!isData) rcd_sync_objects.setNamedVal("GenMET_pt", *ptr_genmet_pt);
+        if (!isData){
+          rcd_sync_objects.setNamedVal("GenMET_pt", *ptr_genmet_pt);
+          rcd_sync_objects.setNamedVal("GenMET_phi", *ptr_genmet_phi);
+        }
         else{
           rcd_sync_objects.setNamedVal("RunNumber", *ptr_RunNumber);
           rcd_sync_objects.setNamedVal("LuminosityBlock", *ptr_LuminosityBlock);
@@ -1122,6 +1153,16 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       }
 
       if (tout){
+        rcd_output.setNamedVal("EventNumber", *ptr_EventNumber);
+        if (!isData){
+          rcd_output.setNamedVal("GenMET_pt", *ptr_genmet_pt);
+          rcd_output.setNamedVal("GenMET_phi", *ptr_genmet_phi);
+        }
+        else{
+          rcd_output.setNamedVal("RunNumber", *ptr_RunNumber);
+          rcd_output.setNamedVal("LuminosityBlock", *ptr_LuminosityBlock);
+        }
+
         rcd_output.setNamedVal("nak4jets_tight_selected", nak4jets_tight_selected);
         rcd_output.setNamedVal("nak4jets_tight_selected_btagged", nak4jets_tight_selected_btagged);
         rcd_output.setNamedVal("nleptons_tight", nleptons_tight);
@@ -1132,22 +1173,88 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
         rcd_output.setNamedVal<float>("HT_ak4jets", HT_ak4jets);
         rcd_output.setNamedVal<float>("pTmiss", pTmiss);
-        for (int ilep=1; ilep<=4; ilep++){
-          if (nleptons_tight<ilep){
-            rcd_output.setNamedVal<float>(Form("pt_l%i", ilep), -1.f);
-            rcd_output.setNamedVal<float>(Form("eta_l%i", ilep), 0.f);
-            rcd_output.setNamedVal<float>(Form("phi_l%i", ilep), 0.f);
-            rcd_output.setNamedVal<float>(Form("mass_l%i", ilep), 0.f);
-            rcd_output.setNamedVal<int>(Form("pdgId_l%i", ilep), -9000);
+
+        // Record leptons
+        {
+#define BRANCH_VECTOR_COMMANDS \
+          BRANCH_VECTOR_COMMAND(float, pt) \
+          BRANCH_VECTOR_COMMAND(float, eta) \
+          BRANCH_VECTOR_COMMAND(float, phi) \
+          BRANCH_VECTOR_COMMAND(float, mass) \
+          BRANCH_VECTOR_COMMAND(int, pdgId)
+
+#define BRANCH_VECTOR_COMMAND(TYPE, NAME) std::vector<TYPE> leptons_##NAME;
+          BRANCH_VECTOR_COMMANDS;
+#undef BRANCH_VECTOR_COMMAND
+          std::vector<bool> leptons_is_genmatched_prompt;
+          std::vector<bool> leptons_is_genmatched_photonProduct;
+          std::vector<int> leptons_genmatch_pdgId;
+
+          for (auto const& part:leptons_tight){
+            bool is_genmatched_prompt = leptons_isGenMatched_map.find(part)->second;
+            bool is_genmatched_photonProduct = leptons_isGenMatched_photonProduct_map.find(part)->second;
+            int genmatch_pdgId = leptons_genMatchPDGId_map.find(part)->second;
+
+            leptons_is_genmatched_prompt.push_back(is_genmatched_prompt);
+            leptons_is_genmatched_photonProduct.push_back(is_genmatched_photonProduct);
+            leptons_genmatch_pdgId.push_back(genmatch_pdgId);
+#define BRANCH_VECTOR_COMMAND(TYPE, NAME) leptons_##NAME.push_back(part->NAME());
+            BRANCH_VECTOR_COMMANDS;
+#undef BRANCH_VECTOR_COMMAND
           }
-          else{
-            auto const& tmp_part = leptons_tight.at(ilep-1);
-            rcd_output.setNamedVal<float>(Form("pt_l%i", ilep), tmp_part->pt());
-            rcd_output.setNamedVal<float>(Form("eta_l%i", ilep), tmp_part->eta());
-            rcd_output.setNamedVal<float>(Form("phi_l%i", ilep), tmp_part->phi());
-            rcd_output.setNamedVal<float>(Form("mass_l%i", ilep), tmp_part->mass());
-            rcd_output.setNamedVal<int>(Form("pdgId_l%i", ilep), tmp_part->pdgId());
+
+#define BRANCH_VECTOR_COMMAND(TYPE, NAME) rcd_output.setNamedVal(Form("leptons_%s", #NAME), leptons_##NAME);
+          BRANCH_VECTOR_COMMANDS;
+#undef BRANCH_VECTOR_COMMAND
+          rcd_output.setNamedVal("leptons_is_genmatched_prompt", leptons_is_genmatched_prompt);
+          rcd_output.setNamedVal("leptons_is_genmatched_photonProduct", leptons_is_genmatched_photonProduct);
+          rcd_output.setNamedVal("leptons_genmatch_pdgId", leptons_genmatch_pdgId);
+
+#undef BRANCH_VECTOR_COMMANDS
+        }
+
+        // Record ak4jets
+        {
+#define BRANCH_VECTOR_COMMANDS \
+          BRANCH_VECTOR_COMMAND(float, pt) \
+          BRANCH_VECTOR_COMMAND(float, eta) \
+          BRANCH_VECTOR_COMMAND(float, phi) \
+          BRANCH_VECTOR_COMMAND(float, mass)
+
+#define BRANCH_VECTOR_COMMAND(TYPE, NAME) std::vector<TYPE> ak4jets_##NAME;
+          BRANCH_VECTOR_COMMANDS;
+#undef BRANCH_VECTOR_COMMAND
+          std::vector<bool> ak4jets_is_tight;
+          std::vector<bool> ak4jets_is_btagged;
+          std::vector<int> ak4jets_hadronFlavour;
+          std::vector<int> ak4jets_partonFlavour;
+
+          for (auto const& jet:ak4jets){
+            bool is_tight = ParticleSelectionHelpers::isTightJet(jet);
+            bool is_btagged = jet->testSelectionBit(bit_preselection_btag);
+            float pt = jet->pt();
+            float eta = jet->eta();
+            float phi = jet->phi();
+            float mass = jet->mass();
+
+#define BRANCH_VECTOR_COMMAND(TYPE, NAME) ak4jets_##NAME.push_back(jet->NAME());
+            BRANCH_VECTOR_COMMANDS;
+#undef BRANCH_VECTOR_COMMAND
+            ak4jets_is_tight.push_back(is_tight);
+            ak4jets_is_btagged.push_back(is_btagged);
+            ak4jets_hadronFlavour.push_back(jet->extras.hadronFlavour);
+            ak4jets_partonFlavour.push_back(jet->extras.partonFlavour);
           }
+
+#define BRANCH_VECTOR_COMMAND(TYPE, NAME) rcd_output.setNamedVal(Form("ak4jets_%s", #NAME), ak4jets_##NAME);
+          BRANCH_VECTOR_COMMANDS;
+#undef BRANCH_VECTOR_COMMAND
+          rcd_output.setNamedVal("ak4jets_is_tight", ak4jets_is_tight);
+          rcd_output.setNamedVal("ak4jets_is_btagged", ak4jets_is_btagged);
+          rcd_output.setNamedVal("ak4jets_hadronFlavour", ak4jets_hadronFlavour);
+          rcd_output.setNamedVal("ak4jets_partonFlavour", ak4jets_partonFlavour);
+
+#undef BRANCH_VECTOR_COMMANDS
         }
 
         if (firstOutputEvent){
@@ -1283,7 +1390,17 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 }
 
 int main(int argc, char** argv){
-  constexpr int iarg_offset=1; // argv[0]==[Executable name]
+  // argv[0]==[Executable name]
+  constexpr int iarg_offset=1;
+
+  // Switches that do not need =true.
+  std::vector<std::string> const extra_argument_flags{
+    "produce_trees",
+    "run_sync",
+    "write_sync_objects",
+    "force_sync_preselection",
+    "shorthand_Run2_UL_proposal_config"
+  };
 
   bool print_help=false, has_help=false;
   int ichunk=0, nchunks=0;
@@ -1301,11 +1418,16 @@ int main(int argc, char** argv){
 
     if (wish.empty()){
       if (value=="help"){ print_help=has_help=true; }
-      else if (value=="shorthand_Run2_UL_proposal_config" || value=="produce_trees") extra_arguments.setNamedVal<bool>(value, true);
+      else if (HelperFunctions::checkListVariable(extra_argument_flags, value)) extra_arguments.setNamedVal<bool>(value, true);
       else{
         IVYerr << "ERROR: Unknown argument " << value << endl;
         print_help=true;
       }
+    }
+    else if (HelperFunctions::checkListVariable(extra_argument_flags, wish)){
+      bool tmpval;
+      HelperFunctions::castStringToValue(value, tmpval);
+      extra_arguments.setNamedVal(wish, tmpval);
     }
     else if (wish=="dataset") str_dset = value;
     else if (wish=="short_name") str_proc = value;
@@ -1319,12 +1441,7 @@ int main(int argc, char** argv){
       }
       extra_arguments.setNamedVal(wish, value);
     }
-    else if (wish=="run_sync" || wish=="write_sync_objects" || wish=="force_sync_preselection"){
-      bool tmpval;
-      HelperFunctions::castStringToValue(value, tmpval);
-      extra_arguments.setNamedVal(wish, tmpval);
-    }
-    else if (wish=="muon_id" || wish=="electron_id" || wish=="btag" || wish=="output_file") extra_arguments.setNamedVal(wish, value);
+    else if (wish=="muon_id" || wish=="electron_id" || wish=="btag" || wish=="output_file" || wish=="sync_evtno_filter_input") extra_arguments.setNamedVal(wish, value);
     else if (wish=="xsec"){
       if (xsec<0.) xsec = 1;
       xsec *= std::stod(value);
@@ -1387,11 +1504,12 @@ int main(int argc, char** argv){
     IVYout << "- minpt_l3: Minimum pT of third lepton in units of GeV. Default=20.\n";
     IVYout << "- minpt_miss: Minimum pTmiss in units of GeV. Default=50.\n";
     IVYout << "- minHT_jets: Minimum HT over ak4 jets in units of GeV. Default=300.\n";
-    IVYout << "- produce_trees: Switch to tree output instead of histograms. Optional. Default is to produce histograms.\n";
+    IVYout << "- produce_trees: Flag to switch to tree output instead of histograms. Optional. Default is to produce histograms.\n";
     IVYout << "  Note that tree production keeps all events, so one needs to use the selection bit map.\n";
     IVYout << "- run_sync: Turn on synchronization output. Optional. Default is to run without synchronization output.\n";
     IVYout << "- write_sync_objects: Create a file that contains the info. for all leptons and jets, and event identifiers. Ignored if run_sync=false. Optional. Default is to not produce such a file.\n";
     IVYout << "- force_sync_preselection: When sync. mode is on, also apply SR/CR preselection.  Ignored if run_sync=false. Optional. Default is to run without preselection.\n";
+    IVYout << "- sync_evtno_filter_input: Input file to specify filter on event numbers. Opional. Processed only if run_sync=true.\n";
     IVYout
       << "- shorthand_Run2_UL_proposal_config: Shorthand flag for the switches for the Run 2 UL analysis proposal:\n"
       << "  * muon_id='TopMVA_Run2'\n"

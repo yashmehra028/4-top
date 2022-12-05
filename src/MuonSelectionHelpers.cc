@@ -155,6 +155,12 @@ float MuonSelectionHelpers::computeMVAScore(MuonObject const& part, SelectionTyp
   if (mvareader_xgb){
     std::unordered_map<TString, IvyMLWrapper::IvyMLDataType_t> input_vars;
 
+    AK4JetObject* mother = nullptr;
+    for (auto const& mom:part.getMothers()){
+      mother = dynamic_cast<AK4JetObject*>(mom);
+      if (mother) break;
+    }
+
     auto const& vnames = mvareader_xgb->getVariableNames();
     for (auto const& vname:vnames){
       if (vname=="pt") input_vars[vname] = static_cast<IvyMLWrapper::IvyMLDataType_t>(part.pt());
@@ -163,17 +169,7 @@ float MuonSelectionHelpers::computeMVAScore(MuonObject const& part, SelectionTyp
       else if (vname=="jetPtRatio") input_vars[vname] = static_cast<IvyMLWrapper::IvyMLDataType_t>(1./(part.extras.jetRelIso+1.));
       else if (vname=="log_abs_dxy") input_vars[vname] = static_cast<IvyMLWrapper::IvyMLDataType_t>(std::log(std::abs(part.extras.dxy)));
       else if (vname=="log_abs_dz") input_vars[vname] = static_cast<IvyMLWrapper::IvyMLDataType_t>(std::log(std::abs(part.extras.dz)));
-      else if (vname=="ak4jet:btagDeepFlavB"){
-        IvyMLWrapper::IvyMLDataType_t score = 0;
-        AK4JetObject* mother = nullptr;
-        for (auto const& mom:part.getMothers()){
-          mother = dynamic_cast<AK4JetObject*>(mom);
-          if (mother) break;
-        }
-        if (mother) score = static_cast<IvyMLWrapper::IvyMLDataType_t>(mother->extras.btagDeepFlavB);
-
-        input_vars[vname] = score;
-      }
+      else if (vname=="ak4jet:btagDeepFlavB") input_vars[vname] = (mother ? static_cast<IvyMLWrapper::IvyMLDataType_t>(mother->extras.btagDeepFlavB) : IvyMLWrapper::IvyMLDataType_t(0));
 #define MUON_VARIABLE(TYPE, NAME, DEFVAL) else if (vname==#NAME) input_vars[vname] = static_cast<IvyMLWrapper::IvyMLDataType_t>(part.extras.NAME);
       MUON_EXTRA_VARIABLES
 #undef MUON_VARIABLE

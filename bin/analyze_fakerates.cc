@@ -722,7 +722,13 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 }
 
 int main(int argc, char** argv){
-  constexpr int iarg_offset=1; // argv[0]==[Executable name]
+  // argv[0]==[Executable name]
+  constexpr int iarg_offset=1;
+
+  // Switches that do not need =true.
+  std::vector<std::string> const extra_argument_flags{
+    "shorthand_Run2_UL_proposal_config"
+  };
 
   bool print_help=false, has_help=false;
   int ichunk=0, nchunks=0;
@@ -740,11 +746,16 @@ int main(int argc, char** argv){
 
     if (wish.empty()){
       if (value=="help"){ print_help=has_help=true; }
-      else if (value=="shorthand_Run2_UL_proposal_config") extra_arguments.setNamedVal<bool>(value, true);
+      else if (HelperFunctions::checkListVariable(extra_argument_flags, value)) extra_arguments.setNamedVal<bool>(value, true);
       else{
         IVYerr << "ERROR: Unknown argument " << value << endl;
         print_help=true;
       }
+    }
+    else if (HelperFunctions::checkListVariable(extra_argument_flags, wish)){
+      bool tmpval;
+      HelperFunctions::castStringToValue(value, tmpval);
+      extra_arguments.setNamedVal(wish, tmpval);
     }
     else if (wish=="dataset") str_dset = value;
     else if (wish=="short_name") str_proc = value;
