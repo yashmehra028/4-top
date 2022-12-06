@@ -137,6 +137,10 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     extra_arguments.getNamedVal("write_sync_objects", writeSyncObjects);
     extra_arguments.getNamedVal("force_sync_preselection", forceApplyPreselection);
     extra_arguments.getNamedVal("sync_evtno_filter_input", sync_evtno_filter_input);
+    IVYout << "Sync options:" << endl;
+    IVYout << "\t- write_sync_objects: " << writeSyncObjects << endl;
+    IVYout << "\t- force_sync_preselection: " << forceApplyPreselection << endl;
+    IVYout << "\t- Event number filter file: " << sync_evtno_filter_input << endl;
   }
 
   if (produce_trees && runSyncExercise){
@@ -475,6 +479,11 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         &&
         (eventIndex_end<0 || eventIndex_tracker<static_cast<int>(eventIndex_end))
         );
+      if (has_eventnumber_filter) doAccumulate &= (
+        tin->updateBranch(ev, "event", false)
+        &&
+        HelperFunctions::checkListVariable(eventnumber_filter, *ptr_EventNumber)
+        );
 
       eventIndex_tracker++;
       if (!doAccumulate) continue;
@@ -482,9 +491,6 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       tin->getEvent(ev);
       HelperFunctions::progressbar(ev, nEntries);
       n_traversed++;
-
-      // Skip events if there is an event number filter
-      if (has_eventnumber_filter && !HelperFunctions::checkListVariable(eventnumber_filter, *ptr_EventNumber)) continue;
 
       genInfoHandler.constructGenInfo();
       auto const& genInfo = genInfoHandler.getGenInfo();
@@ -1341,7 +1347,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     double const sum_ntotal_traversed = nevents_total_traversed;
     double const sum_ntotal_scale = sum_ntotal_req/sum_ntotal_traversed;
     IVYout << "Total number of events traversed / requested: " << sum_ntotal_traversed << " / " << sum_ntotal_req << endl;
-    IVYout << "Scaling the yield by " << sum_ntotal_scale << "..." << endl;
+    IVYout << "\t- Scaling the yield by " << sum_ntotal_scale << "..." << endl;
     for (auto& hCat:hCats) hCat->Scale(sum_ntotal_scale);
   }
   for (unsigned short igencat=0; igencat<hCats.size(); igencat++){
