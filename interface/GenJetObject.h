@@ -5,7 +5,7 @@
 
 
 #define GENJET_EXTRA_VARIABLES \
-GENJET_VARIABLE(int, hadronFlavour, 0) \
+GENJET_VARIABLE(unsigned char, hadronFlavour, 0) \
 GENJET_VARIABLE(int, partonFlavour, 0)
 
 #define GENJET_MOMENTUM_VARIABLES \
