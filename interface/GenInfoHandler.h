@@ -6,7 +6,7 @@
 #include "GenInfoObject.h"
 #include "LHEParticleObject.h"
 #include "GenParticleObject.h"
-//#include "GenJetObject.h"
+#include "GenJetObject.h"
 #include "KFactorHelpers.h"
 #include "SystematicVariations.h"
 
@@ -21,7 +21,7 @@ protected:
   bool acquireLHEMEWeights;
   bool acquireLHEParticles;
   bool acquireGenParticles;
-  //bool acquireGenAK4Jets;
+  bool acquireGenAK4Jets;
   //bool acquireGenAK8Jets;
 
   std::vector<std::pair<KFactorHelpers::KFactorType, KFactorHelpers::KFactorType>> kfactor_num_denum_list;
@@ -32,14 +32,15 @@ protected:
   GenInfoObject* genInfo;
   std::vector<LHEParticleObject*> lheparticles;
   std::vector<GenParticleObject*> genparticles;
-  //std::vector<GenJetObject*> genak4jets;
+  std::vector<GenJetObject*> genak4jets;
   //std::vector<GenJetObject*> genak8jets;
 
   bool constructCoreGenInfo();
   bool constructLHEParticles();
   bool constructGenParticles();
-  //bool constructGenAK4Jets();
+  bool constructGenAK4Jets();
   //bool constructGenAK8Jets();
+
   bool computeKFactors();
 
   void clear();
@@ -58,13 +59,13 @@ public:
   GenInfoObject* const& getGenInfo() const{ return genInfo; }
   std::vector<LHEParticleObject*> const& getLHEParticles() const{ return lheparticles; }
   std::vector<GenParticleObject*> const& getGenParticles() const{ return genparticles; }
-  //std::vector<GenJetObject*> const& getGenAK4Jets() const{ return genak4jets; }
+  std::vector<GenJetObject*> const& getGenAK4Jets() const{ return genak4jets; }
   //std::vector<GenJetObject*> const& getGenAK8Jets() const{ return genak8jets; }
 
   void setAcquireCoreGenInfo(bool flag){ acquireCoreGenInfo=flag; }
   void setAcquireLHEParticles(bool flag){ acquireLHEParticles=flag; }
   void setAcquireGenParticles(bool flag){ acquireGenParticles=flag; }
-  //void setAcquireGenAK4Jets(bool flag){ acquireGenAK4Jets=flag; }
+  void setAcquireGenAK4Jets(bool flag){ acquireGenAK4Jets=flag; }
   //void setAcquireGenAK8Jets(bool flag){ acquireGenAK8Jets=flag; }
 
   // This function needs to be called the first time K factors are computed.
