@@ -18,6 +18,7 @@ using namespace IvyStreamHelpers;
 const std::string GenInfoHandler::colName_lheparticles = GlobalCollectionNames::colName_lheparticles;
 const std::string GenInfoHandler::colName_genparticles = GlobalCollectionNames::colName_genparticles;
 const std::string GenInfoHandler::colName_genak4jets = GlobalCollectionNames::colName_genak4jets;
+//const std::string GenInfoHandler::colName_genak8jets = GlobalCollectionNames::colName_genak8jets;
 
 GenInfoHandler::GenInfoHandler() :
   IvyBase(),
@@ -30,7 +31,7 @@ GenInfoHandler::GenInfoHandler() :
   acquireLHEMEWeights(true),
   acquireLHEParticles(true),
   acquireGenParticles(true),
-  //acquireGenAK4Jets(false),
+  acquireGenAK4Jets(false),
   //acquireGenAK8Jets(false),
 
   genInfo(nullptr)
@@ -55,8 +56,8 @@ void GenInfoHandler::clear(){
   for (auto& part:genparticles) delete part;
   genparticles.clear();
 
-  //for (auto& part:genak4jets) delete part;
-  //genak4jets.clear();
+  for (auto& part:genak4jets) delete part;
+  genak4jets.clear();
 
   //for (auto& part:genak8jets) delete part;
   //genak8jets.clear();
@@ -74,7 +75,7 @@ bool GenInfoHandler::constructGenInfo(){
     ((!acquireCoreGenInfo && !require_kfactor_computations) || constructCoreGenInfo())
     && ((!acquireGenParticles && !require_kfactor_computations) || constructGenParticles())
     && (!(acquireLHEParticles || require_kfactor_computations) || constructLHEParticles())
-    //&& (!acquireGenAK4Jets || constructGenAK4Jets())
+    && (!acquireGenAK4Jets || constructGenAK4Jets())
     //&& (!acquireGenAK8Jets || constructGenAK8Jets())
     && (!require_kfactor_computations || computeKFactors())
     );
@@ -276,6 +277,54 @@ bool GenInfoHandler::constructLHEParticles(){
   return true;
 }
 
+bool GenInfoHandler::constructGenAK4Jets(){
+  GlobalCollectionNames::collsize_t nProducts;
+#define GENJET_VARIABLE(TYPE, NAME, DEFVAL) TYPE* const* arr_##NAME = nullptr;
+  GENJET_NANOAOD_VARIABLES;
+#undef GENJET_VARIABLE
+
+  // Beyond this point starts checks and selection
+  bool allVariablesPresent = this->getConsumedValue(Form("n%s", colName_genak4jets.data()), nProducts);
+#define GENJET_VARIABLE(TYPE, NAME, DEFVAL) allVariablesPresent &= this->getConsumed<TYPE* const>(colName_genak4jets + "_" + #NAME, arr_##NAME);
+  GENJET_NANOAOD_VARIABLES;
+#undef GENJET_VARIABLE
+
+  if (!allVariablesPresent){
+    if (this->verbosity>=MiscUtils::ERROR) IVYerr << "GenInfoHandler::constructGenAK4Jets: Not all variables are consumed properly!" << endl;
+    assert(0);
+  }
+  if (this->verbosity>=MiscUtils::DEBUG) IVYout << "GenInfoHandler::constructGenAK4Jets: All variables are set up!" << endl;
+
+  if (nProducts>GlobalCollectionNames::colMaxSize_genak4jets){
+    if (this->verbosity>=MiscUtils::ERROR) IVYerr << "GenInfoHandler::constructGenAK4Jets: The size of the collection (" << nProducts << ") exceeds maximum size (" << GlobalCollectionNames::colMaxSize_genak4jets << ")." << endl;
+    assert(0);
+  }
+  genak4jets.reserve(nProducts);
+#define GENJET_VARIABLE(TYPE, NAME, DEFVAL) TYPE* it_##NAME = nullptr; if (arr_##NAME) it_##NAME = &((*arr_##NAME)[0]);
+  GENJET_NANOAOD_VARIABLES;
+#undef GENJET_VARIABLE
+  {
+    GlobalCollectionNames::collsize_t ip=0;
+    while (ip != nProducts){
+      if (this->verbosity>=MiscUtils::DEBUG) IVYout << "GenInfoHandler::constructGenAK4Jets: Attempting gen. ak4jet " << ip << "..." << endl;
+
+      ParticleObject::LorentzVector_t momentum;
+      momentum = ParticleObject::PolarLorentzVector_t(*it_pt, *it_eta, *it_phi, *it_mass); // Yes you have to do this on a separate line because CMSSW...
+      genak4jets.push_back(new GenJetObject(momentum));
+      auto& obj = genak4jets.back();
+
+      if (this->verbosity>=MiscUtils::DEBUG) IVYout << "\t- Success!" << endl;
+
+      ip++;
+#define GENJET_VARIABLE(TYPE, NAME, DEFVAL) if (it_##NAME) it_##NAME++;
+      GENJET_NANOAOD_VARIABLES;
+#undef GENJET_VARIABLE
+    }
+  }
+
+  return true;
+}
+
 void GenInfoHandler::bookBranches(BaseTree* tree){
   if (!tree) return;
 
@@ -347,6 +396,17 @@ this->defineConsumedSloppy(#NAME);
   tree_kfactorlist_map[tree] = kfactorlist;
   tree_MElist_map[tree] = melist;
   tree_lheparticles_present_map[tree] = has_lheparticles;
+
+  if (acquireGenAK4Jets){
+    tree->bookBranch<GlobalCollectionNames::collsize_t>(Form("n%s", colName_genak4jets.data()), 0);
+#define GENJET_VARIABLE(TYPE, NAME, DEFVAL) tree->bookArrayBranch<TYPE>(colName_genak4jets + "_" + #NAME, DEFVAL, GlobalCollectionNames::colMaxSize_genak4jets);
+    GENJET_NANOAOD_VARIABLES;
+#undef GENJET_VARIABLE
+  }
+  this->addConsumed<GlobalCollectionNames::collsize_t>(Form("n%s", colName_genak4jets.data())); this->defineConsumedSloppy(Form("n%s", colName_genak4jets.data()));
+#define GENJET_VARIABLE(TYPE, NAME, DEFVAL) this->addConsumed<TYPE* const>(colName_genak4jets + "_" + #NAME); this->defineConsumedSloppy(colName_genak4jets + "_" + #NAME);
+  GENJET_NANOAOD_VARIABLES;
+#undef GENJET_VARIABLE
 }
 
 void GenInfoHandler::setupKFactorHandles(std::vector<std::string> const& strkfactoropts){

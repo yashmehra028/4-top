@@ -119,6 +119,12 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   IVYout.open(stroutput_log.Data());
   IVYerr.open(stroutput_err.Data());
 
+  // Produce output trees instead of histograms
+  // Note: With this switch is on, keeping track of the sums of weights becomes meaningless.
+  bool produce_trees = false;
+  extra_arguments.getNamedVal("produce_trees", produce_trees);
+  if (produce_trees) IVYout << "Producing output tres instead of histograms..." << endl;
+
   // Turn on synchronization exercise options
   std::string input_files;
   extra_arguments.getNamedVal("input_files", input_files);
@@ -126,9 +132,20 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   if (!has_multiple_dsets) extra_arguments.getNamedVal("run_sync", runSyncExercise);
   bool writeSyncObjects = false;
   bool forceApplyPreselection = false;
+  std::string sync_evtno_filter_input;
   if (runSyncExercise){
     extra_arguments.getNamedVal("write_sync_objects", writeSyncObjects);
     extra_arguments.getNamedVal("force_sync_preselection", forceApplyPreselection);
+    extra_arguments.getNamedVal("sync_evtno_filter_input", sync_evtno_filter_input);
+    IVYout << "Sync options:" << endl;
+    IVYout << "\t- write_sync_objects: " << writeSyncObjects << endl;
+    IVYout << "\t- force_sync_preselection: " << forceApplyPreselection << endl;
+    IVYout << "\t- Event number filter file: " << sync_evtno_filter_input << endl;
+  }
+
+  if (produce_trees && runSyncExercise){
+    IVYerr << "Tree output and sync exercise should not be run at the same time." << endl;
+    assert(0);
   }
 
   // Create the sync files
@@ -150,24 +167,52 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     curdir->cd();
   }
 
+  std::vector<EventNumber_t> eventnumber_filter;
+  if (sync_evtno_filter_input!=""){
+    ifstream fin_evtnos(sync_evtno_filter_input.data());
+    while (!fin_evtnos.eof()){
+      std::string strline;
+      std::getline(fin_evtnos, strline);
+      HelperFunctions::lrstrip(strline, " \n\t{}");
+      if (strline.empty()) continue;
+      std::vector<std::string> tmpevtnos;
+      HelperFunctions::splitOptionRecursive(strline, tmpevtnos, ',', false);
+      for (auto const& evtno:tmpevtnos) eventnumber_filter.push_back(std::stoi(evtno));
+    }
+  }
+  bool const has_eventnumber_filter = !eventnumber_filter.empty();
+  if (has_eventnumber_filter) IVYout << "Applying filtering over " << eventnumber_filter.size() << " event numbers..." << endl;
 
   // Shorthand option for the Run 2 UL analysis proposal
-  bool use_shorthand_Run2_UL_proposal_config;
+  bool use_shorthand_Run2_UL_proposal_config = false;
   extra_arguments.getNamedVal("shorthand_Run2_UL_proposal_config", use_shorthand_Run2_UL_proposal_config);
 
   // Options to set alternative muon and electron IDs, or b-tagging WP
   std::string muon_id_name;
   std::string electron_id_name;
   std::string btag_WPname;
+  double minpt_jets = 40;
+  double minpt_bjets = 25;
+  double minpt_l3 = 20;
   if (use_shorthand_Run2_UL_proposal_config){
     muon_id_name = electron_id_name = "TopMVA_Run2";
     btag_WPname = "loose";
+    minpt_jets = minpt_bjets = 25;
+    minpt_l3 = 10;
   }
   else{
     extra_arguments.getNamedVal("muon_id", muon_id_name);
     extra_arguments.getNamedVal("electron_id", electron_id_name);
     extra_arguments.getNamedVal("btag", btag_WPname);
+    extra_arguments.getNamedVal("minpt_jets", minpt_jets);
+    extra_arguments.getNamedVal("minpt_bjets", minpt_bjets);
+    extra_arguments.getNamedVal("minpt_l3", minpt_l3);
   }
+
+  double minpt_miss = 50;
+  extra_arguments.getNamedVal("minpt_miss", minpt_miss);
+  double minHT_jets = 300;
+  extra_arguments.getNamedVal("minHT_jets", minHT_jets);
 
   if (muon_id_name!=""){
     IVYout << "Switching to muon id " << muon_id_name << "..." << endl;
@@ -181,6 +226,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   }
   else IVYout << "Using default electron id = " << ElectronSelectionHelpers::selection_type << "..." << endl;
 
+  double const minpt_anyjet = std::min(minpt_jets, minpt_bjets);
   AK4JetSelectionHelpers::SelectionBits bit_preselection_btag = AK4JetSelectionHelpers::kPreselectionTight_BTagged_Medium;
   if (btag_WPname!=""){
     std::string btag_WPname_lower;
@@ -243,20 +289,28 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   // We conclude the setup of event processing specifications and move on to I/O configuration next.
 
   // Open the output ROOT file
-  TFile* foutput = TFile::Open(stroutput, "recreate");
-  foutput->cd();
+  TFile* foutput = TFile::Open(stroutput, "recreate"); foutput->cd();
+  BaseTree* tout = nullptr;
+  SimpleEntry rcd_output;
+  if (produce_trees){
+    tout = new BaseTree("SkimTree");
+    tout->setAutoSave(0);
+  }
 
   std::vector<TString> const gencats{ "AllLeptonsGenMatched_SameCharge", "hasGenPromptLepton_ChargeFlip", "hasGenMatchedPromptPhotonProduct", "hasNonPromptLepton" };
-  std::vector<TH2D*> hCats; hCats.reserve(gencats.size());
-  for (auto const& gencat:gencats){
-    TH2D* hCat = new TH2D(Form("hCat_%s", gencat.Data()), "", 15, 0, 15, 2, 0, 2); hCat->Sumw2();
-    for (int ix=1; ix<=15; ix++){
-      if (ix<15) hCat->GetXaxis()->SetBinLabel(ix, Form("SR%i", ix));
-      else hCat->GetXaxis()->SetBinLabel(ix, "CRW");
+  std::vector<TH2D*> hCats;
+  if (!produce_trees){
+    hCats.reserve(gencats.size());
+    for (auto const& gencat:gencats){
+      TH2D* hCat = new TH2D(Form("hCat_%s", gencat.Data()), "", 15, 0, 15, 2, 0, 2); hCat->Sumw2();
+      for (int ix=1; ix<=15; ix++){
+        if (ix<15) hCat->GetXaxis()->SetBinLabel(ix, Form("SR%i", ix));
+        else hCat->GetXaxis()->SetBinLabel(ix, "CRW");
+      }
+      hCat->GetYaxis()->SetBinLabel(1, "SR");
+      hCat->GetYaxis()->SetBinLabel(2, "CRZ");
+      hCats.push_back(hCat);
     }
-    hCat->GetYaxis()->SetBinLabel(1, "SR");
-    hCat->GetYaxis()->SetBinLabel(2, "CRZ");
-    hCats.push_back(hCat);
   }
   curdir->cd();
 
@@ -341,7 +395,10 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
     // Book a few additional branches
     tin->bookBranch<EventNumber_t>("event", 0);
-    if (runSyncExercise && !isData) tin->bookBranch<float>("GenMET_pt", 0);
+    if ((runSyncExercise || produce_trees) && !isData){
+      tin->bookBranch<float>("GenMET_pt", 0);
+      tin->bookBranch<float>("GenMET_phi", 0);
+    }
     if (isData){
       tin->bookBranch<RunNumber_t>("run", 0);
       tin->bookBranch<LuminosityBlock_t>("luminosityBlock", 0);
@@ -389,8 +446,12 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     LuminosityBlock_t* ptr_LuminosityBlock = nullptr;
     EventNumber_t* ptr_EventNumber = nullptr;
     float* ptr_genmet_pt = nullptr;
+    float* ptr_genmet_phi = nullptr;
     tin->getValRef("event", ptr_EventNumber);
-    if (runSyncExercise && !isData) tin->getValRef("GenMET_pt", ptr_genmet_pt);
+    if ((runSyncExercise || produce_trees) && !isData){
+      tin->getValRef("GenMET_pt", ptr_genmet_pt);
+      tin->getValRef("GenMET_phi", ptr_genmet_phi);
+    }
     if (isData){
       tin->getValRef("run", ptr_RunNumber);
       tin->getValRef("luminosityBlock", ptr_LuminosityBlock);
@@ -417,6 +478,11 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         (eventIndex_begin<0 || eventIndex_tracker>=static_cast<int>(eventIndex_begin))
         &&
         (eventIndex_end<0 || eventIndex_tracker<static_cast<int>(eventIndex_end))
+        );
+      if (has_eventnumber_filter) doAccumulate &= (
+        tin->updateBranch(ev, "event", false)
+        &&
+        HelperFunctions::checkListVariable(eventnumber_filter, *ptr_EventNumber)
         );
 
       eventIndex_tracker++;
@@ -500,6 +566,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, muons, is_genmatched_prompt_chargeFlip) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, muons, is_genmatched_prompt_photonProduct) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(int, muons, genmatch_pdgId) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(int, muons, matchedJetIdentifier) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, pt) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, eta) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, muons, phi) \
@@ -520,6 +587,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, electrons, is_genmatched_prompt_chargeFlip) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, electrons, is_genmatched_prompt_photonProduct) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(int, electrons, genmatch_pdgId) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(int, electrons, matchedJetIdentifier) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, pt) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, eta) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, electrons, etaSC) \
@@ -536,6 +604,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, ak4jets, is_tight) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, ak4jets, is_btagged) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(bool, ak4jets, is_clean) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(unsigned int, ak4jets, uniqueIdenntifier) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, ak4jets, pt) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, ak4jets, eta) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, ak4jets, phi) \
@@ -642,6 +711,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
           if (mother) break;
         }
         if (mother) bscore = mother->extras.btagDeepFlavB;
+        int matchedJetIdentifier = (mother ? mother->getUniqueIdentifier() : -1);
 
         if (printObjInfo){
           IVYout
@@ -727,6 +797,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
           if (mother) break;
         }
         if (mother) bscore = mother->extras.btagDeepFlavB;
+        int matchedJetIdentifier = (mother ? mother->getUniqueIdentifier() : -1);
 
         if (printObjInfo){
           IVYout
@@ -791,10 +862,10 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       }
 
       if (printObjInfo) IVYout << "Jet info for event " << ev << ":" << endl;
-      double ak4jets_pt40_HT=0;
+      double HT_ak4jets=0;
       auto const& ak4jets = jetHandler.getAK4Jets();
-      std::vector<AK4JetObject*> ak4jets_tight_pt40;
-      std::vector<AK4JetObject*> ak4jets_tight_pt25_btagged;
+      std::vector<AK4JetObject*> ak4jets_tight_selected;
+      std::vector<AK4JetObject*> ak4jets_tight_selected_btagged;
       for (auto const& jet:ak4jets){
         float pt = jet->pt();
         float eta = jet->eta();
@@ -804,6 +875,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         bool is_tight = ParticleSelectionHelpers::isTightJet(jet);
         bool is_btagged = jet->testSelectionBit(bit_preselection_btag);
         constexpr bool is_clean = true;
+        unsigned int uniqueIdenntifier = jet->getUniqueIdentifier();
 
         if (printObjInfo) IVYout
           << "\t- pt = " << pt << ", eta = " << eta << ", phi = " << phi
@@ -826,11 +898,11 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 #undef SYNC_OBJ_BRANCH_VECTOR_COMMAND
         }
 
-        if (is_tight && pt>=25. && std::abs(eta)<absEtaThr_ak4jets){
-          if (is_btagged) ak4jets_tight_pt25_btagged.push_back(jet);
-          if (pt>=40.){
-            ak4jets_tight_pt40.push_back(jet);
-            ak4jets_pt40_HT += pt;
+        if (is_tight && pt>=minpt_anyjet && std::abs(eta)<absEtaThr_ak4jets){
+          if (is_btagged && pt>=minpt_bjets) ak4jets_tight_selected_btagged.push_back(jet);
+          if (pt>=minpt_jets){
+            ak4jets_tight_selected.push_back(jet);
+            HT_ak4jets += pt;
           }
         }
       }
@@ -844,6 +916,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
           bool is_tight = ParticleSelectionHelpers::isTightJet(jet);
           bool is_btagged = jet->testSelectionBit(bit_preselection_btag);
           constexpr bool is_clean = false;
+          unsigned int uniqueIdenntifier = jet->getUniqueIdentifier();
 
           if (printObjInfo) IVYout
             << "\t- pt = " << pt << ", eta = " << eta << ", phi = " << phi
@@ -867,15 +940,18 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
           }
         }
       }
-      unsigned int const nak4jets_tight_pt40 = ak4jets_tight_pt40.size();
-      unsigned int const nak4jets_tight_pt25_btagged = ak4jets_tight_pt25_btagged.size();
+      unsigned int const nak4jets_tight_selected = ak4jets_tight_selected.size();
+      unsigned int const nak4jets_tight_selected_btagged = ak4jets_tight_selected_btagged.size();
 
       auto const& eventmet = jetHandler.getPFMET();
 
       // Write object sync. info.
       if (writeSyncObjects){
         rcd_sync_objects.setNamedVal("EventNumber", *ptr_EventNumber);
-        if (!isData) rcd_sync_objects.setNamedVal("GenMET_pt", *ptr_genmet_pt);
+        if (!isData){
+          rcd_sync_objects.setNamedVal("GenMET_pt", *ptr_genmet_pt);
+          rcd_sync_objects.setNamedVal("GenMET_phi", *ptr_genmet_phi);
+        }
         else{
           rcd_sync_objects.setNamedVal("RunNumber", *ptr_RunNumber);
           rcd_sync_objects.setNamedVal("LuminosityBlock", *ptr_LuminosityBlock);
@@ -927,29 +1003,39 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       // BEGIN PRESELECTION
       seltracker.accumulate("Full sample", wgt, printObjInfo);
 
-      if (applyPreselection && (nak4jets_tight_pt25_btagged<2 || nak4jets_tight_pt40<2)) continue;
-      seltracker.accumulate("Pass Nj and Nb", wgt, printObjInfo);
+      bool const pass_Nj_geq_2 = nak4jets_tight_selected>=2; rcd_output.setNamedVal("pass_Nj_geq_2", pass_Nj_geq_2);
+      bool const pass_Nb_geq_2 = nak4jets_tight_selected_btagged>=2; rcd_output.setNamedVal("pass_Nb_geq_2", pass_Nb_geq_2);
+      if (!produce_trees && applyPreselection && (!pass_Nj_geq_2 || !pass_Nb_geq_2)) continue;
+      seltracker.accumulate("Pass Nj>=2 and Nb>=2", wgt, printObjInfo);
 
-      if (applyPreselection && eventmet->pt()<50.) continue;
+      double const pTmiss = eventmet->pt();
+      bool const pass_pTmiss = pTmiss>=minpt_miss; rcd_output.setNamedVal("pass_pTmiss", pass_pTmiss);
+      if (!produce_trees && applyPreselection && !pass_pTmiss) continue;
       seltracker.accumulate("Pass pTmiss", wgt, printObjInfo);
 
-      if (applyPreselection && ak4jets_pt40_HT<300.) continue;
+      bool const pass_HTjets = HT_ak4jets>=minHT_jets; rcd_output.setNamedVal("pass_HTjets", pass_HTjets);
+      if (!produce_trees && applyPreselection && !pass_HTjets) continue;
       seltracker.accumulate("Pass HT", wgt, printObjInfo);
 
-      if (nleptons_tight<2) continue; // Skims are required to apply this selection, so no additional test on applyPreselection.
-      if (applyPreselection && (nleptons_tight<2 || nleptons_tight>=5)) continue;
+      bool const pass_Nleptons = (nleptons_tight>=2 && nleptons_tight<5); rcd_output.setNamedVal("pass_Nleptons", pass_Nleptons);
+      if (!produce_trees && nleptons_tight<2) continue; // Skims are required to apply this selection, so no additional test on applyPreselection.
+      if (!produce_trees && applyPreselection && !pass_Nleptons) continue;
       seltracker.accumulate("Has >=2 and <=4 leptons, >=2 of which are tight", wgt, printObjInfo);
 
-      if (applyPreselection && (leptons_tight.front()->pt()<25. || leptons_tight.at(1)->pt()<20.)) continue;
-      seltracker.accumulate("Pass pT1 and pT2", wgt, printObjInfo);
+      bool const pass_pTl1 = (nleptons_tight<1 || leptons_tight.front()->pt()>=25.); rcd_output.setNamedVal("pass_pTl1", pass_pTl1);
+      bool const pass_pTl2 = (nleptons_tight<2 || leptons_tight.at(1)->pt()>=20.); rcd_output.setNamedVal("pass_pTl2", pass_pTl2);
+      if (!produce_trees && applyPreselection && (!pass_pTl1 || !pass_pTl2)) continue;
+      seltracker.accumulate("Pass pTl1 and pTl2", wgt, printObjInfo);
 
-      if (applyPreselection && (nleptons_tight>=3 && leptons_tight.at(2)->pt()<20.)) continue;
-      seltracker.accumulate("Pass pT3 if >=3 tight leptons", wgt, printObjInfo);
+      bool const pass_pTl3 = (nleptons_tight<3 || leptons_tight.at(2)->pt()>=minpt_l3); rcd_output.setNamedVal("pass_pTl3", pass_pTl3);
+      if (!produce_trees && applyPreselection && !pass_pTl3) continue;
+      seltracker.accumulate("Pass pTl3 if >=3 tight leptons", wgt, printObjInfo);
 
       // Construct all possible dilepton pairs
       int nQ = 0;
       for (auto const& part:leptons_tight) nQ += (part->pdgId()>0 ? -1 : 1);
-      if (applyPreselection && (std::abs(nQ)>=(6-static_cast<int>(nleptons_tight)))) continue; // This req. necessarily vetoes Nleps>=5 because the actual number of same-sign leptons will always be >=3.
+      bool const pass_trileptonSameCharge = (std::abs(nQ)<(6-static_cast<int>(nleptons_tight))); rcd_output.setNamedVal("pass_trileptonSameCharge", pass_trileptonSameCharge); // This req. necessarily vetoes Nleps>=5 because the actual number of same-sign leptons will always be >=3.
+      if (!produce_trees && applyPreselection && !pass_trileptonSameCharge) continue;
       seltracker.accumulate("Pass 3-lepton same charge veto", wgt, printObjInfo);
 
       dileptonHandler.constructDileptons(&muons_selected, &electrons_selected);
@@ -1003,30 +1089,39 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         }
       }
 
-      if (applyPreselection && fail_vetos) continue;
+      bool const pass_dileptonVetos = !fail_vetos; rcd_output.setNamedVal("pass_dileptonVetos", pass_dileptonVetos);
+      if (!produce_trees && applyPreselection && fail_vetos) continue;
       seltracker.accumulate("Pass dilepton vetos", wgt, printObjInfo);
 
-      if (applyPreselection && !dilepton_SS_tight) continue;
+      bool const has_dilepton_SS_tight = (dilepton_SS_tight!=nullptr); rcd_output.setNamedVal("has_dilepton_SS_tight", has_dilepton_SS_tight);
+      bool const has_dilepton_OS_DYCand_tight = (dilepton_OS_DYCand_tight!=nullptr); rcd_output.setNamedVal("has_dilepton_OS_DYCand_tight", has_dilepton_OS_DYCand_tight);
+      if (!produce_trees && applyPreselection && !has_dilepton_SS_tight) continue;
       seltracker.accumulate("Has at least one tight SS dilepton", wgt, printObjInfo);
 
       // Put event filters to the last because data has unique event tracking enabled.
       eventFilter.constructFilters(&simEventHandler);
-      //if (!eventFilter.test2018HEMFilter(&simEventHandler, nullptr, nullptr, &ak4jets)) continue; // Test for 2018 partial HEM failure
-      //if (!eventFilter.test2018HEMFilter(&simEventHandler, &electrons, nullptr, nullptr)) continue; // Test for 2018 partial HEM failure
+      constexpr bool pass_HEMveto = true;
+      //bool const pass_HEMveto = eventFilter.test2018HEMFilter(&simEventHandler, nullptr, nullptr, &ak4jets);
+      //bool const pass_HEMveto = eventFilter.test2018HEMFilter(&simEventHandler, &electrons, nullptr, &ak4jets);
+      rcd_output.setNamedVal("pass_HEMveto", pass_HEMveto);
+      if (!produce_trees && applyPreselection && !pass_HEMveto) continue; // Test for 2018 partial HEM failure
       seltracker.accumulate("Pass HEM veto", wgt, printObjInfo);
-      if (applyPreselection && !eventFilter.passMETFilters()) continue; // Test for MET filters
+      bool const pass_METFilters = eventFilter.passMETFilters(); rcd_output.setNamedVal("pass_METFilters", pass_METFilters);
+      if (!produce_trees && applyPreselection && !pass_METFilters) continue; // Test for MET filters
       seltracker.accumulate("Pass MET filters", wgt, printObjInfo);
       if (!eventFilter.isUniqueDataEvent()) continue; // Test if the data event is unique (i.e., dorky). Does not do anything in the MC.
       seltracker.accumulate("Pass unique event check", wgt, printObjInfo);
 
       // Triggers
       float event_weight_triggers_dilepton = eventFilter.getTriggerWeight(hltnames_Dilepton);
-      if (applyPreselection && event_weight_triggers_dilepton==0.) continue; // Test if any triggers passed at all
+      bool const pass_triggers_dilepton = (event_weight_triggers_dilepton!=0.); rcd_output.setNamedVal("pass_triggers_dilepton", pass_triggers_dilepton);
+      if (!produce_trees && applyPreselection && !pass_triggers_dilepton) continue; // Test if any triggers passed at all
       seltracker.accumulate("Pass any trigger", wgt, printObjInfo);
       float event_weight_triggers_dilepton_matched = eventFilter.getTriggerWeight(
         triggerPropsCheckList_Dilepton,
         &muons, &electrons, nullptr, &ak4jets, nullptr, nullptr
       );
+      bool const pass_triggers_dilepton_matched = (event_weight_triggers_dilepton_matched!=0.); rcd_output.setNamedVal("pass_triggers_dilepton_matched", pass_triggers_dilepton_matched);
       seltracker.accumulate("Pass triggers after matching", (event_weight_triggers_dilepton_matched>0.)*wgt, printObjInfo);
 
 
@@ -1036,39 +1131,169 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       constexpr int idx_CRW = 15;
       int iCRZ = (dilepton_OS_DYCand_tight ? 1 : 0);
       int icat = 0;
-      if (nak4jets_tight_pt25_btagged>=2){
+      if (nak4jets_tight_selected_btagged>=2){
         if (nleptons_tight==2){
-          switch (nak4jets_tight_pt25_btagged){
+          switch (nak4jets_tight_selected_btagged){
           case 2:
-            if (nak4jets_tight_pt40<6) icat = idx_CRW;
-            else icat = 1 + std::min(nak4jets_tight_pt40, static_cast<unsigned int>(8))-6;
+            if (nak4jets_tight_selected<6) icat = idx_CRW;
+            else icat = 1 + std::min(nak4jets_tight_selected, static_cast<unsigned int>(8))-6;
             break;
           case 3:
-            if (nak4jets_tight_pt40>=5) icat = 4 + std::min(nak4jets_tight_pt40, static_cast<unsigned int>(8))-5;
+            if (nak4jets_tight_selected>=5) icat = 4 + std::min(nak4jets_tight_selected, static_cast<unsigned int>(8))-5;
             break;
           default: // Nb>=4
-            if (nak4jets_tight_pt40>=5) icat = 8;
+            if (nak4jets_tight_selected>=5) icat = 8;
             break;
           }
         }
         else{
-          switch (nak4jets_tight_pt25_btagged){
+          switch (nak4jets_tight_selected_btagged){
           case 2:
-            if (nak4jets_tight_pt40>=5) icat = 9 + std::min(nak4jets_tight_pt40, static_cast<unsigned int>(7))-5;
+            if (nak4jets_tight_selected>=5) icat = 9 + std::min(nak4jets_tight_selected, static_cast<unsigned int>(7))-5;
             break;
           default: // Nb>=3
-            if (nak4jets_tight_pt40>=4) icat = 12 + std::min(nak4jets_tight_pt40, static_cast<unsigned int>(6))-4;
+            if (nak4jets_tight_selected>=4) icat = 12 + std::min(nak4jets_tight_selected, static_cast<unsigned int>(6))-4;
             break;
           }
         }
       }
+
+      if (tout){
+        rcd_output.setNamedVal("EventNumber", *ptr_EventNumber);
+        if (!isData){
+          rcd_output.setNamedVal("GenMET_pt", *ptr_genmet_pt);
+          rcd_output.setNamedVal("GenMET_phi", *ptr_genmet_phi);
+        }
+        else{
+          rcd_output.setNamedVal("RunNumber", *ptr_RunNumber);
+          rcd_output.setNamedVal("LuminosityBlock", *ptr_LuminosityBlock);
+        }
+
+        rcd_output.setNamedVal("nak4jets_tight_selected", nak4jets_tight_selected);
+        rcd_output.setNamedVal("nak4jets_tight_selected_btagged", nak4jets_tight_selected_btagged);
+        rcd_output.setNamedVal("nleptons_tight", nleptons_tight);
+        rcd_output.setNamedVal("nleptons_fakeable", nleptons_fakeable);
+        rcd_output.setNamedVal("nleptons_loose", nleptons_loose);
+        rcd_output.setNamedVal("iCRZ_Run2Analysis", iCRZ);
+        rcd_output.setNamedVal("icat_Run2Analysis", icat);
+
+        rcd_output.setNamedVal<float>("HT_ak4jets", HT_ak4jets);
+        rcd_output.setNamedVal<float>("pTmiss", pTmiss);
+
+        // Record leptons
+        {
+#define BRANCH_VECTOR_COMMANDS \
+          BRANCH_VECTOR_COMMAND(float, pt) \
+          BRANCH_VECTOR_COMMAND(float, eta) \
+          BRANCH_VECTOR_COMMAND(float, phi) \
+          BRANCH_VECTOR_COMMAND(float, mass) \
+          BRANCH_VECTOR_COMMAND(int, pdgId)
+
+#define BRANCH_VECTOR_COMMAND(TYPE, NAME) std::vector<TYPE> leptons_##NAME;
+          BRANCH_VECTOR_COMMANDS;
+#undef BRANCH_VECTOR_COMMAND
+          std::vector<bool> leptons_is_genmatched_prompt;
+          std::vector<bool> leptons_is_genmatched_photonProduct;
+          std::vector<int> leptons_genmatch_pdgId;
+
+          for (auto const& part:leptons_tight){
+            bool is_genmatched_prompt = leptons_isGenMatched_map.find(part)->second;
+            bool is_genmatched_photonProduct = leptons_isGenMatched_photonProduct_map.find(part)->second;
+            int genmatch_pdgId = leptons_genMatchPDGId_map.find(part)->second;
+
+            leptons_is_genmatched_prompt.push_back(is_genmatched_prompt);
+            leptons_is_genmatched_photonProduct.push_back(is_genmatched_photonProduct);
+            leptons_genmatch_pdgId.push_back(genmatch_pdgId);
+#define BRANCH_VECTOR_COMMAND(TYPE, NAME) leptons_##NAME.push_back(part->NAME());
+            BRANCH_VECTOR_COMMANDS;
+#undef BRANCH_VECTOR_COMMAND
+          }
+
+#define BRANCH_VECTOR_COMMAND(TYPE, NAME) rcd_output.setNamedVal(Form("leptons_%s", #NAME), leptons_##NAME);
+          BRANCH_VECTOR_COMMANDS;
+#undef BRANCH_VECTOR_COMMAND
+          rcd_output.setNamedVal("leptons_is_genmatched_prompt", leptons_is_genmatched_prompt);
+          rcd_output.setNamedVal("leptons_is_genmatched_photonProduct", leptons_is_genmatched_photonProduct);
+          rcd_output.setNamedVal("leptons_genmatch_pdgId", leptons_genmatch_pdgId);
+
+#undef BRANCH_VECTOR_COMMANDS
+        }
+
+        // Record ak4jets
+        {
+#define BRANCH_VECTOR_COMMANDS \
+          BRANCH_VECTOR_COMMAND(float, pt) \
+          BRANCH_VECTOR_COMMAND(float, eta) \
+          BRANCH_VECTOR_COMMAND(float, phi) \
+          BRANCH_VECTOR_COMMAND(float, mass)
+
+#define BRANCH_VECTOR_COMMAND(TYPE, NAME) std::vector<TYPE> ak4jets_##NAME;
+          BRANCH_VECTOR_COMMANDS;
+#undef BRANCH_VECTOR_COMMAND
+          std::vector<bool> ak4jets_is_tight;
+          std::vector<bool> ak4jets_is_btagged;
+          std::vector<int> ak4jets_hadronFlavour;
+          std::vector<int> ak4jets_partonFlavour;
+
+          for (auto const& jet:ak4jets){
+            bool is_tight = ParticleSelectionHelpers::isTightJet(jet);
+            bool is_btagged = jet->testSelectionBit(bit_preselection_btag);
+            float pt = jet->pt();
+            float eta = jet->eta();
+            float phi = jet->phi();
+            float mass = jet->mass();
+
+#define BRANCH_VECTOR_COMMAND(TYPE, NAME) ak4jets_##NAME.push_back(jet->NAME());
+            BRANCH_VECTOR_COMMANDS;
+#undef BRANCH_VECTOR_COMMAND
+            ak4jets_is_tight.push_back(is_tight);
+            ak4jets_is_btagged.push_back(is_btagged);
+            ak4jets_hadronFlavour.push_back(jet->extras.hadronFlavour);
+            ak4jets_partonFlavour.push_back(jet->extras.partonFlavour);
+          }
+
+#define BRANCH_VECTOR_COMMAND(TYPE, NAME) rcd_output.setNamedVal(Form("ak4jets_%s", #NAME), ak4jets_##NAME);
+          BRANCH_VECTOR_COMMANDS;
+#undef BRANCH_VECTOR_COMMAND
+          rcd_output.setNamedVal("ak4jets_is_tight", ak4jets_is_tight);
+          rcd_output.setNamedVal("ak4jets_is_btagged", ak4jets_is_btagged);
+          rcd_output.setNamedVal("ak4jets_hadronFlavour", ak4jets_hadronFlavour);
+          rcd_output.setNamedVal("ak4jets_partonFlavour", ak4jets_partonFlavour);
+
+#undef BRANCH_VECTOR_COMMANDS
+        }
+
+        if (firstOutputEvent){
+#define SIMPLE_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.named##name_t##s.begin(); itb!=rcd_output.named##name_t##s.end(); itb++) tout->putBranch(itb->first, itb->second);
+#define VECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.namedV##name_t##s.begin(); itb!=rcd_output.namedV##name_t##s.end(); itb++) tout->putBranch(itb->first, &(itb->second));
+#define DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.namedVV##name_t##s.begin(); itb!=rcd_output.namedVV##name_t##s.end(); itb++) tout->putBranch(itb->first, &(itb->second));
+          SIMPLE_DATA_OUTPUT_DIRECTIVES;
+          VECTOR_DATA_OUTPUT_DIRECTIVES;
+          DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVES;
+#undef SIMPLE_DATA_OUTPUT_DIRECTIVE
+#undef VECTOR_DATA_OUTPUT_DIRECTIVE
+#undef DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE
+        }
+#define SIMPLE_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.named##name_t##s.begin(); itb!=rcd_output.named##name_t##s.end(); itb++) tout->setVal(itb->first, itb->second);
+#define VECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.namedV##name_t##s.begin(); itb!=rcd_output.namedV##name_t##s.end(); itb++) tout->setVal(itb->first, &(itb->second));
+#define DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.namedVV##name_t##s.begin(); itb!=rcd_output.namedVV##name_t##s.end(); itb++) tout->setVal(itb->first, &(itb->second));
+        SIMPLE_DATA_OUTPUT_DIRECTIVES;
+        VECTOR_DATA_OUTPUT_DIRECTIVES;
+        DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVES;
+#undef SIMPLE_DATA_OUTPUT_DIRECTIVE
+#undef VECTOR_DATA_OUTPUT_DIRECTIVE
+#undef DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE
+
+        tout->fill();
+      }
+
       if (icat>=0){
         unsigned short idx_gencat = 0;
         if (hasGenPromptLepton_ChargeFlip) idx_gencat = 1;
         else if (hasGenMatchedPromptPhotonProduct) idx_gencat = 2;
         else if (hasNonPromptLepton) idx_gencat = 3;
 
-        hCats.at(idx_gencat)->Fill(static_cast<double>(icat-1)+0.5, static_cast<double>(iCRZ)+0.5, wgt);
+        if (!hCats.empty()) hCats.at(idx_gencat)->Fill(static_cast<double>(icat-1)+0.5, static_cast<double>(iCRZ)+0.5, wgt);
         if (printObjInfo){
           if (dilepton_OS_DYCand_tight) IVYout
             << "OS Z candidate found to have "
@@ -1090,7 +1315,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
             << endl;
         }
       }
-      if (printObjInfo) IVYout << "Nb = " << nak4jets_tight_pt25_btagged << ", Nj = " << nak4jets_tight_pt40 << ", iCRZ = " << iCRZ << ", icat = " << icat << endl;
+      if (printObjInfo) IVYout << "Nb = " << nak4jets_tight_selected_btagged << ", Nj = " << nak4jets_tight_selected << ", iCRZ = " << iCRZ << ", icat = " << icat << endl;
 
       if (runSyncExercise && (!applyPreselection || iCRZ==1 || icat>0)) foutput_sync
         << *ptr_EventNumber << ","
@@ -1101,9 +1326,9 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         << nleptons_fakeable + nleptons_tight << ","
         << nleptons_tight << ","
         << (dilepton_SS_tight ? "SS" : "!SS") << ","
-        << ak4jets_pt40_HT << ","
-        << nak4jets_tight_pt40 << ","
-        << nak4jets_tight_pt25_btagged << ","
+        << HT_ak4jets << ","
+        << nak4jets_tight_selected << ","
+        << nak4jets_tight_selected_btagged << ","
         << (iCRZ ? "Z" : (icat==idx_CRW ? "W" : (icat==0 ? "N/A" : std::to_string(icat).data())))
         << endl;
 
@@ -1122,10 +1347,10 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     double const sum_ntotal_traversed = nevents_total_traversed;
     double const sum_ntotal_scale = sum_ntotal_req/sum_ntotal_traversed;
     IVYout << "Total number of events traversed / requested: " << sum_ntotal_traversed << " / " << sum_ntotal_req << endl;
-    IVYout << "Scaling the yield by " << sum_ntotal_scale << "..." << endl;
+    IVYout << "\t- Scaling the yield by " << sum_ntotal_scale << "..." << endl;
     for (auto& hCat:hCats) hCat->Scale(sum_ntotal_scale);
   }
-  for (unsigned short igencat=0; igencat<gencats.size(); igencat++){
+  for (unsigned short igencat=0; igencat<hCats.size(); igencat++){
     auto const& hCat = hCats.at(igencat);
     IVYout << "Event counts for gen. cat. '" << gencats.at(igencat) << "':" << endl;
     double integral_error=0;
@@ -1150,6 +1375,10 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     foutput->WriteTObject(hCat);
     delete hCat;
   }
+  if (tout){
+    tout->writeToFile(foutput);
+    delete tout;
+  }
   foutput->Close();
 
   curdir->cd();
@@ -1167,7 +1396,17 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 }
 
 int main(int argc, char** argv){
-  constexpr int iarg_offset=1; // argv[0]==[Executable name]
+  // argv[0]==[Executable name]
+  constexpr int iarg_offset=1;
+
+  // Switches that do not need =true.
+  std::vector<std::string> const extra_argument_flags{
+    "produce_trees",
+    "run_sync",
+    "write_sync_objects",
+    "force_sync_preselection",
+    "shorthand_Run2_UL_proposal_config"
+  };
 
   bool print_help=false, has_help=false;
   int ichunk=0, nchunks=0;
@@ -1185,11 +1424,16 @@ int main(int argc, char** argv){
 
     if (wish.empty()){
       if (value=="help"){ print_help=has_help=true; }
-      else if (value=="shorthand_Run2_UL_proposal_config") extra_arguments.setNamedVal<bool>(value, true);
+      else if (HelperFunctions::checkListVariable(extra_argument_flags, value)) extra_arguments.setNamedVal<bool>(value, true);
       else{
         IVYerr << "ERROR: Unknown argument " << value << endl;
         print_help=true;
       }
+    }
+    else if (HelperFunctions::checkListVariable(extra_argument_flags, wish)){
+      bool tmpval;
+      HelperFunctions::castStringToValue(value, tmpval);
+      extra_arguments.setNamedVal(wish, tmpval);
     }
     else if (wish=="dataset") str_dset = value;
     else if (wish=="short_name") str_proc = value;
@@ -1203,12 +1447,7 @@ int main(int argc, char** argv){
       }
       extra_arguments.setNamedVal(wish, value);
     }
-    else if (wish=="run_sync" || wish=="write_sync_objects" || wish=="force_sync_preselection"){
-      bool tmpval;
-      HelperFunctions::castStringToValue(value, tmpval);
-      extra_arguments.setNamedVal(wish, tmpval);
-    }
-    else if (wish=="muon_id" || wish=="electron_id" || wish=="btag" || wish=="output_file") extra_arguments.setNamedVal(wish, value);
+    else if (wish=="muon_id" || wish=="electron_id" || wish=="btag" || wish=="output_file" || wish=="sync_evtno_filter_input") extra_arguments.setNamedVal(wish, value);
     else if (wish=="xsec"){
       if (xsec<0.) xsec = 1;
       xsec *= std::stod(value);
@@ -1219,6 +1458,11 @@ int main(int argc, char** argv){
     }
     else if (wish=="nchunks") nchunks = std::stoi(value);
     else if (wish=="ichunk") ichunk = std::stoi(value);
+    else if (wish=="minpt_jets" || wish=="minpt_bjets" || wish=="minpt_l3" || wish=="minpt_miss" || wish=="minHT_jets"){
+      double tmpval;
+      HelperFunctions::castStringToValue(value, tmpval);
+      extra_arguments.setNamedVal(wish, tmpval);
+    }
     else{
       IVYerr << "ERROR: Unknown argument " << wish << "=" << value << endl;
       print_help=true;
@@ -1254,15 +1498,6 @@ int main(int argc, char** argv){
       << "- output_file: Identifier of the output file if different from 'short_name'. Optional.\n"
       << "  The full output file name is '[identifier](_[ichunk]_[nchunks]).root.'\n";
     IVYout << "- input_files: Input files to run. Optional. Default is to run on all files.\n";
-    IVYout << "- run_sync: Turn on synchronization output. Optional. Default is to run without synchronization output.\n";
-    IVYout << "- write_sync_objects: Create a file that contains the info. for all leptons and jets, and event identifiers. Ignored if run_sync=false. Optional. Default is to not produce such a file.\n";
-    IVYout << "- force_sync_preselection: When sync. mode is on, also apply SR/CR preselection.  Ignored if run_sync=false. Optional. Default is to run without preselection.\n";
-    IVYout
-      << "- shorthand_Run2_UL_proposal_config: Shorthand flag for the switches for the Run 2 UL analysis proposal:\n"
-      << "  * muon_id='TopMVA_Run2'\n"
-      << "  * electron_id='TopMVA_Run2'\n"
-      << "  * btag='loose'\n"
-      << "  The use of this shorthand will ignore the user-defined setting of these options above.\n";
     IVYout
       << "- muon_id: Can be 'Cutbased_Run2', 'TopMVA_Run2', or 'TopMVAv2_Run2'.\n"
       << "  Default is whatever is in MuonSelectionHelpers (currently 'Cutbased_Run2') if no value is given.\n";
@@ -1270,6 +1505,26 @@ int main(int argc, char** argv){
       << "- electron_id: Can be 'Cutbased_Run2', 'TopMVA_Run2', or 'TopMVAv2_Run2'.\n"
       << "  Default is whatever is in ElectronSelectionHelpers (currently 'Cutbased_Run2') if no value is given.\n";
     IVYout << "- btag: Name of the b-tagging WP. Can be 'medium' or 'loose' (case-insensitive). Default='medium'.\n";
+    IVYout << "- minpt_jets: Minimum pT of jets in units of GeV. Default=40.\n";
+    IVYout << "- minpt_bjets: Minimum pT of b-tagged jets in units of GeV. Default=25.\n";
+    IVYout << "- minpt_l3: Minimum pT of third lepton in units of GeV. Default=20.\n";
+    IVYout << "- minpt_miss: Minimum pTmiss in units of GeV. Default=50.\n";
+    IVYout << "- minHT_jets: Minimum HT over ak4 jets in units of GeV. Default=300.\n";
+    IVYout << "- produce_trees: Flag to switch to tree output instead of histograms. Optional. Default is to produce histograms.\n";
+    IVYout << "  Note that tree production keeps all events, so one needs to use the selection bit map.\n";
+    IVYout << "- run_sync: Turn on synchronization output. Optional. Default is to run without synchronization output.\n";
+    IVYout << "- write_sync_objects: Create a file that contains the info. for all leptons and jets, and event identifiers. Ignored if run_sync=false. Optional. Default is to not produce such a file.\n";
+    IVYout << "- force_sync_preselection: When sync. mode is on, also apply SR/CR preselection.  Ignored if run_sync=false. Optional. Default is to run without preselection.\n";
+    IVYout << "- sync_evtno_filter_input: Input file to specify filter on event numbers. Opional. Processed only if run_sync=true.\n";
+    IVYout
+      << "- shorthand_Run2_UL_proposal_config: Shorthand flag for the switches for the Run 2 UL analysis proposal:\n"
+      << "  * muon_id='TopMVA_Run2'\n"
+      << "  * electron_id='TopMVA_Run2'\n"
+      << "  * btag='loose'\n"
+      << "  * minpt_jets=25\n"
+      << "  * minpt_bjets=25\n"
+      << "  * minpt_l3=10\n"
+      << "  The use of this shorthand will ignore the user-defined setting of these options above.\n";
 
     IVYout << endl;
     return (has_help ? 0 : 1);

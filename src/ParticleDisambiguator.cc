@@ -17,25 +17,41 @@ void ParticleDisambiguator::disambiguateParticles(
   std::vector<AK4JetObject*>*& ak4jets,
   std::vector<AK4JetObject*>*& ak4jets_masked
 ){
+  bool const use_muons_TopMVAany_Run2 = (
+    MuonSelectionHelpers::selection_type == MuonSelectionHelpers::kTopMVA_Run2
+    ||
+    MuonSelectionHelpers::selection_type == MuonSelectionHelpers::kTopMVAv2_Run2
+    );
+  bool const use_electrons_TopMVAany_Run2 = (
+    ElectronSelectionHelpers::selection_type == ElectronSelectionHelpers::kTopMVA_Run2
+    ||
+    ElectronSelectionHelpers::selection_type == ElectronSelectionHelpers::kTopMVAv2_Run2
+    );
+
   if (muons){
     for (auto*& part:(*muons)){
       double min_dr = -1;
       AK4JetObject* ak4jet_chosen = nullptr;
       if (ak4jets){
-        for (auto*& jet:(*ak4jets)){
-          double tmp_dr = jet->deltaR(part);
-          if (
-            (
-              MuonSelectionHelpers::selection_type == MuonSelectionHelpers::kTopMVA_Run2
-              ||
-              MuonSelectionHelpers::selection_type == MuonSelectionHelpers::kTopMVAv2_Run2
-              )
-            &&
-            tmp_dr>=0.4
-            ) continue; // In the Top MVA ID implementation from Kirill Skovpen, jet matching is done only when dR<0.4.
-          if (min_dr<0. || tmp_dr<min_dr){
-            ak4jet_chosen = jet;
-            min_dr = tmp_dr;
+        if (use_muons_TopMVAany_Run2){
+          if (part->extras.jetIdx>=0){
+            unsigned int const jetIdx_unsigned = static_cast<unsigned int>(part->extras.jetIdx);
+            for (auto*& jet:(*ak4jets)){
+              if (jetIdx_unsigned == jet->getUniqueIdentifier()){
+                ak4jet_chosen = jet;
+                break;
+              }
+            }
+          }
+        }
+        else if (!ak4jet_chosen){
+          for (auto*& jet:(*ak4jets)){
+            double tmp_dr = jet->deltaR(part);
+            if (use_muons_TopMVAany_Run2 && tmp_dr>=0.4) continue; // In the Top MVA ID implementation from Kirill Skovpen, jet matching is done only when dR<0.4.
+            if (min_dr<0. || tmp_dr<min_dr){
+              ak4jet_chosen = jet;
+              min_dr = tmp_dr;
+            }
           }
         }
       }
@@ -50,20 +66,24 @@ void ParticleDisambiguator::disambiguateParticles(
       double min_dr = -1;
       AK4JetObject* ak4jet_chosen = nullptr;
       if (ak4jets){
-        for (auto*& jet:(*ak4jets)){
-          double tmp_dr = jet->deltaR(part);
-          if (
-            (
-              ElectronSelectionHelpers::selection_type == ElectronSelectionHelpers::kTopMVA_Run2
-              ||
-              ElectronSelectionHelpers::selection_type == ElectronSelectionHelpers::kTopMVAv2_Run2
-              )
-            &&
-            tmp_dr>=0.4
-            ) continue; // In the Top MVA ID implementation from Kirill Skovpen, jet matching is done only when dR<0.4.
-          if (min_dr<0. || tmp_dr<min_dr){
-            ak4jet_chosen = jet;
-            min_dr = tmp_dr;
+        if (use_electrons_TopMVAany_Run2){
+          if (part->extras.jetIdx>=0){
+            unsigned int const jetIdx_unsigned = static_cast<unsigned int>(part->extras.jetIdx);
+            for (auto*& jet:(*ak4jets)){
+              if (jetIdx_unsigned == jet->getUniqueIdentifier()){
+                ak4jet_chosen = jet;
+                break;
+              }
+            }
+          }
+        }
+        else if (!ak4jet_chosen){
+          for (auto*& jet:(*ak4jets)){
+            double tmp_dr = jet->deltaR(part);
+            if (min_dr<0. || tmp_dr<min_dr){
+              ak4jet_chosen = jet;
+              min_dr = tmp_dr;
+            }
           }
         }
       }
@@ -76,19 +96,7 @@ void ParticleDisambiguator::disambiguateParticles(
 
   // Disambiguate electrons from muons
   float thr_dR_e_mu = -1;
-  if (
-    (
-      MuonSelectionHelpers::selection_type == MuonSelectionHelpers::kTopMVA_Run2
-      ||
-      MuonSelectionHelpers::selection_type == MuonSelectionHelpers::kTopMVAv2_Run2
-      )
-    &&
-    (
-      ElectronSelectionHelpers::selection_type == ElectronSelectionHelpers::kTopMVA_Run2
-      ||
-      ElectronSelectionHelpers::selection_type == ElectronSelectionHelpers::kTopMVAv2_Run2
-      )
-    ) thr_dR_e_mu = 0.05;
+  if (use_muons_TopMVAany_Run2 && use_electrons_TopMVAany_Run2) thr_dR_e_mu = 0.05;
   if (electrons && thr_dR_e_mu>=0.f){
     for (auto*& product:(*electrons)){
       bool isTightProduct = ParticleSelectionHelpers::isTightParticle(product);

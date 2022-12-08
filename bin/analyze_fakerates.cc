@@ -123,7 +123,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   extra_arguments.getNamedVal("input_files", input_files);
 
   // Shorthand option for the Run 2 UL analysis proposal
-  bool use_shorthand_Run2_UL_proposal_config;
+  bool use_shorthand_Run2_UL_proposal_config = false;
   extra_arguments.getNamedVal("shorthand_Run2_UL_proposal_config", use_shorthand_Run2_UL_proposal_config);
 
   // Options to set alternative muon and electron IDs, or b-tagging WP
@@ -139,6 +139,9 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     extra_arguments.getNamedVal("electron_id", electron_id_name);
     extra_arguments.getNamedVal("btag", btag_WPname);
   }
+
+  double minpt_jets = 25;
+  extra_arguments.getNamedVal("minpt_jets", minpt_jets);
 
   if (muon_id_name!=""){
     IVYout << "Switching to muon id " << muon_id_name << "..." << endl;
@@ -574,7 +577,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       unsigned int const nleptons_selected = nleptons_tight + nleptons_fakeable + nleptons_loose;
 
       auto const& ak4jets = jetHandler.getAK4Jets();
-      unsigned int nak4jets_tight_pt25_etaCentral = 0;
+      unsigned int nak4jets_tight_selected_etaCentral = 0;
       for (auto const& jet:ak4jets){
         float pt = jet->pt();
         float eta = jet->eta();
@@ -591,7 +594,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 #undef AK4JET_VARIABLE
 #undef SYNC_OBJ_BRANCH_VECTOR_COMMAND
 
-        if (is_tight && pt>=25. && std::abs(eta)<absEtaThr_ak4jets) nak4jets_tight_pt25_etaCentral++;
+        if (is_tight && pt>=minpt_jets && std::abs(eta)<absEtaThr_ak4jets) nak4jets_tight_selected_etaCentral++;
       }
 
       // MET info
@@ -604,7 +607,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       if ((nleptons_tight + nleptons_fakeable)!=1) continue;
       seltracker.accumulate("Has exactly one fakeable lepton", wgt);
 
-      if (nak4jets_tight_pt25_etaCentral==0) continue;
+      if (nak4jets_tight_selected_etaCentral==0) continue;
       seltracker.accumulate("Has at least one tight jet with pT>25 GeV and central eta", wgt);
 
       // Put event filters to the last because data has unique event tracking enabled.
@@ -719,7 +722,13 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 }
 
 int main(int argc, char** argv){
-  constexpr int iarg_offset=1; // argv[0]==[Executable name]
+  // argv[0]==[Executable name]
+  constexpr int iarg_offset=1;
+
+  // Switches that do not need =true.
+  std::vector<std::string> const extra_argument_flags{
+    "shorthand_Run2_UL_proposal_config"
+  };
 
   bool print_help=false, has_help=false;
   int ichunk=0, nchunks=0;
@@ -737,11 +746,16 @@ int main(int argc, char** argv){
 
     if (wish.empty()){
       if (value=="help"){ print_help=has_help=true; }
-      else if (value=="shorthand_Run2_UL_proposal_config") extra_arguments.setNamedVal<bool>(value, true);
+      else if (HelperFunctions::checkListVariable(extra_argument_flags, value)) extra_arguments.setNamedVal<bool>(value, true);
       else{
         IVYerr << "ERROR: Unknown argument " << value << endl;
         print_help=true;
       }
+    }
+    else if (HelperFunctions::checkListVariable(extra_argument_flags, wish)){
+      bool tmpval;
+      HelperFunctions::castStringToValue(value, tmpval);
+      extra_arguments.setNamedVal(wish, tmpval);
     }
     else if (wish=="dataset") str_dset = value;
     else if (wish=="short_name") str_proc = value;
@@ -766,6 +780,11 @@ int main(int argc, char** argv){
     }
     else if (wish=="nchunks") nchunks = std::stoi(value);
     else if (wish=="ichunk") ichunk = std::stoi(value);
+    else if (wish=="minpt_jets"){
+      double tmpval;
+      HelperFunctions::castStringToValue(value, tmpval);
+      extra_arguments.setNamedVal(wish, tmpval);
+    }
     else{
       IVYerr << "ERROR: Unknown argument " << wish << "=" << value << endl;
       print_help=true;
@@ -794,18 +813,19 @@ int main(int argc, char** argv){
       << "  The full output file name is '[identifier](_[ichunk]_[nchunks]).root.'\n";
     IVYout << "- input_files: Input files to run. Optional. Default is to run on all files.\n";
     IVYout
-      << "- shorthand_Run2_UL_proposal_config: Shorthand flag for the switches for the Run 2 UL analysis proposal:\n"
-      << "  * muon_id='TopMVA_Run2'\n"
-      << "  * electron_id='TopMVA_Run2'\n"
-      << "  * btag='loose'\n"
-      << "  The use of this shorthand will ignore the user-defined setting of these options above.\n";
-    IVYout
       << "- muon_id: Can be 'Cutbased_Run2', 'TopMVA_Run2', or 'TopMVAv2_Run2'.\n"
       << "  Default is whatever is in MuonSelectionHelpers (currently 'Cutbased_Run2') if no value is given.\n";
     IVYout
       << "- electron_id: Can be 'Cutbased_Run2', 'TopMVA_Run2', or 'TopMVAv2_Run2'.\n"
       << "  Default is whatever is in ElectronSelectionHelpers (currently 'Cutbased_Run2') if no value is given.\n";
     IVYout << "- btag: Name of the b-tagging WP. Can be 'medium' or 'loose' (case-insensitive). Default='medium'.\n";
+    IVYout << "- minpt_jets: Minimum pT of jets in units of GeV. Default=25.\n";
+    IVYout
+      << "- shorthand_Run2_UL_proposal_config: Shorthand flag for the switches for the Run 2 UL analysis proposal:\n"
+      << "  * muon_id='TopMVA_Run2'\n"
+      << "  * electron_id='TopMVA_Run2'\n"
+      << "  * btag='loose'\n"
+      << "  The use of this shorthand will ignore the user-defined setting of these options above.\n";
 
     IVYout << endl;
     return (has_help ? 0 : 1);

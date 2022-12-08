@@ -10,46 +10,56 @@ dataset,short_name,period,xsec,BR,extra_arguments
 /DYJetsToLL_M-50_TuneCP5_13TeV-amcatnloFXFX-pythia8/RunIISummer20UL17NanoAODv9-106X_mc2017_realistic_v9-v2/NANOAODSIM,DY_2l_M_50,2017,6225.4,1,
 /DYJetsToLL_M-50_TuneCP5_13TeV-amcatnloFXFX-pythia8/RunIISummer20UL18NanoAODv9-106X_upgrade2018_realistic_v16_L1v1-v2/NANOAODSIM,DY_2l_M_50,2018,6225.4,1,
 # TT_2l2nu,data set for TTTo2L2Nu_TuneCP5_13TeV-powheg-pythia8,xsec = 831.76 BR = 0.105 from off-shell fwk,,,
-/TTTo2L2Nu_TuneCP5_13TeV-powheg-pythia8/RunIISummer20UL16NanoAODAPVv9-106X_mcRun2_asymptotic_preVFP_v11-v1/NANOAODSIM,TT_2l2nu,2016_APV,831.76,0.105,
-/TTTo2L2Nu_TuneCP5_13TeV-powheg-pythia8/RunIISummer20UL16NanoAODv9-106X_mcRun2_asymptotic_v17-v1/NANOAODSIM,TT_2l2nu,2016_NonAPV,831.76,0.105,
-/TTTo2L2Nu_TuneCP5_13TeV-powheg-pythia8/RunIISummer20UL17NanoAODv9-106X_mc2017_realistic_v9-v1/NANOAODSIM,TT_2l2nu,2017,831.76,0.105,
-/TTTo2L2Nu_TuneCP5_13TeV-powheg-pythia8/RunIISummer20UL18NanoAODv9-106X_upgrade2018_realistic_v16_L1v1-v1/NANOAODSIM,TT_2l2nu,2018,831.76,0.105,
+/TTTo2L2Nu_TuneCP5_13TeV-powheg-pythia8/RunIISummer20UL16NanoAODAPVv9-106X_mcRun2_asymptotic_preVFP_v11-v1/NANOAODSIM,TT_2l2nu,2016_APV,831.76,0.105,skipSkimReqs=True
+/TTTo2L2Nu_TuneCP5_13TeV-powheg-pythia8/RunIISummer20UL16NanoAODv9-106X_mcRun2_asymptotic_v17-v1/NANOAODSIM,TT_2l2nu,2016_NonAPV,831.76,0.105,skipSkimReqs=True
+/TTTo2L2Nu_TuneCP5_13TeV-powheg-pythia8/RunIISummer20UL17NanoAODv9-106X_mc2017_realistic_v9-v1/NANOAODSIM,TT_2l2nu,2017,831.76,0.105,skipSkimReqs=True
+/TTTo2L2Nu_TuneCP5_13TeV-powheg-pythia8/RunIISummer20UL18NanoAODv9-106X_upgrade2018_realistic_v16_L1v1-v1/NANOAODSIM,TT_2l2nu,2018,831.76,0.105,skipSkimReqs=True
 # TT_lnu_nlo,data set for TTToSemiLeptonic_TuneCP5_13TeV-powheg-pythia8,xsec = 831.76 BR = 0.438 from off-shell fwk,,,
-/TTToSemiLeptonic_TuneCP5_13TeV-powheg-pythia8/RunIISummer20UL16NanoAODAPVv9-106X_mcRun2_asymptotic_preVFP_v11-v1/NANOAODSIM,TT_lnu_nlo,2016_APV,831.76,0.438,
-/TTToSemiLeptonic_TuneCP5_13TeV-powheg-pythia8/RunIISummer20UL16NanoAODv9-106X_mcRun2_asymptotic_v17-v1/NANOAODSIM,TT_lnu_nlo,2016_NonAPV,831.76,0.438,
-/TTToSemiLeptonic_TuneCP5_13TeV-powheg-pythia8/RunIISummer20UL17NanoAODv9-106X_mc2017_realistic_v9-v1/NANOAODSIM,TT_lnu_nlo,2017,831.76,0.438,
-/TTToSemiLeptonic_TuneCP5_13TeV-powheg-pythia8/RunIISummer20UL18NanoAODv9-106X_upgrade2018_realistic_v16_L1v1-v1/NANOAODSIM,TT_lnu_nlo,2018,831.76,0.438,
+/TTToSemiLeptonic_TuneCP5_13TeV-powheg-pythia8/RunIISummer20UL16NanoAODAPVv9-106X_mcRun2_asymptotic_preVFP_v11-v1/NANOAODSIM,TT_lnu_nlo,2016_APV,831.76,0.438,skipSkimReqs=True
+/TTToSemiLeptonic_TuneCP5_13TeV-powheg-pythia8/RunIISummer20UL16NanoAODv9-106X_mcRun2_asymptotic_v17-v1/NANOAODSIM,TT_lnu_nlo,2016_NonAPV,831.76,0.438,skipSkimReqs=True
+/TTToSemiLeptonic_TuneCP5_13TeV-powheg-pythia8/RunIISummer20UL17NanoAODv9-106X_mc2017_realistic_v9-v1/NANOAODSIM,TT_lnu_nlo,2017,831.76,0.438,skipSkimReqs=True
+/TTToSemiLeptonic_TuneCP5_13TeV-powheg-pythia8/RunIISummer20UL18NanoAODv9-106X_upgrade2018_realistic_v16_L1v1-v1/NANOAODSIM,TT_lnu_nlo,2018,831.76,0.438,skipSkimReqs=True
 # TTJets,data set for TTJets_TuneCP5_13TeV-amcatnloFXFX-pythia8,xsec = 831.76 BR = 1 from scale1fbs.txt,,,
 /TTJets_TuneCP5_13TeV-amcatnloFXFX-pythia8/RunIISummer20UL16NanoAODAPVv9-106X_mcRun2_asymptotic_preVFP_v11-v1/NANOAODSIM,TTJets,2016_APV,831.76,1,
 /TTJets_TuneCP5_13TeV-amcatnloFXFX-pythia8/RunIISummer20UL16NanoAODv9-106X_mcRun2_asymptotic_v17-v1/NANOAODSIM,TTJets,2016_NonAPV,831.76,1,
 /TTJets_TuneCP5_13TeV-amcatnloFXFX-pythia8/RunIISummer20UL17NanoAODv9-106X_mc2017_realistic_v9-v1/NANOAODSIM,TTJets,2017,831.76,1,
 /TTJets_TuneCP5_13TeV-amcatnloFXFX-pythia8/RunIISummer20UL18NanoAODv9-106X_upgrade2018_realistic_v16_L1v1-v1/NANOAODSIM,TTJets,2018,831.76,1,
 # TT_lnu_top_lo,data set for TTJets_SingleLeptFromT_TuneCP5_13TeV-madgraphMLM-pythia8,xsec = 182.96 BR = 1 from scale1fbs.txt,,,
-/TTJets_SingleLeptFromT_TuneCP5_13TeV-madgraphMLM-pythia8/RunIISummer20UL16NanoAODAPVv9-106X_mcRun2_asymptotic_preVFP_v11-v1/NANOAODSIM,TT_lnu_top_lo,2016_APV,182.96,1,
-/TTJets_SingleLeptFromT_TuneCP5_13TeV-madgraphMLM-pythia8/RunIISummer20UL16NanoAODv9-106X_mcRun2_asymptotic_v17-v1/NANOAODSIM,TT_lnu_top_lo,2016_NonAPV,182.96,1,
-/TTJets_SingleLeptFromT_TuneCP5_13TeV-madgraphMLM-pythia8/RunIISummer20UL17NanoAODv9-106X_mc2017_realistic_v9-v1/NANOAODSIM,TT_lnu_top_lo,2017,182.96,1,
-/TTJets_SingleLeptFromT_TuneCP5_13TeV-madgraphMLM-pythia8/RunIISummer20UL18NanoAODv9-106X_upgrade2018_realistic_v16_L1v1-v1/NANOAODSIM,TT_lnu_top_lo,2018,182.96,1,
+/TTJets_SingleLeptFromT_TuneCP5_13TeV-madgraphMLM-pythia8/RunIISummer20UL16NanoAODAPVv9-106X_mcRun2_asymptotic_preVFP_v11-v1/NANOAODSIM,TT_lnu_top_lo,2016_APV,182.96,1,skipSkimReqs=True
+/TTJets_SingleLeptFromT_TuneCP5_13TeV-madgraphMLM-pythia8/RunIISummer20UL16NanoAODv9-106X_mcRun2_asymptotic_v17-v1/NANOAODSIM,TT_lnu_top_lo,2016_NonAPV,182.96,1,skipSkimReqs=True
+/TTJets_SingleLeptFromT_TuneCP5_13TeV-madgraphMLM-pythia8/RunIISummer20UL17NanoAODv9-106X_mc2017_realistic_v9-v1/NANOAODSIM,TT_lnu_top_lo,2017,182.96,1,skipSkimReqs=True
+/TTJets_SingleLeptFromT_TuneCP5_13TeV-madgraphMLM-pythia8/RunIISummer20UL18NanoAODv9-106X_upgrade2018_realistic_v16_L1v1-v1/NANOAODSIM,TT_lnu_top_lo,2018,182.96,1,skipSkimReqs=True
 # TT_lnu_antitop_lo,data set for TTJets_SingleLeptFromTbar_TuneCP5_13TeV-madgraphMLM-pythia8,xsec = 182.96 BR = 1 from scale1fbs.txt,,,
-/TTJets_SingleLeptFromTbar_TuneCP5_13TeV-madgraphMLM-pythia8/RunIISummer20UL16NanoAODAPVv9-106X_mcRun2_asymptotic_preVFP_v11-v1/NANOAODSIM,TT_lnu_antitop_lo,2016_APV,182.96,1,
-/TTJets_SingleLeptFromTbar_TuneCP5_13TeV-madgraphMLM-pythia8/RunIISummer20UL16NanoAODv9-106X_mcRun2_asymptotic_v17-v1/NANOAODSIM,TT_lnu_antitop_lo,2016_NonAPV,182.96,1,
-/TTJets_SingleLeptFromTbar_TuneCP5_13TeV-madgraphMLM-pythia8/RunIISummer20UL17NanoAODv9-106X_mc2017_realistic_v9-v1/NANOAODSIM,TT_lnu_antitop_lo,2017,182.96,1,
+/TTJets_SingleLeptFromTbar_TuneCP5_13TeV-madgraphMLM-pythia8/RunIISummer20UL16NanoAODAPVv9-106X_mcRun2_asymptotic_preVFP_v11-v1/NANOAODSIM,TT_lnu_antitop_lo,2016_APV,182.96,1,skipSkimReqs=True
+/TTJets_SingleLeptFromTbar_TuneCP5_13TeV-madgraphMLM-pythia8/RunIISummer20UL16NanoAODv9-106X_mcRun2_asymptotic_v17-v1/NANOAODSIM,TT_lnu_antitop_lo,2016_NonAPV,182.96,1,skipSkimReqs=True
+/TTJets_SingleLeptFromTbar_TuneCP5_13TeV-madgraphMLM-pythia8/RunIISummer20UL17NanoAODv9-106X_mc2017_realistic_v9-v1/NANOAODSIM,TT_lnu_antitop_lo,2017,182.96,1,skipSkimReqs=True
 # TT0J_2l2nu_nlo,data set for TT_DiLept_TuneCP5_13TeV-amcatnlo-pythia8,xsec = 81.32 BR = 1 from scale1fbs.txt,,,
 # TT1J_2l2nu_nlo,data set for TTPlus1Jet_DiLept_TuneCP5_13TeV-amcatnloFXFX-pythia8,xsec = 72.48 BR = 1 from scale1fbs.txt,,,
-# TTZ_2l2nu_M_1to10,data set for TTZToLL_M-1to10_TuneCP5_13TeV-amcatnlo-pythia8,xsec = 0.0493 BR = 1 from scale1fbs.txt,,,
-/TTZToLL_M-1to10_TuneCP5_13TeV-amcatnlo-pythia8/RunIISummer20UL16NanoAODAPVv9-106X_mcRun2_asymptotic_preVFP_v11-v1/NANOAODSIM,TTZ_2l2nu_M_1to10,2016_APV,0.0493,1,
-/TTZToLL_M-1to10_TuneCP5_13TeV-amcatnlo-pythia8/RunIISummer20UL16NanoAODv9-106X_mcRun2_asymptotic_v17-v1/NANOAODSIM,TTZ_2l2nu_M_1to10,2016_NonAPV,0.0493,1,
-/TTZToLL_M-1to10_TuneCP5_13TeV-amcatnlo-pythia8/RunIISummer20UL17NanoAODv9-106X_mc2017_realistic_v9-v1/NANOAODSIM,TTZ_2l2nu_M_1to10,2017,0.0493,1,
-/TTZToLL_M-1to10_TuneCP5_13TeV-amcatnlo-pythia8/RunIISummer20UL18NanoAODv9-106X_upgrade2018_realistic_v16_L1v1-v1/NANOAODSIM,TTZ_2l2nu_M_1to10,2018,0.0493,1,
+# TTZ_2l_M_1to10,data set for TTZToLL_M-1to10_TuneCP5_13TeV-amcatnlo-pythia8,xsec = 0.0493 BR = 1 from scale1fbs.txt,,,
+/TTZToLL_M-1to10_TuneCP5_13TeV-amcatnlo-pythia8/RunIISummer20UL16NanoAODAPVv9-106X_mcRun2_asymptotic_preVFP_v11-v1/NANOAODSIM,TTZ_2l_M_1to10,2016_APV,0.0493,1,skipSkimReqs=True
+/TTZToLL_M-1to10_TuneCP5_13TeV-amcatnlo-pythia8/RunIISummer20UL16NanoAODv9-106X_mcRun2_asymptotic_v17-v1/NANOAODSIM,TTZ_2l_M_1to10,2016_NonAPV,0.0493,1,skipSkimReqs=True
+/TTZToLL_M-1to10_TuneCP5_13TeV-amcatnlo-pythia8/RunIISummer20UL17NanoAODv9-106X_mc2017_realistic_v9-v1/NANOAODSIM,TTZ_2l_M_1to10,2017,0.0493,1,skipSkimReqs=True
+/TTZToLL_M-1to10_TuneCP5_13TeV-amcatnlo-pythia8/RunIISummer20UL18NanoAODv9-106X_upgrade2018_realistic_v16_L1v1-v1/NANOAODSIM,TTZ_2l_M_1to10,2018,0.0493,1,skipSkimReqs=True
 # TTZ_2l2nu_M_10,data set for TTZToLLNuNu_M-10_TuneCP5_13TeV-amcatnlo-pythia8,xsec = 0.2432 BR = 1 from off-shell fwk,,,
-/TTZToLLNuNu_M-10_TuneCP5_13TeV-amcatnlo-pythia8/RunIISummer20UL16NanoAODAPVv9-106X_mcRun2_asymptotic_preVFP_v11-v1/NANOAODSIM,TTZ_2l2nu_M_10,2016_APV,0.2432,1,
-/TTZToLLNuNu_M-10_TuneCP5_13TeV-amcatnlo-pythia8/RunIISummer20UL16NanoAODv9-106X_mcRun2_asymptotic_v17-v1/NANOAODSIM,TTZ_2l2nu_M_10,2016_NonAPV,0.2432,1,
-/TTZToLLNuNu_M-10_TuneCP5_13TeV-amcatnlo-pythia8/RunIISummer20UL17NanoAODv9-106X_mc2017_realistic_v9-v1/NANOAODSIM,TTZ_2l2nu_M_10,2017,0.2432,1,
-/TTZToLLNuNu_M-10_TuneCP5_13TeV-amcatnlo-pythia8/RunIISummer20UL18NanoAODv9-106X_upgrade2018_realistic_v16_L1v1-v1/NANOAODSIM,TTZ_2l2nu_M_10,2018,0.2432,1,
+/TTZToLLNuNu_M-10_TuneCP5_13TeV-amcatnlo-pythia8/RunIISummer20UL16NanoAODAPVv9-106X_mcRun2_asymptotic_preVFP_v11-v1/NANOAODSIM,TTZ_2l2nu_M_10,2016_APV,0.2432,1,skipSkimReqs=True
+/TTZToLLNuNu_M-10_TuneCP5_13TeV-amcatnlo-pythia8/RunIISummer20UL16NanoAODv9-106X_mcRun2_asymptotic_v17-v1/NANOAODSIM,TTZ_2l2nu_M_10,2016_NonAPV,0.2432,1,skipSkimReqs=True
+/TTZToLLNuNu_M-10_TuneCP5_13TeV-amcatnlo-pythia8/RunIISummer20UL17NanoAODv9-106X_mc2017_realistic_v9-v1/NANOAODSIM,TTZ_2l2nu_M_10,2017,0.2432,1,skipSkimReqs=True
+/TTZToLLNuNu_M-10_TuneCP5_13TeV-amcatnlo-pythia8/RunIISummer20UL18NanoAODv9-106X_upgrade2018_realistic_v16_L1v1-v1/NANOAODSIM,TTZ_2l2nu_M_10,2018,0.2432,1,skipSkimReqs=True
+# TTZ_nunu,data set for TTZToNuNu_TuneCP5_13TeV-amcatnlo-pythia8,xsec = 0.1476 BR = 1,,,
+/TTZToNuNu_TuneCP5_13TeV-amcatnlo-pythia8/RunIISummer20UL16NanoAODAPVv9-106X_mcRun2_asymptotic_preVFP_v11-v1/NANOAODSIM,TTZ_nunu,2016_APV,0.1476,1,skipSkimReqs=True
+/TTZToNuNu_TuneCP5_13TeV-amcatnlo-pythia8/RunIISummer20UL16NanoAODv9-106X_mcRun2_asymptotic_v17-v1/NANOAODSIM,TTZ_nunu,2016_NonAPV,0.1476,1,skipSkimReqs=True
+/TTZToNuNu_TuneCP5_13TeV-amcatnlo-pythia8/RunIISummer20UL17NanoAODv9-106X_mc2017_realistic_v9-v1/NANOAODSIM,TTZ_nunu,2017,0.1476,1,skipSkimReqs=True
+/TTZToNuNu_TuneCP5_13TeV-amcatnlo-pythia8/RunIISummer20UL18NanoAODv9-106X_upgrade2018_realistic_v16_L1v1-v1/NANOAODSIM,TTZ_nunu,2018,0.1476,1,skipSkimReqs=True
+# TTZ_qq,data set for TTZToQQ_TuneCP5_13TeV-amcatnlo-pythia8,xsec = 0.5113 BR = 1,,,
+/TTZToQQ_TuneCP5_13TeV-amcatnlo-pythia8/RunIISummer20UL16NanoAODAPVv9-106X_mcRun2_asymptotic_preVFP_v11-v1/NANOAODSIM,TTZ_qq,2016_APV,0.5113,1,skipSkimReqs=True
+/TTZToQQ_TuneCP5_13TeV-amcatnlo-pythia8/RunIISummer20UL16NanoAODv9-106X_mcRun2_asymptotic_v17-v1/NANOAODSIM,TTZ_qq,2016_NonAPV,0.5113,1,skipSkimReqs=True
+/TTZToQQ_TuneCP5_13TeV-amcatnlo-pythia8/RunIISummer20UL17NanoAODv9-106X_mc2017_realistic_v9-v1/NANOAODSIM,TTZ_qq,2017,0.5113,1,skipSkimReqs=True
+/TTZToQQ_TuneCP5_13TeV-amcatnlo-pythia8/RunIISummer20UL18NanoAODv9-106X_upgrade2018_realistic_v16_L1v1-v1/NANOAODSIM,TTZ_qq,2018,0.5113,1,skipSkimReqs=True
 # TTW_lnu,data set for TTWJetsToLNu_TuneCP5_13TeV-amcatnloFXFX-madspin-pythia8,xsec = 0.2181 BR = 1 from off-shell fwk,,,
-/TTWJetsToLNu_TuneCP5_13TeV-amcatnloFXFX-madspin-pythia8/RunIISummer20UL16NanoAODAPVv9-106X_mcRun2_asymptotic_preVFP_v11-v2/NANOAODSIM,TTW_lnu,2016_APV,0.2181,1,
-/TTWJetsToLNu_TuneCP5_13TeV-amcatnloFXFX-madspin-pythia8/RunIISummer20UL16NanoAODv9-106X_mcRun2_asymptotic_v17-v1/NANOAODSIM,TTW_lnu,2016_NonAPV,0.2181,1,
-/TTWJetsToLNu_TuneCP5_13TeV-amcatnloFXFX-madspin-pythia8/RunIISummer20UL17NanoAODv9-106X_mc2017_realistic_v9-v1/NANOAODSIM,TTW_lnu,2017,0.2181,1,
-/TTWJetsToLNu_TuneCP5_13TeV-amcatnloFXFX-madspin-pythia8/RunIISummer20UL18NanoAODv9-106X_upgrade2018_realistic_v16_L1v1-v1/NANOAODSIM,TTW_lnu,2018,0.2181,1,
+/TTWJetsToLNu_TuneCP5_13TeV-amcatnloFXFX-madspin-pythia8/RunIISummer20UL16NanoAODAPVv9-106X_mcRun2_asymptotic_preVFP_v11-v2/NANOAODSIM,TTW_lnu,2016_APV,0.2181,1,skipSkimReqs=True
+/TTWJetsToLNu_TuneCP5_13TeV-amcatnloFXFX-madspin-pythia8/RunIISummer20UL16NanoAODv9-106X_mcRun2_asymptotic_v17-v1/NANOAODSIM,TTW_lnu,2016_NonAPV,0.2181,1,skipSkimReqs=True
+/TTWJetsToLNu_TuneCP5_13TeV-amcatnloFXFX-madspin-pythia8/RunIISummer20UL17NanoAODv9-106X_mc2017_realistic_v9-v1/NANOAODSIM,TTW_lnu,2017,0.2181,1,skipSkimReqs=True
+/TTWJetsToLNu_TuneCP5_13TeV-amcatnloFXFX-madspin-pythia8/RunIISummer20UL18NanoAODv9-106X_upgrade2018_realistic_v16_L1v1-v1/NANOAODSIM,TTW_lnu,2018,0.2181,1,skipSkimReqs=True
 # TTG_lnu_top,data set for TTGamma_SingleLeptFromT_TuneCP5_13TeV_madgraph_pythia8,xsec = 0.769 BR = 1 from scale1fbs.txt,,,
 # TTG_lnu_antitop,data set for TTGamma_SingleLeptFromTbar_TuneCP5_13TeV_madgraph_pythia8,xsec = 0.769 BR = 1 from scale1fbs.txt,,,
 # TTG_lnu,data set for TTGamma_SingleLept_TuneCP5_13TeV_madgraph_pythia8,xsec = 1.538 BR = 1 from the sum of the above,,,
@@ -69,10 +79,10 @@ dataset,short_name,period,xsec,BR,extra_arguments
 /TTGJets_TuneCP5_13TeV-amcatnloFXFX-madspin-pythia8/RunIISummer20UL18NanoAODv9-106X_upgrade2018_realistic_v16_L1v1-v1/NANOAODSIM,TTGJets,2018,3.746,1,
 /TTGJets_TuneCP5_13TeV-amcatnloFXFX-madspin-pythia8/RunIISummer20UL18NanoAODv9-106X_upgrade2018_realistic_v16_L1v1_ext1-v1/NANOAODSIM,TTGJets_ext,2018,3.746,1,
 # TTH_HToNonBB,data set for ttHToNonbb_M125_TuneCP5_13TeV-powheg-pythia8,xsec = 0.215 BR = 1 from scale1fbs.txt,,,
-/ttHToNonbb_M125_TuneCP5_13TeV-powheg-pythia8/RunIISummer20UL16NanoAODAPVv9-106X_mcRun2_asymptotic_preVFP_v11-v2/NANOAODSIM,TTH_HToNonBB,2016_APV,0.215,1,
-/ttHToNonbb_M125_TuneCP5_13TeV-powheg-pythia8/RunIISummer20UL16NanoAODv9-106X_mcRun2_asymptotic_v17-v2/NANOAODSIM,TTH_HToNonBB,2016_NonAPV,0.215,1,
-/ttHToNonbb_M125_TuneCP5_13TeV-powheg-pythia8/RunIISummer20UL17NanoAODv9-106X_mc2017_realistic_v9-v2/NANOAODSIM,TTH_HToNonBB,2017,0.215,1,
-/ttHToNonbb_M125_TuneCP5_13TeV-powheg-pythia8/RunIISummer20UL18NanoAODv9-106X_upgrade2018_realistic_v16_L1v1-v2/NANOAODSIM,TTH_HToNonBB,2018,0.215,1,
+/ttHToNonbb_M125_TuneCP5_13TeV-powheg-pythia8/RunIISummer20UL16NanoAODAPVv9-106X_mcRun2_asymptotic_preVFP_v11-v2/NANOAODSIM,TTH_HToNonBB,2016_APV,0.215,1,skipSkimReqs=True
+/ttHToNonbb_M125_TuneCP5_13TeV-powheg-pythia8/RunIISummer20UL16NanoAODv9-106X_mcRun2_asymptotic_v17-v2/NANOAODSIM,TTH_HToNonBB,2016_NonAPV,0.215,1,skipSkimReqs=True
+/ttHToNonbb_M125_TuneCP5_13TeV-powheg-pythia8/RunIISummer20UL17NanoAODv9-106X_mc2017_realistic_v9-v2/NANOAODSIM,TTH_HToNonBB,2017,0.215,1,skipSkimReqs=True
+/ttHToNonbb_M125_TuneCP5_13TeV-powheg-pythia8/RunIISummer20UL18NanoAODv9-106X_upgrade2018_realistic_v16_L1v1-v2/NANOAODSIM,TTH_HToNonBB,2018,0.215,1,skipSkimReqs=True
 # TTTJ,data set for TTTJ_TuneCP5_13TeV-madgraph-pythia8,xsec = 0.000474 BR = 1 from scale1fbs.txt,,,
 /TTTJ_TuneCP5_13TeV-madgraph-pythia8/RunIISummer20UL16NanoAODAPVv9-106X_mcRun2_asymptotic_preVFP_v11-v2/NANOAODSIM,TTTJ,2016_APV,0.000474,1,
 /TTTJ_TuneCP5_13TeV-madgraph-pythia8/RunIISummer20UL16NanoAODv9-106X_mcRun2_asymptotic_v17-v2/NANOAODSIM,TTTJ,2016_NonAPV,0.000474,1,
@@ -283,10 +293,10 @@ dataset,short_name,period,xsec,BR,extra_arguments
 # ggZZTo4mu_Bkg_MCFM,data set for GluGluToContinToZZTo4mu_13TeV_MCFM701_pythia8,xsec = 0.00158549 BR = 1 from off-shell fwk,,,
 # ggZZTo4tau_Bkg_MCFM,data set for GluGluToContinToZZTo4tau_13TeV_MCFM701_pythia8,xsec = 0.00158549 BR = 1 from off-shell fwk,,,
 # TTTT,data set for TTTT_TuneCP5_13TeV-amcatnlo-pythia8,xsec = 0.009103 BR = 1 from scale1fbs.txt,,,
-/TTTT_TuneCP5_13TeV-amcatnlo-pythia8/RunIISummer20UL16NanoAODAPVv9-106X_mcRun2_asymptotic_preVFP_v11-v2/NANOAODSIM,TTTT,2016_APV,0.009103,1,
-/TTTT_TuneCP5_13TeV-amcatnlo-pythia8/RunIISummer20UL16NanoAODv9-106X_mcRun2_asymptotic_v17-v2/NANOAODSIM,TTTT,2016_NonAPV,0.009103,1,
-/TTTT_TuneCP5_13TeV-amcatnlo-pythia8/RunIISummer20UL17NanoAODv9-106X_mc2017_realistic_v9-v2/NANOAODSIM,TTTT,2017,0.009103,1,
-/TTTT_TuneCP5_13TeV-amcatnlo-pythia8/RunIISummer20UL18NanoAODv9-106X_upgrade2018_realistic_v16_L1v1-v2/NANOAODSIM,TTTT,2018,0.009103,1,
+/TTTT_TuneCP5_13TeV-amcatnlo-pythia8/RunIISummer20UL16NanoAODAPVv9-106X_mcRun2_asymptotic_preVFP_v11-v2/NANOAODSIM,TTTT,2016_APV,0.009103,1,skipSkimReqs=True
+/TTTT_TuneCP5_13TeV-amcatnlo-pythia8/RunIISummer20UL16NanoAODv9-106X_mcRun2_asymptotic_v17-v2/NANOAODSIM,TTTT,2016_NonAPV,0.009103,1,skipSkimReqs=True
+/TTTT_TuneCP5_13TeV-amcatnlo-pythia8/RunIISummer20UL17NanoAODv9-106X_mc2017_realistic_v9-v2/NANOAODSIM,TTTT,2017,0.009103,1,skipSkimReqs=True
+/TTTT_TuneCP5_13TeV-amcatnlo-pythia8/RunIISummer20UL18NanoAODv9-106X_upgrade2018_realistic_v16_L1v1-v2/NANOAODSIM,TTTT,2018,0.009103,1,skipSkimReqs=True
 # TTTT_HOblique_hhat_0p0,data set for TTTT_hhat_0p0_TuneCP5_13TeV-madgraph-pythia8,xsec = 0.004721 BR = 1 from scale1fbs.txt,,,
 # TTTT_HOblique_hhat_0p08,data set for TTTT_hhat_0p08_TuneCP5_13TeV-madgraph-pythia8,xsec = 0.006752 BR = 1 from scale1fbs.txt,,,
 # TTTT_HOblique_hhat_0p12,data set for TTTT_hhat_0p12_TuneCP5_13TeV-madgraph-pythia8,xsec = 0.008456 BR = 1 from scale1fbs.txt,,,

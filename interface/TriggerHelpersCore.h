@@ -35,6 +35,8 @@ namespace TriggerHelpers{
     kSingleMu_HighPt_Extra_Prescaled,
     kSingleMu_Control_NoIso,
     kSingleMu_Control_Iso,
+    kSingleMu_Jet_Control_NoIso,
+    kSingleMu_Jet_Control_Iso,
 
     kSingleEle,
     kSingleEle_Prescaled,

@@ -47,6 +47,23 @@ if [[ -d ${CMSSW_BASE}/src/HiggsAnalysis/CombinedLimit ]]; then
   echo "extraExcludes is now ${extraExcludes}"
 fi
 
+if [[ -f ${TARFILE} ]]; then
+  user_cmd=""
+  echo "${TARFILE} exists. Would you like to overwrite this file (type 'o') or wait for it to be moved (type 'w')?"
+  read user_cmd
+  while [[ "${user_cmd}" != "o" ]] && [[ "${user_cmd}" != "w" ]]; do
+    echo "Invalid option... Please try again by typing 'o' or 'w'."
+    read user_cmd
+  done
+  if [[ "${user_cmd}" == "o" ]]; then
+    rm -f ${TARFILE}
+  else
+    while [[ -f ${TARFILE} ]]; do
+      sleep 10
+    done
+  fi
+fi
+
 tar Jcvf ${TARFILE} ${extraTarFile} ${extraIncludes} \
 lib \
 biglib \
