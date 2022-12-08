@@ -575,15 +575,17 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       seltracker.accumulate("Pass unique event check", wgt);
 
       // Triggers
-      float event_weight_triggers_dilepton = eventFilter.getTriggerWeight(hltnames_Dilepton);
-      if (event_weight_triggers_dilepton==0.) continue; // Test if any triggers passed at all
+      double event_wgt_triggers_dilepton = eventFilter.getTriggerWeight(hltnames_Dilepton);
+      if (event_wgt_triggers_dilepton==0.) continue; // Test if any triggers passed at all
       seltracker.accumulate("Pass any trigger", wgt);
-      float event_weight_triggers_dilepton_matched = eventFilter.getTriggerWeight(
+      rcd_output.setNamedVal("event_wgt_triggers_dilepton", static_cast<float>(event_wgt_triggers_dilepton));
+
+      double event_wgt_triggers_dilepton_matched = eventFilter.getTriggerWeight(
         triggerPropsCheckList_Dilepton,
         &muons, &electrons, nullptr, &ak4jets, nullptr, nullptr
       );
-      seltracker.accumulate("Pass triggers after matching", (event_weight_triggers_dilepton_matched>0.)*wgt);
-      rcd_output.setNamedVal("event_weight_triggers_dilepton_matched", event_weight_triggers_dilepton_matched);
+      seltracker.accumulate("Pass triggers after matching", (event_wgt_triggers_dilepton_matched>0.)*wgt);
+      rcd_output.setNamedVal("event_wgt_triggers_dilepton_matched", static_cast<float>(event_wgt_triggers_dilepton_matched));
       
       /*************************************************/
       /* NO MORE CALLS TO SELECTION BEYOND THIS POINT! */
@@ -622,7 +624,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       // Write output
       rcd_output.setNamedVal("njet", static_cast<unsigned int>(ak4jets_tight.size()));
       rcd_output.setNamedVal("nbjet", nbjets_tight);
-      rcd_output.setNamedVal("event_wgt", wgt);
+      rcd_output.setNamedVal("event_wgt", static_cast<float>(wgt));
       rcd_output.setNamedVal("min_mlb", min_mlb);
       rcd_output.setNamedVal("min_mbb", min_mbb);
       rcd_output.setNamedVal("max_mbb", max_mbb);
