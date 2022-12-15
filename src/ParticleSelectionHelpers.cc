@@ -2,6 +2,7 @@
 #include "MuonSelectionHelpers.h"
 #include "ElectronSelectionHelpers.h"
 #include "PhotonSelectionHelpers.h"
+#include "HadronicTauSelectionHelpers.h"
 #include "AK4JetSelectionHelpers.h"
 #include "HelperFunctions.h"
 
@@ -24,6 +25,9 @@ template<> bool ParticleSelectionHelpers::is##TYPE##Particle(ElectronObject cons
 } \
 template<> bool ParticleSelectionHelpers::is##TYPE##Particle(PhotonObject const* part){ \
   return part->testSelectionBit(PhotonSelectionHelpers::kPreselection##TYPE); \
+} \
+template<> bool ParticleSelectionHelpers::is##TYPE##Particle(HadronicTauObject const* part){ \
+  return part->testSelectionBit(HadronicTauSelectionHelpers::kPreselection##TYPE); \
 }
 SELECTION_TYPES;
 #undef SELECTION_TYPE
@@ -38,7 +42,8 @@ template<> bool ParticleSelectionHelpers::is##TYPE##Particle(MuonObject const* p
 template<> bool ParticleSelectionHelpers::is##TYPE##Particle(ElectronObject const* part){ \
   return part->testSelectionBit(ElectronSelectionHelpers::kPreselection##TYPE); \
 } \
-template<> bool ParticleSelectionHelpers::is##TYPE##Particle(PhotonObject const* part){ return false; }
+template<> bool ParticleSelectionHelpers::is##TYPE##Particle(PhotonObject const* part){ return false; } \
+template<> bool ParticleSelectionHelpers::is##TYPE##Particle(HadronicTauObject const* part){ return false; }
 SELECTION_TYPES;
 #undef SELECTION_TYPE
 #undef SELECTION_TYPES
@@ -52,9 +57,11 @@ template<> bool ParticleSelectionHelpers::is##TYPE##Particle(ParticleObject cons
   MuonObject const* muon = dynamic_cast<MuonObject const*>(part); \
   ElectronObject const* electron = dynamic_cast<ElectronObject const*>(part); \
   PhotonObject const* photon = dynamic_cast<PhotonObject const*>(part); \
+  HadronicTauObject const* htau = dynamic_cast<HadronicTauObject const*>(part); \
   if (muon) return is##TYPE##Particle(muon); \
   else if (electron) return is##TYPE##Particle(electron); \
   else if (photon) return is##TYPE##Particle(photon); \
+  else if (htau) return is##TYPE##Particle(htau); \
   else return false; \
 } \
 template<> bool ParticleSelectionHelpers::is##TYPE##Particle(IvyParticle const* part){ return is##TYPE##Particle(dynamic_cast<ParticleObject const*>(part)); }

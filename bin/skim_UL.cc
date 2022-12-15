@@ -18,10 +18,12 @@
 #include "SamplesCore.h"
 #include "MuonSelectionHelpers.h"
 #include "ElectronSelectionHelpers.h"
+#include "HadronicTauSelectionHelpers.h"
 #include "AK4JetSelectionHelpers.h"
 #include "IsotrackSelectionHelpers.h"
 #include "MuonHandler.h"
 #include "ElectronHandler.h"
+#include "HadronicTauHandler.h"
 #include "JetMETHandler.h"
 #include "EventFilterHandler.h"
 #include "SimEventHandler.h"
@@ -143,6 +145,7 @@ int ScanChain(std::vector<TString> const& inputfnames, std::string const& output
   EventFilterHandler eventFilter(requiredTriggers);
   MuonHandler muonHandler;
   ElectronHandler electronHandler;
+  HadronicTauHandler htauHandler;
   JetMETHandler jetHandler;
   IsotrackHandler isotrackHandler;
 
@@ -194,6 +197,9 @@ int ScanChain(std::vector<TString> const& inputfnames, std::string const& output
 
   electronHandler.bookBranches(tin);
   electronHandler.wrapTree(tin);
+
+  htauHandler.bookBranches(tin);
+  htauHandler.wrapTree(tin);
 
   jetHandler.bookBranches(tin);
   jetHandler.wrapTree(tin);
@@ -280,11 +286,13 @@ if (MAXSIZE>0) tin->getSelectedTree()->SetBranchStatus(Form("n%s", GlobalCollect
 
     muonHandler.constructMuons();
     electronHandler.constructElectrons();
+    htauHandler.constructHadronicTaus();
 
     // Not a bug. ParticleDisambiguator needs to be called to set lepton selection bits,
     // but we call it for each handler separately so that the different flavors do not affect each other.
-    particleDisambiguator.disambiguateParticles(&muonHandler, nullptr, nullptr, nullptr);
-    particleDisambiguator.disambiguateParticles(nullptr, &electronHandler, nullptr, nullptr);
+    particleDisambiguator.disambiguateParticles(&muonHandler, nullptr, nullptr, nullptr, nullptr);
+    particleDisambiguator.disambiguateParticles(nullptr, &electronHandler, nullptr, nullptr, nullptr);
+    particleDisambiguator.disambiguateParticles(nullptr, nullptr, nullptr, nullptr, &htauHandler);
 
     std::vector<MuonObject*> muons_selected;
     {
@@ -309,7 +317,7 @@ if (MAXSIZE>0) tin->getSelectedTree()->SetBranchStatus(Form("n%s", GlobalCollect
         */
       }
     }
-    unsigned int const n_muons = muons_selected.size();
+    unsigned int const n_muons_selected = muons_selected.size();
 
     std::vector<ElectronObject*> electrons_selected;
     {
@@ -334,7 +342,17 @@ if (MAXSIZE>0) tin->getSelectedTree()->SetBranchStatus(Form("n%s", GlobalCollect
         */
       }
     }
-    unsigned int const n_electrons = electrons_selected.size();
+    unsigned int const n_electrons_selected = electrons_selected.size();
+
+    std::vector<HadronicTauObject*> htaus_selected;
+    {
+      auto const& htaus = htauHandler.getProducts();
+      htaus_selected.reserve(htaus.size());
+      for (auto const& part:htaus){
+        if (part->testSelectionBit(HadronicTauSelectionHelpers::kKinOnly)) htaus_selected.push_back(part);
+      }
+    }
+    unsigned int const n_htaus_selected = htaus_selected.size();
 
     jetHandler.constructJetMET(&simEventHandler);
     auto const& ak4jets = jetHandler.getAK4Jets();
@@ -380,33 +398,41 @@ if (MAXSIZE>0) tin->getSelectedTree()->SetBranchStatus(Form("n%s", GlobalCollect
     // Construct all possible dilepton pairs
     dileptonHandler.constructDileptons(&muons_selected, &electrons_selected);
     auto const& dileptons = dileptonHandler.getProducts();
-    bool found_dilepton_SS = false;
-    bool found_dilepton_OS = false;
-    bool found_dilepton_OSSF_Zcand = false;
+    bool found_dilepton = false;
+    bool found_dilepton_SF_Zcand = false;
+    bool found_dilepton_OSDF_ptlep_20_15 = false;
     for (auto const& dilepton:dileptons){
-      if (!dilepton->isOS()) found_dilepton_SS = true;
-      else{
-        found_dilepton_OS = true;
-        if (dilepton->isSF() && std::abs(dilepton->m()-91.2)<15.) found_dilepton_OSSF_Zcand = true;
-      }
+      found_dilepton = true;
+      if (dilepton->isSF() && std::abs(dilepton->m()-91.2)<30.) found_dilepton_SF_Zcand = true;
+      if (
+        dilepton->isOS() && !dilepton->isSF()
+        &&
+        std::max(dilepton->getDaughter(0)->pt(), dilepton->getDaughter(1)->pt())>=20.
+        &&
+        std::min(dilepton->getDaughter(0)->pt(), dilepton->getDaughter(1)->pt())>=15.
+        ) found_dilepton_OSDF_ptlep_20_15 = true;
     }
 
     /*
-    seltracker.accumulate("Has a dilepton pair", wgt_gensim_nominal*double((found_dilepton_SS || found_dilepton_OS || found_dilepton_OSSF_Zcand)));
-    seltracker.accumulate("Has a single lepton", wgt_gensim_nominal*double(((n_muons + n_electrons)>=1)));
+    seltracker.accumulate("Has a dilepton pair", wgt_gensim_nominal*double((found_dilepton_SS || found_dilepton_OS || found_dilepton_SF_Zcand)));
+    seltracker.accumulate("Has a single lepton", wgt_gensim_nominal*double(((n_muons_selected + n_electrons_selected)>=1)));
     seltracker.accumulate("Pass jet requirements for SS/OS dilepton", wgt_gensim_nominal*double((n_ak4jets_tight>=2 && n_ak4jets_tight_btagged_loose>=1)));
     seltracker.accumulate("Pass jet requirements for single lepton", wgt_gensim_nominal*double((n_ak4jets_tight>=1)));
     */
 
     bool const pass_loose_dilepton = (
-      (found_dilepton_SS || found_dilepton_OS) && (n_ak4jets_tight>=2 && n_ak4jets_tight_btagged_loose>=1)
+      found_dilepton && (n_ak4jets_tight>=2 && n_ak4jets_tight_btagged_loose>=1)
       ||
-      found_dilepton_OSSF_Zcand
+      found_dilepton_SF_Zcand
+      ||
+      found_dilepton_OSDF_ptlep_20_15
       ) && event_weight_triggers_dilepton!=0.;
-    bool const pass_loose_singlelepton = (n_muons + n_electrons)>=1 && n_ak4jets_tight>=1 && event_weight_triggers_singleleptoncontrol!=0.;
+    bool const pass_loose_singlelepton = (n_muons_selected + n_electrons_selected)>=1 && n_ak4jets_tight>=1 && event_weight_triggers_singleleptoncontrol!=0.;
+    bool const pass_loose_htau = (n_htaus_selected>=2 || (n_htaus_selected==1 && (n_muons_selected + n_electrons_selected)>=1)) && n_ak4jets_tight>=1;
     seltracker.accumulate("Pass loose dilepton selection", wgt_gensim_nominal*double(pass_loose_dilepton));
     seltracker.accumulate("Pass loose single lepton control selection", wgt_gensim_nominal*double(pass_loose_singlelepton));
-    if (!skipSkimReqs && !pass_loose_dilepton && !pass_loose_singlelepton) continue;
+    seltracker.accumulate("Pass loose hadronic tau selection", wgt_gensim_nominal*double(pass_loose_htau));
+    if (!skipSkimReqs && !pass_loose_dilepton && !pass_loose_singlelepton && !pass_loose_htau) continue;
     seltracker.accumulate("Pass loose object selection", wgt_gensim_nominal);
 
     if (global_include_veto_isotracks){

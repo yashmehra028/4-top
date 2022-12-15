@@ -1,11 +1,13 @@
 #include "MuonHandler.h"
 #include "ElectronHandler.h"
 #include "PhotonHandler.h"
+#include "HadronicTauHandler.h"
 #include "JetMETHandler.h"
 #include "ParticleDisambiguator.h"
 #include "MuonSelectionHelpers.h"
 #include "ElectronSelectionHelpers.h"
 #include "PhotonSelectionHelpers.h"
+#include "HadronicTauSelectionHelpers.h"
 #include "ParticleSelectionHelpers.h"
 #include "ParticleObjectHelpers.h"
 
@@ -14,6 +16,7 @@ void ParticleDisambiguator::disambiguateParticles(
   std::vector<MuonObject*>*& muons,
   std::vector<ElectronObject*>*& electrons,
   std::vector<PhotonObject*>*& photons,
+  std::vector<HadronicTauObject*>*& htaus,
   std::vector<AK4JetObject*>*& ak4jets,
   std::vector<AK4JetObject*>*& ak4jets_masked
 ){
@@ -91,6 +94,25 @@ void ParticleDisambiguator::disambiguateParticles(
 
       // Set the selection bits
       ElectronSelectionHelpers::setSelectionBits(*part);
+    }
+  }
+  if (htaus){
+    for (auto*& part:(*htaus)){
+      double min_dr = -1;
+      AK4JetObject* ak4jet_chosen = nullptr;
+      if (ak4jets){
+        for (auto*& jet:(*ak4jets)){
+          double tmp_dr = jet->deltaR(part);
+          if (min_dr<0. || tmp_dr<min_dr){
+            ak4jet_chosen = jet;
+            min_dr = tmp_dr;
+          }
+        }
+      }
+      if (ak4jet_chosen) part->addMother(ak4jet_chosen);
+
+      // Set the selection bits
+      HadronicTauSelectionHelpers::setSelectionBits(*part);
     }
   }
 
@@ -175,6 +197,7 @@ void ParticleDisambiguator::disambiguateParticles(
     std::vector<AK4JetObject*> ak4jets_new; ak4jets_new.reserve(ak4jets->size());
     for (auto*& jet:(*ak4jets)){
       bool doRemove = false;
+
       if (muons){
         for (auto const* part:(*muons)){
           if (!ParticleSelectionHelpers::isParticleForJetCleaning(part)) continue;
@@ -202,6 +225,16 @@ void ParticleDisambiguator::disambiguateParticles(
           }
         }
       }
+      if (htaus){
+        for (auto const* part:(*htaus)){
+          if (!ParticleSelectionHelpers::isParticleForJetCleaning(part)) continue;
+          if (jet->deltaR(part)<std::max(0.4, static_cast<double>(HadronicTauSelectionHelpers::getIsolationDRmax(*part)))){
+            doRemove=true;
+            break;
+          }
+        }
+      }
+
       if (!hasMaskedJets){ if (doRemove) jet->resetSelectionBits(); }
       else{
         if (doRemove) ak4jets_masked->push_back(jet);
@@ -219,13 +252,15 @@ void ParticleDisambiguator::disambiguateParticles(
   MuonHandler* muonHandle,
   ElectronHandler* electronHandle,
   PhotonHandler* photonHandle,
-  JetMETHandler* jetHandle
+  JetMETHandler* jetHandle,
+  HadronicTauHandler* htauHandle
 ){
   std::vector<MuonObject*>* muons = (muonHandle ? &(muonHandle->productList) : nullptr);
   std::vector<ElectronObject*>* electrons = (electronHandle ? &(electronHandle->productList) : nullptr);
   std::vector<PhotonObject*>* photons = (photonHandle ? &(photonHandle->productList) : nullptr);
+  std::vector<HadronicTauObject*>* htaus = (htauHandle ? &(htauHandle->productList) : nullptr);
   std::vector<AK4JetObject*>* ak4jets = (jetHandle ? &(jetHandle->ak4jets) : nullptr);
   std::vector<AK4JetObject*>* ak4jets_masked = (jetHandle ? &(jetHandle->ak4jets_masked) : nullptr);
 
-  disambiguateParticles(muons, electrons, photons, ak4jets, ak4jets_masked);
+  disambiguateParticles(muons, electrons, photons, htaus, ak4jets, ak4jets_masked);
 }

@@ -4,6 +4,7 @@
 #include "MuonObject.h"
 #include "ElectronObject.h"
 #include "PhotonObject.h"
+#include "HadronicTauObject.h"
 #include "AK4JetObject.h"
 
 
@@ -19,6 +20,7 @@ SELECTION_TYPE(Tight)
   template<> bool is##TYPE##Particle(MuonObject const* part); \
   template<> bool is##TYPE##Particle(ElectronObject const* part); \
   template<> bool is##TYPE##Particle(PhotonObject const* part); \
+  template<> bool is##TYPE##Particle(HadronicTauObject const* part); \
   template<> bool is##TYPE##Particle(IvyParticle const* part);
 
   SELECTION_TYPES;
@@ -56,15 +58,18 @@ template<typename T> bool ParticleSelectionHelpers::isParticleForJetCleaning(T c
 template<> bool ParticleSelectionHelpers::isParticleForJetCleaning<MuonObject>(MuonObject const*);
 template<> bool ParticleSelectionHelpers::isParticleForJetCleaning<ElectronObject>(ElectronObject const*);
 template bool ParticleSelectionHelpers::isParticleForJetCleaning<PhotonObject>(PhotonObject const*);
+template bool ParticleSelectionHelpers::isParticleForJetCleaning<HadronicTauObject>(HadronicTauObject const*);
 
 template<typename T> bool ParticleSelectionHelpers::isParticleForTriggerChecking(T const* part){ return isLooseParticle(part); }
 template<> bool ParticleSelectionHelpers::isParticleForTriggerChecking<MuonObject>(MuonObject const*);
 template<> bool ParticleSelectionHelpers::isParticleForTriggerChecking<ElectronObject>(ElectronObject const*);
 template bool ParticleSelectionHelpers::isParticleForTriggerChecking<PhotonObject>(PhotonObject const*);
+template bool ParticleSelectionHelpers::isParticleForTriggerChecking<HadronicTauObject>(HadronicTauObject const*);
 
 template<typename T> bool ParticleSelectionHelpers::isParticleForIsotrackCleaning(T const* part){ return isLooseParticle(part); }
 template bool ParticleSelectionHelpers::isParticleForIsotrackCleaning<MuonObject>(MuonObject const*);
 template bool ParticleSelectionHelpers::isParticleForIsotrackCleaning<ElectronObject>(ElectronObject const*);
+template bool ParticleSelectionHelpers::isParticleForIsotrackCleaning<HadronicTauObject>(HadronicTauObject const*);
 
 template<typename T> bool ParticleSelectionHelpers::isJetForTriggerChecking(T const* jet){ return isTightJet(jet); }
 template bool ParticleSelectionHelpers::isJetForTriggerChecking<AK4JetObject>(AK4JetObject const*);

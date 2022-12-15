@@ -5,12 +5,14 @@
 #include "MuonObject.h"
 #include "ElectronObject.h"
 #include "PhotonObject.h"
+#include "HadronicTauObject.h"
 #include "AK4JetObject.h"
 
 
 class MuonHandler;
 class ElectronHandler;
 class PhotonHandler;
+class HadronicTauHandler;
 class JetMETHandler;
 
 
@@ -20,6 +22,7 @@ protected:
     std::vector<MuonObject*>*& muons,
     std::vector<ElectronObject*>*& electrons,
     std::vector<PhotonObject*>*& photons,
+    std::vector<HadronicTauObject*>*& htaus,
     std::vector<AK4JetObject*>*& ak4jets,
     std::vector<AK4JetObject*>*& ak4jets_masked
   );
@@ -31,7 +34,8 @@ public:
     MuonHandler* muonHandle,
     ElectronHandler* electronHandle,
     PhotonHandler* photonHandle,
-    JetMETHandler* jetHandle
+    JetMETHandler* jetHandle,
+    HadronicTauHandler* htauHandle = nullptr
   );
 
 };
