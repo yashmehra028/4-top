@@ -174,6 +174,8 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   else IVYout << "Using default b-tagging WP = " << static_cast<int>(bit_preselection_btag)-static_cast<int>(AK4JetSelectionHelpers::kPreselectionTight_BTagged_Loose) << "..." << endl;
 
   // Trigger configuration
+  bool const add_HLTSingleMuJets = (theDataYear==2018 || theDataYear==2022);
+  bool const need_extraL1rcd = add_HLTSingleMuJets;
   std::vector<TriggerHelpers::TriggerType> requiredTriggers_SingleLepton{
     TriggerHelpers::kSingleMu_Control_Iso,
     TriggerHelpers::kSingleEle_Control_Iso
@@ -188,7 +190,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     // If trigger choices change, this setting may not be relevant either.
     if (ElectronSelectionHelpers::selection_type == ElectronSelectionHelpers::kCutbased_Run2) ElectronSelectionHelpers::setApplyMVALooseFakeableNoIsoWPs(true);
   }
-  if (theDataYear==2018 || theDataYear==2022) requiredTriggers_SingleLepton.push_back(TriggerHelpers::kSingleMu_Jet_Control_NoIso);
+  if (add_HLTSingleMuJets) requiredTriggers_SingleLepton.push_back(TriggerHelpers::kSingleMu_Jet_Control_NoIso);
   std::vector<std::string> const hltnames_SingleLepton = TriggerHelpers::getHLTMenus(requiredTriggers_SingleLepton);
   auto triggerPropsCheckList_SingleLepton = TriggerHelpers::getHLTMenuProperties(requiredTriggers_SingleLepton);
 
@@ -231,6 +233,19 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     }
     else strinputdpdir = Form("%i", theDataYear);
   }
+
+  // FIXME (interim implementation):
+  // If data year is 2018 or 2022, we also add TriggerHelpers::kSingleMu_Jet_Control_NoIso into the single muon trigger soup.
+  // This trigger needs a further study of L1 triggers so that we can determine prescales in 2023+.
+  // For this reason, we book these L1 trigger to study offline.
+  std::vector<TString> extra_L1names;
+  // For HLT_Mu3_PFJet40_v* (2018 or 2022), the requirement is ((L1_SingleMu3 || L1_Mu3_Jet30er2p5) && L1_SingleJet35).
+  // For HLT_Mu12eta2p3_PFJet40_v* (2022 only), the requirement is L1_Mu3_Jet30er2p5 only.
+  if (need_extraL1rcd) extra_L1names = std::vector<TString>{
+    "L1_SingleMu3",
+    "L1_Mu3_Jet30er2p5",
+    "L1_SingleJet35"
+  };
 
   signed char is_sim_data_flag = -1; // =0 for sim, =1 for data
   int nevents_total = 0;
@@ -305,6 +320,9 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       tin->bookBranch<RunNumber_t>("run", 0);
       tin->bookBranch<LuminosityBlock_t>("luminosityBlock", 0);
     }
+
+    // Book the defined extra L1 branches
+    for (auto const& ss:extra_L1names) tin->bookBranch<bool>(ss, false);
   }
 
   curdir->cd();
@@ -351,6 +369,12 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     if (isData){
       tin->getValRef("run", ptr_RunNumber);
       tin->getValRef("luminosityBlock", ptr_LuminosityBlock);
+    }
+
+    std::unordered_map<TString, bool*> ptrs_extraL1rcd;
+    for (auto const& ss:extra_L1names){
+      ptrs_extraL1rcd[ss] = nullptr;
+      tin->getValRef(ss, ptrs_extraL1rcd.find(ss)->second);
     }
 
     unsigned int n_traversed = 0;
@@ -644,6 +668,11 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         }
         rcd_output.setNamedVal(Form("event_wgt_trigger_%s", hltname_pruned.data()), event_weight_trigger);
         rcd_output.setNamedVal(Form("event_wgt_trigger_TOmatched_%s", hltname_pruned.data()), event_weight_trigger_TOmatched);
+      }
+      // In case we need extra L1 records, make sure event selection and output record also include them!
+      for (auto const& pp:ptrs_extraL1rcd){
+        pass_any_trigger |= *(pp.second);
+        rcd_output.setNamedVal<float>(Form("event_wgt_trigger_%s", pp.first.Data()), *(pp.second));
       }
       if (!pass_any_trigger) continue;
       seltracker.accumulate("Pass any trigger", wgt);
