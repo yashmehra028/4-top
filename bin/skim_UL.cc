@@ -124,9 +124,11 @@ int ScanChain(std::vector<TString> const& inputfnames, std::string const& output
   HelperFunctions::appendVector(requiredTriggers, requiredTriggers_Dilepton);
   std::vector<TriggerHelpers::TriggerType> const requiredTriggers_SingleLeptonControl{
     TriggerHelpers::kSingleMu_Control_Iso,
+    TriggerHelpers::kSingleMu_Jet_Control_Iso,
     TriggerHelpers::kSingleEle_Control_Iso,
     // These nonisolated triggers were used in the 2016 analysis and are used in the TOP lepton MVA analysis. We keep them for now, but we could drop them later.
     TriggerHelpers::kSingleMu_Control_NoIso,
+    TriggerHelpers::kSingleMu_Jet_Control_NoIso,
     TriggerHelpers::kSingleEle_Control_NoIso,
     TriggerHelpers::kAuxiliary
   };

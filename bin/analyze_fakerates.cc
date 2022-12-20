@@ -72,20 +72,23 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
   TDirectory* curdir = gDirectory;
 
+  auto const& theDataPeriod = SampleHelpers::getDataPeriod();
+  auto const& theDataYear = SampleHelpers::getDataYear();
+
   // Configure analysis-specific stuff
   constexpr bool useFakeableIdForPhysicsChecks = true;
   ParticleSelectionHelpers::setUseFakeableIdForPhysicsChecks(useFakeableIdForPhysicsChecks);
 
-  float const absEtaThr_ak4jets = (SampleHelpers::getDataYear()<=2016 ? AK4JetSelectionHelpers::etaThr_btag_Phase0Tracker : AK4JetSelectionHelpers::etaThr_btag_Phase1Tracker);
+  float const absEtaThr_ak4jets = (theDataYear<=2016 ? AK4JetSelectionHelpers::etaThr_btag_Phase0Tracker : AK4JetSelectionHelpers::etaThr_btag_Phase1Tracker);
 
-  double const lumi = SampleHelpers::getIntegratedLuminosity(SampleHelpers::getDataPeriod());
-  IVYout << "Valid data periods for " << SampleHelpers::getDataPeriod() << ": " << SampleHelpers::getValidDataPeriods() << endl;
+  double const lumi = SampleHelpers::getIntegratedLuminosity(theDataPeriod);
+  IVYout << "Valid data periods for " << theDataPeriod << ": " << SampleHelpers::getValidDataPeriods() << endl;
   IVYout << "Integrated luminosity: " << lumi << endl;
 
   // This is the output directory.
   // Output should always be recorded as if you are running the job locally.
   // We will inform the Condor job later on that some files would need transfer if we are running on Condor.
-  TString coutput_main = TString("output/Analysis_FakeRates/") + strdate.data() + "/" + SampleHelpers::getDataPeriod();
+  TString coutput_main = TString("output/Analysis_FakeRates/") + strdate.data() + "/" + theDataPeriod;
   if (!isCondorRun) coutput_main = ANALYSISPKGPATH + "/test/" + coutput_main;
   HostHelpers::ExpandEnvironmentVariables(coutput_main);
   gSystem->mkdir(coutput_main, true);
@@ -175,7 +178,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     TriggerHelpers::kSingleMu_Control_Iso,
     TriggerHelpers::kSingleEle_Control_Iso
   };
-  if (SampleHelpers::getDataYear()==2016){
+  if (theDataYear==2016){
     requiredTriggers_SingleLepton = std::vector<TriggerHelpers::TriggerType>{
       TriggerHelpers::kSingleMu_Control_NoIso,
       TriggerHelpers::kSingleEle_Control_NoIso
@@ -185,6 +188,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     // If trigger choices change, this setting may not be relevant either.
     if (ElectronSelectionHelpers::selection_type == ElectronSelectionHelpers::kCutbased_Run2) ElectronSelectionHelpers::setApplyMVALooseFakeableNoIsoWPs(true);
   }
+  if (theDataYear==2018 || theDataYear==2022) requiredTriggers_SingleLepton.push_back(TriggerHelpers::kSingleMu_Jet_Control_NoIso);
   std::vector<std::string> const hltnames_SingleLepton = TriggerHelpers::getHLTMenus(requiredTriggers_SingleLepton);
   auto triggerPropsCheckList_SingleLepton = TriggerHelpers::getHLTMenuProperties(requiredTriggers_SingleLepton);
 
@@ -219,14 +223,13 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   curdir->cd();
 
   // Acquire input tree/chains
-  TString strinputdpdir = SampleHelpers::getDataPeriod();
-  if (SampleHelpers::testDataPeriodIsLikeData(SampleHelpers::getDataPeriod())){
-    auto const& dy = SampleHelpers::getDataYear();
-    if (dy==2016){
-      if (SampleHelpers::isAPV2016Affected(SampleHelpers::getDataPeriod())) strinputdpdir = Form("%i_APV", dy);
-      else strinputdpdir = Form("%i_NonAPV", dy);
+  TString strinputdpdir = theDataPeriod;
+  if (SampleHelpers::testDataPeriodIsLikeData(theDataPeriod)){
+    if (theDataYear==2016){
+      if (SampleHelpers::isAPV2016Affected(theDataPeriod)) strinputdpdir = Form("%i_APV", theDataYear);
+      else strinputdpdir = Form("%i_NonAPV", theDataYear);
     }
-    else strinputdpdir = Form("%i", dy);
+    else strinputdpdir = Form("%i", theDataYear);
   }
 
   signed char is_sim_data_flag = -1; // =0 for sim, =1 for data

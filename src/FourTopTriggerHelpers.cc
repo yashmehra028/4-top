@@ -1061,7 +1061,9 @@ void TriggerHelpers::configureHLTmap(){
       { "HLT_Mu17_TrkIsoVVL_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 17.f } } } } }, // Has L1 and HLT prescales
       { "HLT_Mu8_TrkIsoVVL_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 8.f } } } } } // Has L1 and HLT prescales
     };
-    HLT_type_proplist_map[kSingleMu_Jet_Control_NoIso] = std::vector<HLTTriggerPathProperties>();
+    HLT_type_proplist_map[kSingleMu_Jet_Control_NoIso] = std::vector<HLTTriggerPathProperties>{
+      { "HLT_Mu3_PFJet40_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 3.f } } } } } // Has prescales
+    };
     HLT_type_proplist_map[kSingleMu_Jet_Control_Iso] = std::vector<HLTTriggerPathProperties>();
     HLT_type_proplist_map[kSingleEle_Control_NoIso] = std::vector<HLTTriggerPathProperties>{
       { "HLT_Ele23_CaloIdM_TrackIdM_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 23.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } }, // Has L1 and HLT prescales
@@ -1212,7 +1214,10 @@ void TriggerHelpers::configureHLTmap(){
       { "HLT_Mu17_TrkIsoVVL_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 17.f } } } } }, // Has L1 and HLT prescales
       { "HLT_Mu8_TrkIsoVVL_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 8.f } } } } } // Has L1 and HLT prescales
     };
-    HLT_type_proplist_map[kSingleMu_Jet_Control_NoIso] = std::vector<HLTTriggerPathProperties>();
+    HLT_type_proplist_map[kSingleMu_Jet_Control_NoIso] = std::vector<HLTTriggerPathProperties>{
+      { "HLT_Mu12eta2p3_PFJet40_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 12.f },{ HLTObjectProperties::kEta, 2.3f } } } } }, // Has prescales
+      { "HLT_Mu3_PFJet40_v*",{ { HLTObjectProperties::kMuon,{ { HLTObjectProperties::kPt, 3.f } } } } } // Has prescales
+    };
     HLT_type_proplist_map[kSingleMu_Jet_Control_Iso] = std::vector<HLTTriggerPathProperties>();
     HLT_type_proplist_map[kSingleEle_Control_NoIso] = std::vector<HLTTriggerPathProperties>{
       { "HLT_Ele23_CaloIdM_TrackIdM_PFJet30_v*",{ { HLTObjectProperties::kElectron,{ { HLTObjectProperties::kPt, 23.f } } },{ HLTObjectProperties::kAK4Jet,{ { HLTObjectProperties::kPt, 30.f } } } } }, // Has L1 and HLT prescales

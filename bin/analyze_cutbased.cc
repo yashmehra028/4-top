@@ -73,20 +73,23 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
   TDirectory* curdir = gDirectory;
 
+  auto const& theDataPeriod = SampleHelpers::getDataPeriod();
+  auto const& theDataYear = SampleHelpers::getDataYear();
+
   // Configure analysis-specific stuff
   constexpr bool useFakeableIdForPhysicsChecks = true;
   ParticleSelectionHelpers::setUseFakeableIdForPhysicsChecks(useFakeableIdForPhysicsChecks);
 
-  float const absEtaThr_ak4jets = (SampleHelpers::getDataYear()<=2016 ? AK4JetSelectionHelpers::etaThr_btag_Phase0Tracker : AK4JetSelectionHelpers::etaThr_btag_Phase1Tracker);
+  float const absEtaThr_ak4jets = (theDataYear<=2016 ? AK4JetSelectionHelpers::etaThr_btag_Phase0Tracker : AK4JetSelectionHelpers::etaThr_btag_Phase1Tracker);
 
-  double const lumi = SampleHelpers::getIntegratedLuminosity(SampleHelpers::getDataPeriod());
-  IVYout << "Valid data periods for " << SampleHelpers::getDataPeriod() << ": " << SampleHelpers::getValidDataPeriods() << endl;
+  double const lumi = SampleHelpers::getIntegratedLuminosity(theDataPeriod);
+  IVYout << "Valid data periods for " << theDataPeriod << ": " << SampleHelpers::getValidDataPeriods() << endl;
   IVYout << "Integrated luminosity: " << lumi << endl;
 
   // This is the output directory.
   // Output should always be recorded as if you are running the job locally.
   // If we are running on Condor, ee will inform the batch job later on that some files would need transfer.
-  TString coutput_main = TString("output/Analysis_CutBased/") + strdate.data() + "/" + SampleHelpers::getDataPeriod();
+  TString coutput_main = TString("output/Analysis_CutBased/") + strdate.data() + "/" + theDataPeriod;
   if (!isCondorRun) coutput_main = ANALYSISPKGPATH + "/test/" + coutput_main;
   HostHelpers::ExpandEnvironmentVariables(coutput_main);
   gSystem->mkdir(coutput_main, true);
@@ -252,7 +255,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     TriggerHelpers::kMuEle
   };
   // These PFHT triggers were used in the 2016 analysis. They are a bit more efficient.
-  if (SampleHelpers::getDataYear()==2016){
+  if (theDataYear==2016){
     requiredTriggers_Dilepton = std::vector<TriggerHelpers::TriggerType>{
       TriggerHelpers::kDoubleMu_PFHT,
       TriggerHelpers::kDoubleEle_PFHT,
@@ -315,14 +318,13 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   curdir->cd();
 
   // Acquire input tree/chains
-  TString strinputdpdir = SampleHelpers::getDataPeriod();
-  if (SampleHelpers::testDataPeriodIsLikeData(SampleHelpers::getDataPeriod())){
-    auto const& dy = SampleHelpers::getDataYear();
-    if (dy==2016){
-      if (SampleHelpers::isAPV2016Affected(SampleHelpers::getDataPeriod())) strinputdpdir = Form("%i_APV", dy);
-      else strinputdpdir = Form("%i_NonAPV", dy);
+  TString strinputdpdir = theDataPeriod;
+  if (SampleHelpers::testDataPeriodIsLikeData(theDataPeriod)){
+    if (theDataYear==2016){
+      if (SampleHelpers::isAPV2016Affected(theDataPeriod)) strinputdpdir = Form("%i_APV", theDataYear);
+      else strinputdpdir = Form("%i_NonAPV", theDataYear);
     }
-    else strinputdpdir = Form("%i", dy);
+    else strinputdpdir = Form("%i", theDataYear);
   }
 
   signed char is_sim_data_flag = -1; // =0 for sim, =1 for data
