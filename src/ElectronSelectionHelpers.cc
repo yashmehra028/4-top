@@ -160,7 +160,7 @@ void ElectronSelectionHelpers::loadMVA(){
   }
 
   mvareader_xgb = std::make_shared<IvyXGBoostInterface>();
-  mvareader_xgb->build(fname, varnames, missing_entry_val, 1);
+  mvareader_xgb->build(fname, varnames, missing_entry_val);
 }
 void ElectronSelectionHelpers::storeMVAScores(ElectronObject& part){
   for (auto const& pp:seltype_mvareader_map){ if (isMVASelection(pp.first)) part.setExternalMVAScore(static_cast<int>(pp.first), computeMVAScore(part, pp.first)); }
