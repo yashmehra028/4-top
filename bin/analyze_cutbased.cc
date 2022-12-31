@@ -336,9 +336,10 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     TString strinput = SampleHelpers::getInputDirectory() + "/" + strinputdpdir + "/" + dset_proc_pair.second.data();
     TString cinput = (input_files=="" ? strinput + "/*.root" : strinput + "/" + input_files.data());
     IVYout << "Accessing input files " << cinput << "..." << endl;
-    BaseTree* tin = new BaseTree(cinput, "Events", "", "");
-    tin->sampleIdentifier = SampleHelpers::getSampleIdentifier(dset_proc_pair.first);
-    bool const isData = SampleHelpers::checkSampleIsData(tin->sampleIdentifier);
+    TString const sid = SampleHelpers::getSampleIdentifier(dset_proc_pair.first);
+    bool const isData = SampleHelpers::checkSampleIsData(sid);
+    BaseTree* tin = new BaseTree(cinput, "Events", "", (isData ? "" : "Counters"));
+    tin->sampleIdentifier = sid;
     if (!isData){
       if (xsec<0.){
         IVYerr << "xsec = " << xsec << " is not valid." << endl;
@@ -357,15 +358,8 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
     double sum_wgts = (isData ? 1 : 0);
     if (!isData){
-      for (auto const& fname:SampleHelpers::lsdir(strinput.Data())){
-        if (input_files!="" && fname!=input_files.data()) continue;
-        if (fname.EndsWith(".root")){
-          TFile* ftmp = TFile::Open(strinput + "/" + fname, "read");
-          TH2D* hCounters = (TH2D*) ftmp->Get("Counters");
-          sum_wgts += hCounters->GetBinContent(1, 1);
-          ftmp->Close();
-        }
-      }
+      TH2D* hCounters = (TH2D*) tin->getCountersHistogram();
+      sum_wgts = hCounters->GetBinContent(1, 1);
     }
     if (sum_wgts==0.){
       IVYerr << "Sum of pre-recorded weights cannot be zero." << endl;
