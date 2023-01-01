@@ -25,6 +25,10 @@ namespace BtagHelpers{
   float const& getBtagWP(BtagWPType type);
   std::vector<float> getBtagWPs(BtagWPType type);
 
+  TString getBtagSFFileName(BtagWPType type);
+  TString getBtagEffFileName();
+  TString getBtagEffHistName(BtagWPType type, const char* jet_type);
+
 }
 
 

@@ -1,4 +1,5 @@
 #include <cassert>
+#include "HostHelpersCore.h"
 #include "BtagHelpers.h"
 #include "SamplesCore.h"
 #include "IvyFramework/IvyDataTools/interface/HelperFunctions.h"
@@ -100,4 +101,115 @@ std::vector<float> BtagHelpers::getBtagWPs(BtagHelpers::BtagWPType type){
     assert(0);
   }
   return res;
+}
+
+TString BtagHelpers::getBtagSFFileName(BtagWPType type){
+  auto const& dp = SampleHelpers::getDataPeriod();
+  auto const& dy = SampleHelpers::getDataYear();
+  bool const isAPV2016Affected = SampleHelpers::isAPV2016Affected(dp);
+  TString const strdp = TString(Form("%i", dy)) + (dy!=2016 ? "" : (isAPV2016Affected ? "_APV" : "_NonAPV"));
+
+  bool valid_empty = false;
+
+  TString res;
+  switch (dy){
+  case 2016:
+  {
+    switch (type){
+    case kDeepFlav_Loose:
+    case kDeepFlav_Medium:
+    case kDeepFlav_Tight:
+      res = (isAPV2016Affected ? "DeepJet_2016LegacySF_WP_V1.csv" : "DeepJet_2016LegacySF_WP_V1.csv");
+      break;
+    default:
+      break;
+    }
+    break;
+  }
+  case 2017:
+  {
+    switch (type){
+    case kDeepFlav_Loose:
+    case kDeepFlav_Medium:
+    case kDeepFlav_Tight:
+      res = "DeepFlavour_94XSF_WP_V3_B_F.csv";
+      break;
+    default:
+      break;
+    }
+    break;
+  }
+  case 2018:
+  {
+    switch (type){
+    case kDeepFlav_Loose:
+    case kDeepFlav_Medium:
+    case kDeepFlav_Tight:
+      res = "DeepJet_102XSF_WP_V1.csv";
+      break;
+    default:
+      break;
+    }
+    break;
+  }
+  case 2022:
+  {
+    valid_empty = true;
+    break;
+  }
+  default:
+    break;
+  }
+  if (res == ""){
+    (!valid_empty ? IVYerr : IVYout)
+      << "BtagHelpers::getBtagSFFileName: "
+      << (valid_empty ? "WARNING! " : "")
+      << "WP " << type << " is not implemented for period " << strdp << "."
+      << endl;
+    assert(valid_empty);
+  }
+  else{
+    res = ANALYSISPKGDATAPATH + Form("ScaleFactors/bTagging/%s/", strdp.Data()) + res;
+    HostHelpers::ExpandEnvironmentVariables(res);
+    if (!HostHelpers::FileReadable(res.Data())){
+      IVYerr << "BtagHelpers::getBtagSFFileName: File " << res << " is not readable." << endl;
+      assert(0);
+    }
+  }
+
+  return res;
+}
+TString BtagHelpers::getBtagEffFileName(){
+  auto const& dp = SampleHelpers::getDataPeriod();
+  auto const& dy = SampleHelpers::getDataYear();
+  bool const isAPV2016Affected = SampleHelpers::isAPV2016Affected(dp);
+  TString const strdp = TString(Form("%i", dy)) + (dy!=2016 ? "" : (isAPV2016Affected ? "_APV" : "_NonAPV"));
+
+  if (dy>=2022){
+    IVYout << "BtagHelpers::getBtagEffFileName: WARNING! b-tagging efficiency is not known yet for period " << strdp << "." << endl;
+    return "";
+  }
+
+  TString res = ANALYSISPKGDATAPATH + Form("ScaleFactors/bTagging/%s/Final_bTag_Efficiencies_AllMC.root", strdp.Data());
+  HostHelpers::ExpandEnvironmentVariables(res);
+  if (!HostHelpers::FileReadable(res.Data())){
+    IVYerr << "BtagHelpers::getBtagEffFileName: File " << res << " is not readable." << endl;
+    assert(0);
+  }
+  return res;
+}
+TString BtagHelpers::getBtagEffHistName(BtagWPType type, const char* jet_type){
+  switch (type){
+  case kDeepFlav_Loose:
+    return Form("DeepFlavor_LooseJets_%s", jet_type);
+  case kDeepFlav_Medium:
+    return Form("DeepFlavor_MediumJets_%s", jet_type);
+  case kDeepFlav_Tight:
+    return Form("DeepFlavor_TightJets_%s", jet_type);
+  default:
+    IVYerr << "BtagHelpers::getBtagEffHistName: WP " << type << " is not implemented." << endl;
+    assert(0);
+    break;
+  }
+  return "";
 }
