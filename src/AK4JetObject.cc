@@ -1,6 +1,14 @@
+#include <cassert>
 #include <algorithm>
 #include <utility>
 #include "AK4JetObject.h"
+#include "BtagHelpers.h"
+#include "AK4JetSelectionHelpers.h"
+#include "IvyFramework/IvyDataTools/interface/IvyStreamHelpers.hh"
+
+
+using namespace std;
+using namespace IvyStreamHelpers;
 
 
 AK4JetVariables::AK4JetVariables(){
@@ -20,7 +28,7 @@ void AK4JetVariables::swap(AK4JetVariables& other){
 }
 AK4JetVariables& AK4JetVariables::operator=(const AK4JetVariables& other){
   AK4JetVariables tmp(other);
-  swap(tmp);
+  this->swap(tmp);
   return *this;
 }
 
@@ -42,9 +50,26 @@ void AK4JetObject::swap(AK4JetObject& other){
 }
 AK4JetObject& AK4JetObject::operator=(const AK4JetObject& other){
   AK4JetObject tmp(other);
-  swap(tmp);
+  this->swap(tmp);
   return *this;
 }
 AK4JetObject::~AK4JetObject(){}
 
-
+BTagEntry::JetFlavor AK4JetObject::getBTagJetFlavor() const{
+  auto const& jetFlavor = extras.hadronFlavour;
+  if (std::abs(jetFlavor)==5) return BTagEntry::FLAV_B;
+  else if (std::abs(jetFlavor)==4) return BTagEntry::FLAV_C;
+  else return BTagEntry::FLAV_UDSG;
+}
+float AK4JetObject::getBtagValue() const{
+  switch (AK4JetSelectionHelpers::btagger_type){
+  case BtagHelpers::kDeepFlav_Loose:
+  case BtagHelpers::kDeepFlav_Medium:
+  case BtagHelpers::kDeepFlav_Tight:
+    return this->extras.btagDeepFlavB;
+  default:
+    IVYerr << "AK4JetObject::getBtagValue: b-tagger type " << AK4JetSelectionHelpers::btagger_type << " is not implemented. Aborting..." << endl;
+    assert(0);
+  }
+  return -1;
+}

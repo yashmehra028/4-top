@@ -14,6 +14,7 @@ namespace AK4JetSelectionHelpers{
   bool testId(AK4JetObject const& part);
 
   bool testPreselectionTight(AK4JetObject const& part);
+  bool testPreselectionTight_BTaggable(AK4JetObject const& part);
 
   void setBTagBits(AK4JetObject& part);
 }
@@ -50,6 +51,13 @@ bool AK4JetSelectionHelpers::testPreselectionTight(AK4JetObject const& part){
     testId(part)
     );
 }
+bool AK4JetSelectionHelpers::testPreselectionTight_BTaggable(AK4JetObject const& part){
+  return (
+    part.testSelectionBit(kKinOnly_BTag)
+    &&
+    part.testSelectionBit(kPreselectionTight)
+    );
+}
 
 void AK4JetSelectionHelpers::setBTagBits(AK4JetObject& part){
   auto const btagWPs = BtagHelpers::getBtagWPs(btagger_type);
@@ -61,7 +69,7 @@ void AK4JetSelectionHelpers::setBTagBits(AK4JetObject& part){
   case BtagHelpers::kDeepFlav_Medium:
   case BtagHelpers::kDeepFlav_Tight:
   {
-    auto const& bscore = part.extras.btagDeepFlavB;
+    auto const bscore = part.getBtagValue();
     part.setSelectionBit(kBTagged_Loose, bscore>btagWPs.front());
     part.setSelectionBit(kBTagged_Medium, bscore>btagWPs.at(1));
     part.setSelectionBit(kBTagged_Tight, bscore>btagWPs.back());
@@ -72,7 +80,7 @@ void AK4JetSelectionHelpers::setBTagBits(AK4JetObject& part){
     assert(0);
   }
 
-  bool const pass_BTag_preselection = part.testSelectionBit(kKinOnly_BTag) && part.testSelectionBit(kPreselectionTight);
+  bool const pass_BTag_preselection = part.testSelectionBit(kPreselectionTight_BTaggable);
   part.setSelectionBit(kPreselectionTight_BTagged_Loose, pass_BTag_preselection && part.testSelectionBit(kBTagged_Loose));
   part.setSelectionBit(kPreselectionTight_BTagged_Medium, pass_BTag_preselection && part.testSelectionBit(kBTagged_Medium));
   part.setSelectionBit(kPreselectionTight_BTagged_Tight, pass_BTag_preselection && part.testSelectionBit(kBTagged_Tight));
@@ -86,6 +94,7 @@ void AK4JetSelectionHelpers::setSelectionBits(AK4JetObject& part){
 
   part.setSelectionBit(kJetIdOnly, testJetId(part));
   part.setSelectionBit(kPreselectionTight, testPreselectionTight(part));
+  part.setSelectionBit(kPreselectionTight_BTaggable, testPreselectionTight_BTaggable(part));
 
   setBTagBits(part);
 }

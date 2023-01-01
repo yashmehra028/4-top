@@ -2,6 +2,7 @@
 #define AK4JETOBJECT_H
 
 #include "ParticleObject.h"
+#include "BTagCalibrationStandalone.h"
 
 
 #define AK4JET_GENINFO_VARIABLES \
@@ -60,6 +61,9 @@ public:
   ~AK4JetObject();
 
   void swap(AK4JetObject& other);
+
+  BTagEntry::JetFlavor getBTagJetFlavor() const;
+  float getBtagValue() const;
 };
 
 #endif

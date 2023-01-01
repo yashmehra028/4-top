@@ -19,6 +19,7 @@ namespace AK4JetSelectionHelpers{
 
     kPreselectionTight,
 
+    kPreselectionTight_BTaggable,
     kPreselectionTight_BTagged_Loose,
     kPreselectionTight_BTagged_Medium,
     kPreselectionTight_BTagged_Tight,

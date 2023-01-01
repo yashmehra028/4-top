@@ -6,13 +6,6 @@
 
 namespace BtagHelpers{
   enum BtagWPType{
-    /*
-    kDeepCSV_Loose=0,
-    kDeepCSV_Medium,
-    kDeepCSV_Tight,
-
-    kDeepFlav_Loose,
-    */
     kDeepFlav_Loose=0,
     kDeepFlav_Medium,
     kDeepFlav_Tight,
