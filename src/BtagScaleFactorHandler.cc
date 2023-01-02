@@ -104,8 +104,8 @@ bool BtagScaleFactorHandler::setup(){
 
   std::vector<SystematicsHelpers::SystematicVariationTypes> const allowedSysts{
     sNominal,
-    eJECDn, eJECUp,
-    eJERDn, eJERUp,
+    //eJECDn, eJECUp,
+    //eJERDn, eJERUp,
     ePUDn, ePUUp,
     ePUJetIdEffDn, ePUJetIdEffUp
   };
@@ -217,8 +217,8 @@ void BtagScaleFactorHandler::getSFAndEff(SystematicsHelpers::SystematicVariation
 
   std::vector<SystematicsHelpers::SystematicVariationTypes> allowedJetSysts{
     sNominal,
-    eJECDn, eJECUp,
-    eJERDn, eJERUp,
+    //eJECDn, eJECUp,
+    //eJERDn, eJERUp,
     ePUDn, ePUUp
   };
   if (pujetidcat>=0){
@@ -319,9 +319,9 @@ void BtagScaleFactorHandler::getSFAndEff(SystematicsHelpers::SystematicVariation
   */
 
   unsigned short btagcat = 0;
-  if (!obj->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTagged_Loose)) btagcat++;
-  if (!obj->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTagged_Medium)) btagcat++;
-  if (!obj->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTagged_Tight)) btagcat++;
+  if (obj->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTagged_Loose)) btagcat++;
+  if (obj->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTagged_Medium)) btagcat++;
+  if (obj->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTagged_Tight)) btagcat++;
 
   getSFAndEff(syst, obj->pt(), obj->eta(), pujetidcat, obj->getBTagJetFlavor(), btagcat, val, effval);
 }
