@@ -87,3 +87,11 @@ for ff in $(ls *.tar*); do
 done
 cd - &> /dev/null
 
+main_url=https://raw.githubusercontent.com/cmstas/CMSScaleFactors/master/BTV
+files=(\
+  wp_deepJet_106XUL16preVFP_v2.csv \
+  wp_deepJet_106XUL16postVFP_v3.csv \
+  wp_deepJet_106XUL17_v3.csv \
+  wp_deepJet_106XUL18_v2.csv \
+)
+get_files BTagging/ScaleFactors ${main_url} "${files[@]}"

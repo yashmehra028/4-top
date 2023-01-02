@@ -1,6 +1,12 @@
 /*******************************************************************************************************************************************/
 /* Taken from https://github.com/cmstas/CORE/blob/6936fbe198767a111da8fd17277b1b9cf15395a5/Tools/btagsf/BTagCalibrationStandalone.cc       */
 /* and https://raw.githubusercontent.com/usarica/CMS3NtupleTools/combined/AnalysisTree/src/BTagCalibrationStandalone.cc (access: 23/01/01) */
+/*                                                                                                                                         */
+/* Note from 23/01/02:                                                                                                                     */
+/* Please note that this file has been modified to accomodate new conventions beginning Run 2 UL. Specifically, for (pre-UL) -> (UL),      */
+/* we have [operatingPoint: (0, 1, 2, 3) -> ('L', 'M', 'T', 3)], and [jetFlavor: (B=0, C=1, UDSG=2) -> (B=5, C=4, UDSG=0)], as decribed    */
+/* in https://indico.cern.ch/event/1096988/contributions/4615134/attachments/2346047/4000529/Nov21_btaggingSFjsons.pdf.                    */
+/* The BTagEntry::BTagEntry(const std::string &csvLine) constructor is different for this reason without a change in any of the enums.     */
 /*******************************************************************************************************************************************/
 
 #include <iostream>
@@ -78,7 +84,16 @@ BTagEntry::BTagEntry(const std::string &csvLine)
   }
 
   // make parameters
-  unsigned op = stoi(vec[0]);
+  unsigned op = 99;
+  try{
+    op = stoi(vec[0]);
+  }
+  catch (std::invalid_argument& e){
+    if (vec[0] == "L") op = static_cast<unsigned>(BTagEntry::OP_LOOSE);
+    else if (vec[0] == "M") op = static_cast<unsigned>(BTagEntry::OP_MEDIUM);
+    else if (vec[0] == "T") op = static_cast<unsigned>(BTagEntry::OP_TIGHT);
+    else throw;
+  }
   if (op > 3) {
     std::cerr << "ERROR in BTagCalibration: "
       << "Invalid csv line; OperatingPoint > 3: "
@@ -86,9 +101,19 @@ BTagEntry::BTagEntry(const std::string &csvLine)
     throw std::exception();
   }
   unsigned jf = stoi(vec[3]);
-  if (jf > 2) {
+  switch (jf){
+  case 5:
+    jf = 0;
+    break;
+  case 4:
+    jf = 1;
+    break;
+  case 0:
+    jf = 2;
+    break;
+  default:
     std::cerr << "ERROR in BTagCalibration: "
-      << "Invalid csv line; JetFlavor > 2: "
+      << "Invalid csv line; JetFlavor entry is not recognized: "
       << csvLine << std::endl;
     throw std::exception();
   }

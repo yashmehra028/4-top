@@ -119,7 +119,9 @@ TString BtagHelpers::getBtagSFFileName(BtagWPType type){
     case kDeepFlav_Loose:
     case kDeepFlav_Medium:
     case kDeepFlav_Tight:
-      res = (isAPV2016Affected ? "DeepJet_2016LegacySF_WP_V1.csv" : "DeepJet_2016LegacySF_WP_V1.csv");
+      // FIXME: Per threads like https://cms-talk.web.cern.ch/t/a-possible-issue-in-the-b-tagging-correction-for-2016postvfp-with-wp-loose/18837/2,
+      // one should apply the APV SFs on both data sets for now.
+      res = (isAPV2016Affected ? "wp_deepJet_106XUL16preVFP_v2.csv" : "wp_deepJet_106XUL16preVFP_v2.csv");
       break;
     default:
       break;
@@ -132,7 +134,7 @@ TString BtagHelpers::getBtagSFFileName(BtagWPType type){
     case kDeepFlav_Loose:
     case kDeepFlav_Medium:
     case kDeepFlav_Tight:
-      res = "DeepFlavour_94XSF_WP_V3_B_F.csv";
+      res = "wp_deepJet_106XUL17_v3.csv";
       break;
     default:
       break;
@@ -145,7 +147,7 @@ TString BtagHelpers::getBtagSFFileName(BtagWPType type){
     case kDeepFlav_Loose:
     case kDeepFlav_Medium:
     case kDeepFlav_Tight:
-      res = "DeepJet_102XSF_WP_V1.csv";
+      res = "wp_deepJet_106XUL18_v2.csv";
       break;
     default:
       break;
@@ -169,7 +171,7 @@ TString BtagHelpers::getBtagSFFileName(BtagWPType type){
     assert(valid_empty);
   }
   else{
-    res = ANALYSISPKGDATAPATH + Form("ScaleFactors/bTagging/%s/", strdp.Data()) + res;
+    res = ANALYSISPKGDATAPATH + Form("external/BTagging/ScaleFactors/") + res;
     HostHelpers::ExpandEnvironmentVariables(res);
     if (!HostHelpers::FileReadable(res.Data())){
       IVYerr << "BtagHelpers::getBtagSFFileName: File " << res << " is not readable." << endl;
