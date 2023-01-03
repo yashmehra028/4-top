@@ -69,6 +69,7 @@ void JetMETHandler::clear(){
 }
 
 bool JetMETHandler::constructJetMET(
+  SystematicsHelpers::SystematicVariationTypes const& syst,
   SimEventHandler const* simEventHandler
 ){
   if (this->isAlreadyCached()) return true;
@@ -77,16 +78,16 @@ bool JetMETHandler::constructJetMET(
   if (!currentTree) return false;
 
   bool res = (
-    constructAK4Jets() && constructAK4Jets_LowPt() && constructMET()
+    constructAK4Jets(syst) && constructAK4Jets_LowPt(syst)
     &&
-    assignMETXYShifts()
+    constructMET(syst) && assignMETXYShifts()
     );
 
   if (res) this->cacheEvent();
   return res;
 }
 
-bool JetMETHandler::constructAK4Jets(){
+bool JetMETHandler::constructAK4Jets(SystematicsHelpers::SystematicVariationTypes const& syst){
   bool const isData = SampleHelpers::checkSampleIsData(currentTree->sampleIdentifier);
 
   GlobalCollectionNames::collsize_t nProducts;
@@ -139,6 +140,12 @@ bool JetMETHandler::constructAK4Jets(){
       // Set particle index as its unique identifier
       obj->setUniqueIdentifier(ip);
 
+      // Compute all JEC/JER quantities
+      obj->computeJECRCorrections(false);
+
+      // Replace momentum
+      obj->makeFinalMomentum(syst);
+
       // Set the selection bits
       AK4JetSelectionHelpers::setSelectionBits(*obj);
 
@@ -156,7 +163,7 @@ bool JetMETHandler::constructAK4Jets(){
 
   return true;
 }
-bool JetMETHandler::constructAK4Jets_LowPt(){
+bool JetMETHandler::constructAK4Jets_LowPt(SystematicsHelpers::SystematicVariationTypes const& syst){
   bool const isData = SampleHelpers::checkSampleIsData(currentTree->sampleIdentifier);
 
   GlobalCollectionNames::collsize_t nProducts;
@@ -195,6 +202,12 @@ bool JetMETHandler::constructAK4Jets_LowPt(){
       AK4JET_LOWPT_EXTRA_INPUT_VARIABLES;
 #undef AK4JET_LOWPT_VARIABLE
 
+      // Compute all JEC/JER quantities
+      obj->computeJECRCorrections(false);
+
+      // Replace momentum
+      obj->makeFinalMomentum(syst);
+
       // Set particle index as its unique identifier
       obj->setUniqueIdentifier(ip);
 
@@ -214,7 +227,7 @@ bool JetMETHandler::constructAK4Jets_LowPt(){
   return true;
 }
 
-bool JetMETHandler::constructMET(){
+bool JetMETHandler::constructMET(SystematicsHelpers::SystematicVariationTypes const& syst){
   bool const isData = SampleHelpers::checkSampleIsData(currentTree->sampleIdentifier);
 
 #define MET_VARIABLE(TYPE, NAME) TYPE const* pfmet_##NAME = nullptr;

@@ -73,6 +73,11 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
   TDirectory* curdir = gDirectory;
 
+  // Systematics hypothesis
+  // FIXME: Should be generalized to include all systematics at once.
+  SystematicsHelpers::SystematicVariationTypes const theGlobalSyst = SystematicsHelpers::sNominal;
+
+  // Data period quantities
   auto const& theDataPeriod = SampleHelpers::getDataPeriod();
   auto const& theDataYear = SampleHelpers::getDataYear();
 
@@ -515,21 +520,21 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       double wgt = 1;
       if (!isData){
         double genwgt = 1;
-        genwgt = genInfo->getGenWeight(SystematicsHelpers::sNominal);
+        genwgt = genInfo->getGenWeight(theGlobalSyst);
 
         double puwgt = 1;
-        puwgt = simEventHandler.getPileUpWeight(SystematicsHelpers::sNominal);
+        puwgt = simEventHandler.getPileUpWeight(theGlobalSyst);
 
         wgt = genwgt * puwgt;
 
         // Add L1 prefiring weight for 2016 and 2017
-        wgt *= simEventHandler.getL1PrefiringWeight(SystematicsHelpers::sNominal);
+        wgt *= simEventHandler.getL1PrefiringWeight(theGlobalSyst);
       }
       wgt *= norm_scale;
 
       muonHandler.constructMuons();
       electronHandler.constructElectrons();
-      jetHandler.constructJetMET(&simEventHandler);
+      jetHandler.constructJetMET(theGlobalSyst, &simEventHandler);
 
       // !!!IMPORTANT!!!
       // NEVER USE LEPTONS AND JETS IN AN ANALYSIS BEFORE DISAMBIGUATING THEM!

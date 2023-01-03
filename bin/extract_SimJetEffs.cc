@@ -73,6 +73,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
   TDirectory* curdir = gDirectory;
 
+  // Data period quantities
   auto const& theDataPeriod = SampleHelpers::getDataPeriod();
   auto const& theDataYear = SampleHelpers::getDataYear();
 
@@ -190,13 +191,21 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     else strinputdpdir = Form("%i", theDataYear);
   }
 
-  std::vector<SystematicsHelpers::SystematicVariationTypes> const allowedSysts{
+  std::vector<SystematicsHelpers::SystematicVariationTypes> const allowedSysts_GenSim{
     sNominal,
-    //eJECDn, eJECUp,
-    //eJERDn, eJERUp,
-    ePUDn, ePUUp/*,
-    ePUJetIdEffDn, ePUJetIdEffUp*/
+    ePUDn, ePUUp
   };
+  std::vector<SystematicsHelpers::SystematicVariationTypes> const allowedSysts_MomScale{
+    sNominal,
+    eJECDn, eJECUp,
+    eJERDn, eJERUp
+  };
+  /*
+  std::vector<SystematicsHelpers::SystematicVariationTypes> const allowedSysts_JetEff{
+    sNominal,
+    ePUJetIdEffDn, ePUJetIdEffUp
+  };
+  */
 
 
   int nevents_total = 0;
@@ -220,7 +229,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     {
       TH2D* hCounters = (TH2D*) tin->getCountersHistogram();
       double const sumN = hCounters->GetBinContent(0, 2);
-      for (auto const& ss:allowedSysts){
+      for (auto const& ss:allowedSysts_GenSim){
         int ix = 1;
         switch (ss){
         case ePUDn:
@@ -317,7 +326,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       simEventHandler.constructSimEvent();
 
       double wgt_nominal = 1;
-      for(auto const& syst:allowedSysts){
+      for(auto const& syst:allowedSysts_GenSim){
         double wgt = normScales.find(syst)->second;
         wgt *= genInfo->getGenWeight(syst);
         wgt *= simEventHandler.getPileUpWeight(syst);
@@ -325,12 +334,6 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         if (syst == sNominal) wgt_nominal = wgt;
         rcd_output.setNamedVal(Form("event_wgt_%s", SystematicsHelpers::getSystName(syst).data()), wgt);
       }
-
-      muonHandler.constructMuons();
-      electronHandler.constructElectrons();
-      jetHandler.constructJetMET(&simEventHandler);
-
-      particleDisambiguator.disambiguateParticles(&muonHandler, &electronHandler, nullptr, &jetHandler);
 
       // ak4jet output variables
 #define SYNC_AK4JETS_BRANCH_VECTOR_COMMANDS \
@@ -340,7 +343,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, ak4jets, phi) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, ak4jets, mass) \
       AK4JET_EXTRA_INPUT_VARIABLES
-      // All sync. write objects
+      // All outputs
 #define SYNC_ALLOBJS_BRANCH_VECTOR_COMMANDS \
       SYNC_AK4JETS_BRANCH_VECTOR_COMMANDS
 #define SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, COLLNAME, NAME) std::vector<TYPE> COLLNAME##_##NAME;
@@ -349,99 +352,110 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 #undef AK4JET_VARIABLE
 #undef SYNC_OBJ_BRANCH_VECTOR_COMMAND
 
-      auto const& muons = muonHandler.getProducts();
-      std::vector<MuonObject*> muons_selected;
-      std::vector<MuonObject*> muons_tight;
-      std::vector<MuonObject*> muons_fakeable;
-      std::vector<MuonObject*> muons_loose;
-      for (auto const& part:muons){
-        if (ParticleSelectionHelpers::isTightParticle(part)) muons_tight.push_back(part);
-        else if (ParticleSelectionHelpers::isFakeableParticle(part)) muons_fakeable.push_back(part);
-        else if (ParticleSelectionHelpers::isLooseParticle(part)) muons_loose.push_back(part);
-      }
-      HelperFunctions::appendVector(muons_selected, muons_tight);
-      HelperFunctions::appendVector(muons_selected, muons_fakeable);
-      HelperFunctions::appendVector(muons_selected, muons_loose);
-
-      auto const& electrons = electronHandler.getProducts();
-      std::vector<ElectronObject*> electrons_selected;
-      std::vector<ElectronObject*> electrons_tight;
-      std::vector<ElectronObject*> electrons_fakeable;
-      std::vector<ElectronObject*> electrons_loose;
-      for (auto const& part:electrons){
-        if (ParticleSelectionHelpers::isTightParticle(part)) electrons_tight.push_back(part);
-        else if (ParticleSelectionHelpers::isFakeableParticle(part)) electrons_fakeable.push_back(part);
-        else if (ParticleSelectionHelpers::isLooseParticle(part)) electrons_loose.push_back(part);
-      }
-      HelperFunctions::appendVector(electrons_selected, electrons_tight);
-      HelperFunctions::appendVector(electrons_selected, electrons_fakeable);
-      HelperFunctions::appendVector(electrons_selected, electrons_loose);
-
-      unsigned int const nleptons_tight = muons_tight.size() + electrons_tight.size();
-      unsigned int const nleptons_fakeable = muons_fakeable.size() + electrons_fakeable.size();
-      unsigned int const nleptons_loose = muons_loose.size() + electrons_loose.size();
-      unsigned int const nleptons_selected = nleptons_tight + nleptons_fakeable + nleptons_loose;
-
-      auto const& ak4jets = jetHandler.getAK4Jets();
-      unsigned int nak4jets_selected = 0;
-      for (auto const& jet:ak4jets){
-        float pt = jet->pt();
-        float eta = jet->eta();
-        float phi = jet->phi();
-        float mass = jet->mass();
-
-        if (!jet->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTaggable)) continue;
-
-        unsigned short btagcat = 0;
-        if (jet->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTagged_Loose)) btagcat++;
-        if (jet->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTagged_Medium)) btagcat++;
-        if (jet->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTagged_Tight)) btagcat++;
-
-#define SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, COLLNAME, NAME) COLLNAME##_##NAME.push_back(NAME);
-#define AK4JET_VARIABLE(TYPE, NAME, DEFVAL) ak4jets_##NAME.push_back(jet->extras.NAME);
-        SYNC_AK4JETS_BRANCH_VECTOR_COMMANDS;
-#undef AK4JET_VARIABLE
-#undef SYNC_OBJ_BRANCH_VECTOR_COMMAND
-
-        nak4jets_selected++;
-      }
-
-      // MET info
-      auto const& eventmet = jetHandler.getPFMET();
-
-
-      // BEGIN PRESELECTION
-      seltracker.accumulate("Full sample", wgt_nominal);
-
-      if ((nleptons_tight + nleptons_fakeable)==0) continue;
-      seltracker.accumulate("Has at least one fakeable lepton", wgt_nominal);
-
-      if (nak4jets_selected==0) continue;
-      seltracker.accumulate("Has at least one tight, b-taggable jet", wgt_nominal);
-
-      // Put event filters to the last because data has unique event tracking enabled.
+      // Since we are not processing data, we can put event filters before anything else.
       eventFilter.constructFilters(&simEventHandler);
-      //if (!eventFilter.test2018HEMFilter(&simEventHandler, nullptr, nullptr, &ak4jets)) continue; // Test for 2018 partial HEM failure
-      //if (!eventFilter.test2018HEMFilter(&simEventHandler, &electrons, nullptr, nullptr)) continue; // Test for 2018 partial HEM failure
-      //seltracker.accumulate("Pass HEM veto", wgt);
+
+      seltracker.accumulate("Full sample", wgt_nominal);
       if (!eventFilter.passMETFilters()) continue; // Test for MET filters
       seltracker.accumulate("Pass MET filters", wgt_nominal);
       if (!eventFilter.isUniqueDataEvent()) continue; // Test if the data event is unique (i.e., dorky). Does not do anything in the MC.
       seltracker.accumulate("Pass unique event check", wgt_nominal);
 
-      /*************************************************/
-      /* NO MORE CALLS TO SELECTION BEYOND THIS POINT! */
-      /*************************************************/
-      // Write output
-      rcd_output.setNamedVal("nleptons_tight", nleptons_tight);
-      rcd_output.setNamedVal("nleptons_fakeable", nleptons_fakeable);
-      rcd_output.setNamedVal("nleptons_loose", nleptons_loose);
+      // Loop over jet momentum systematics
+      for (auto const& syst:allowedSysts_MomScale){
+        auto systname = SystematicsHelpers::getSystName(syst);
 
-#define SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, COLLNAME, NAME) rcd_output.setNamedVal(Form("%s_%s", #COLLNAME, #NAME), COLLNAME##_##NAME);
-#define AK4JET_VARIABLE(TYPE, NAME, DEFVAL) SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, ak4jets, NAME)
-      SYNC_ALLOBJS_BRANCH_VECTOR_COMMANDS;
+        muonHandler.constructMuons();
+        electronHandler.constructElectrons();
+        jetHandler.constructJetMET(syst, &simEventHandler);
+
+        particleDisambiguator.disambiguateParticles(&muonHandler, &electronHandler, nullptr, &jetHandler);
+
+        auto const& muons = muonHandler.getProducts();
+        std::vector<MuonObject*> muons_selected;
+        std::vector<MuonObject*> muons_tight;
+        std::vector<MuonObject*> muons_fakeable;
+        std::vector<MuonObject*> muons_loose;
+        for (auto const& part:muons){
+          if (ParticleSelectionHelpers::isTightParticle(part)) muons_tight.push_back(part);
+          else if (ParticleSelectionHelpers::isFakeableParticle(part)) muons_fakeable.push_back(part);
+          else if (ParticleSelectionHelpers::isLooseParticle(part)) muons_loose.push_back(part);
+        }
+        HelperFunctions::appendVector(muons_selected, muons_tight);
+        HelperFunctions::appendVector(muons_selected, muons_fakeable);
+        HelperFunctions::appendVector(muons_selected, muons_loose);
+
+        auto const& electrons = electronHandler.getProducts();
+        std::vector<ElectronObject*> electrons_selected;
+        std::vector<ElectronObject*> electrons_tight;
+        std::vector<ElectronObject*> electrons_fakeable;
+        std::vector<ElectronObject*> electrons_loose;
+        for (auto const& part:electrons){
+          if (ParticleSelectionHelpers::isTightParticle(part)) electrons_tight.push_back(part);
+          else if (ParticleSelectionHelpers::isFakeableParticle(part)) electrons_fakeable.push_back(part);
+          else if (ParticleSelectionHelpers::isLooseParticle(part)) electrons_loose.push_back(part);
+        }
+        HelperFunctions::appendVector(electrons_selected, electrons_tight);
+        HelperFunctions::appendVector(electrons_selected, electrons_fakeable);
+        HelperFunctions::appendVector(electrons_selected, electrons_loose);
+
+        unsigned int const nleptons_tight = muons_tight.size() + electrons_tight.size();
+        unsigned int const nleptons_fakeable = muons_fakeable.size() + electrons_fakeable.size();
+        unsigned int const nleptons_loose = muons_loose.size() + electrons_loose.size();
+        unsigned int const nleptons_selected = nleptons_tight + nleptons_fakeable + nleptons_loose;
+
+        auto const& ak4jets = jetHandler.getAK4Jets();
+        unsigned int nak4jets_selected = 0;
+        for (auto const& jet:ak4jets){
+          float pt = jet->pt();
+          float eta = jet->eta();
+          float phi = jet->phi();
+          float mass = jet->mass();
+
+          if (!jet->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTaggable)) continue;
+
+          unsigned short btagcat = 0;
+          if (jet->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTagged_Loose)) btagcat++;
+          if (jet->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTagged_Medium)) btagcat++;
+          if (jet->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTagged_Tight)) btagcat++;
+
+#define SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, COLLNAME, NAME) COLLNAME##_##NAME.push_back(NAME);
+#define AK4JET_VARIABLE(TYPE, NAME, DEFVAL) ak4jets_##NAME.push_back(jet->extras.NAME);
+          SYNC_AK4JETS_BRANCH_VECTOR_COMMANDS;
 #undef AK4JET_VARIABLE
 #undef SYNC_OBJ_BRANCH_VECTOR_COMMAND
+
+          nak4jets_selected++;
+        }
+
+        // PRESELECTION
+        if ((nleptons_tight + nleptons_fakeable)==0) continue;
+        if (syst==sNominal) seltracker.accumulate("Has at least one fakeable lepton", wgt_nominal);
+
+        if (nak4jets_selected==0) continue;
+        if (syst==sNominal) seltracker.accumulate("Has at least one tight, b-taggable jet", wgt_nominal);
+
+        // No need to apply a HEM veto in the MC
+
+        /****************************************************/
+        /* NO MORE CALLS TO PRESELECTION BEYOND THIS POINT! */
+        /****************************************************/
+        // Write output
+        rcd_output.setNamedVal(Form("nleptons_tight_%s", systname.data()), nleptons_tight);
+        rcd_output.setNamedVal(Form("nleptons_fakeable_%s", systname.data()), nleptons_fakeable);
+        rcd_output.setNamedVal(Form("nleptons_loose_%s", systname.data()), nleptons_loose);
+
+#define SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, COLLNAME, NAME) rcd_output.setNamedVal(Form("%s_%s_%s", #COLLNAME, #NAME, systname.data()), COLLNAME##_##NAME);
+#define AK4JET_VARIABLE(TYPE, NAME, DEFVAL) SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, ak4jets, NAME)
+        SYNC_ALLOBJS_BRANCH_VECTOR_COMMANDS;
+#undef AK4JET_VARIABLE
+#undef SYNC_OBJ_BRANCH_VECTOR_COMMAND
+
+        // Reset the caches because the next systematic should re-reconstruct the particles from scratch
+        muonHandler.resetCache();
+        electronHandler.resetCache();
+        jetHandler.resetCache();
+      }
 
       if (firstOutputEvent){
 #define SIMPLE_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.named##name_t##s.begin(); itb!=rcd_output.named##name_t##s.end(); itb++) tout->putBranch(itb->first, itb->second);

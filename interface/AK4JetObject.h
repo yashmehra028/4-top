@@ -3,6 +3,7 @@
 
 #include "ParticleObject.h"
 #include "BTagCalibrationStandalone.h"
+#include "SystematicVariations.h"
 
 
 #define AK4JET_GENINFO_VARIABLES \
@@ -33,7 +34,12 @@ AK4JET_COMMON_VARIABLES
 
 #define AK4JET_EXTRA_VARIABLES \
 AK4JET_EXTRA_INPUT_VARIABLES \
-AK4JET_VARIABLE(float, JECL1Nominal, 1)
+AK4JET_VARIABLE(float, JECNominal, 1) \
+AK4JET_VARIABLE(float, JECL1Nominal, 1) \
+AK4JET_VARIABLE(float, relJECUnc, 1) \
+AK4JET_VARIABLE(float, JERNominal, 1) \
+AK4JET_VARIABLE(float, JERDn, 1) \
+AK4JET_VARIABLE(float, JERUp, 1)
 
 
 class AK4JetVariables{
@@ -51,7 +57,16 @@ public:
 
 
 class AK4JetObject : public ParticleObject{
+protected:
+  SystematicsHelpers::SystematicVariationTypes currentSyst;
+  float currentJEC;
+  float currentJER;
+  float currentSystScale;
+  LorentzVector_t mom_original;
+
 public:
+  constexpr static float ConeRadiusConstant = 0.4;
+
   AK4JetVariables extras;
 
   AK4JetObject();
@@ -61,6 +76,17 @@ public:
   ~AK4JetObject();
 
   void swap(AK4JetObject& other);
+
+  float const& getJECValue() const{ return this->currentJEC; }
+  float const& getJERValue() const{ return this->currentJER; }
+  SystematicsHelpers::SystematicVariationTypes const& getCurrentSyst() const{ return this->currentSyst; }
+
+  LorentzVector_t uncorrected_p4() const{ return this->mom_original; }
+  void reset_uncorrected_p4(LorentzVector_t const& new_p4){ this->mom_original = new_p4; }
+
+  void computeJECRCorrections(bool recomputeJEC=false);
+
+  void makeFinalMomentum(SystematicsHelpers::SystematicVariationTypes const& syst);
 
   BTagEntry::JetFlavor getBTagJetFlavor() const;
   float getBtagValue() const;

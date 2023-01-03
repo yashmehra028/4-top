@@ -356,7 +356,8 @@ if (MAXSIZE>0) tin->getSelectedTree()->SetBranchStatus(Form("n%s", GlobalCollect
     }
     unsigned int const n_htaus_selected = htaus_selected.size();
 
-    jetHandler.constructJetMET(&simEventHandler);
+    // Passing sNominal is ok because we do not use jet pT explicitly.
+    jetHandler.constructJetMET(SystematicsHelpers::sNominal, &simEventHandler);
     auto const& ak4jets = jetHandler.getAK4Jets();
 
     // Do not apply any requirements using tight leptons because at skim level, we are not supposed to know what a tight lepton is!
@@ -365,12 +366,13 @@ if (MAXSIZE>0) tin->getSelectedTree()->SetBranchStatus(Form("n%s", GlobalCollect
     // Therefore, N>N_req is only going to be slightly inefficient.
     unsigned int const n_ak4jets = ak4jets.size();
     unsigned int n_ak4jets_tight = 0;
-    unsigned int n_ak4jets_tight_btagged_loose = 0; // As the name suggesst, the b-tagging WP is kept as 'loose' as possible.
+    unsigned int n_ak4jets_tight_btagged_loose = 0; // As the name suggests, the b-tagging WP is kept as 'loose' as possible.
     for (auto const& jet:ak4jets){
       // When we count jets, only look for jets that pass jet ID.
       // This way, when we apply JES/JER variations, we can account for changes in Nj/Nb counting because of the migration of some jets close to the pT threshold.
       if (jet->testSelectionBit(AK4JetSelectionHelpers::kJetIdOnly)){
         n_ak4jets_tight++;
+        // The requirement below does not check for jet pT or eta intentionally.
         if (jet->testSelectionBit(AK4JetSelectionHelpers::kBTagged_Loose)) n_ak4jets_tight_btagged_loose++;
       }
     }

@@ -27,9 +27,9 @@ protected:
 
   void clear();
 
-  bool constructAK4Jets();
-  bool constructAK4Jets_LowPt();
-  bool constructMET();
+  bool constructAK4Jets(SystematicsHelpers::SystematicVariationTypes const& syst);
+  bool constructAK4Jets_LowPt(SystematicsHelpers::SystematicVariationTypes const& syst);
+  bool constructMET(SystematicsHelpers::SystematicVariationTypes const& syst);
 
   bool assignMETXYShifts();
 
@@ -40,7 +40,7 @@ public:
   // Destructors
   ~JetMETHandler(){ clear(); }
 
-  bool constructJetMET(SimEventHandler const* simEventHandler);
+  bool constructJetMET(SystematicsHelpers::SystematicVariationTypes const& syst, SimEventHandler const* simEventHandler);
 
   std::vector<AK4JetObject*> const& getAK4Jets() const{ return ak4jets; }
   std::vector<AK4JetObject*> const& getMaskedAK4Jets() const{ return ak4jets_masked; }
