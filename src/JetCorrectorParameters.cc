@@ -4,15 +4,17 @@
 //
 // Generic parameters for Jet corrections
 //
+#include <cassert>
 #include "JetCorrectorParameters.h"
 #include "JetCorrectionUtilities.h"
 #include <iostream>
 #include <iomanip>
 #include <fstream>
 #include <sstream>
-#include <stdlib.h>
+#include <cstdlib>
 #include <algorithm>
 #include <cmath>
+#include <array>
 #include <iterator>
 #include <stdexcept>
 #include "TString.h"
@@ -348,54 +350,69 @@ void JetCorrectorParameters::printFile(const std::string& fFileName) const
 }
 
 
-
-const char *
-JetCorrectorParametersCollection::labelsArray_[JetCorrectorParametersCollection::N_LEVELS] =
-{
-  "L1Offset",
-  "L2Relative",
-  "L3Absolute",
-  "L4EMF",
-  "L5Flavor",
-  "L6UE",
-  "L7Parton",
-  "L1JPTOffset",
-  "L2L3Residual",
-  "Uncertainty",
-  "L1FastJet"
-};
-
-const char *
-JetCorrectorParametersCollection::l5FlavorArray_[JetCorrectorParametersCollection::N_L5_SPECIES] =
-{
-  "L5Flavor_bJ",
-  "L5Flavor_cJ",
-  "L5Flavor_qJ",
-  "L5Flavor_gJ",
-  "L5Flavor_bT",
-  "L5Flavor_cT",
-  "L5Flavor_qT",
-  "L5Flavor_gT"
-};
-
-const char *
-JetCorrectorParametersCollection::l7PartonArray_[JetCorrectorParametersCollection::N_L7_SPECIES] =
-{
-  "L7Parton_gJ",
-  "L7Parton_qJ",
-  "L7Parton_cJ",
-  "L7Parton_bJ",
-  "L7Parton_jJ",
-  "L7Parton_qT",
-  "L7Parton_cT",
-  "L7Parton_bT",
-  "L7Parton_tT"
-};
-
-
-std::vector<std::string> JetCorrectorParametersCollection::labels_    = std::vector<std::string>(labelsArray_, labelsArray_   + sizeof(labelsArray_)/sizeof(*labelsArray_));
-std::vector<std::string> JetCorrectorParametersCollection::l5Flavors_ = std::vector<std::string>(l5FlavorArray_, l5FlavorArray_ + sizeof(l5FlavorArray_)/sizeof(*l5FlavorArray_));
-std::vector<std::string> JetCorrectorParametersCollection::l7Partons_ = std::vector<std::string>(l7PartonArray_, l7PartonArray_ + sizeof(l7PartonArray_)/sizeof(*l7PartonArray_));
+namespace{
+  std::array<std::string, JetCorrectorParametersCollection::N_LEVELS> const labels_{
+    "L1Offset",
+    "L2Relative",
+    "L3Absolute",
+    "L4EMF",
+    "L5Flavor",
+    "L6UE",
+    "L7Parton",
+    "L1JPTOffset",
+    "L2L3Residual",
+    "Uncertainty",
+    "L1FastJet",
+    "UncertaintyAbsolute",
+    "UncertaintyHighPtExtra",
+    "UncertaintySinglePionECAL",
+    "UncertaintyFlavor",
+    "UncertaintyTime",
+    "UncertaintyRelativeJEREC1",
+    "UncertaintyRelativeJEREC2",
+    "UncertaintyRelativeJERHF",
+    "UncertaintyRelativeStatEC2",
+    "UncertaintyRelativeStatHF",
+    "UncertaintyRelativeFSR",
+    "UncertaintyPileUpDataMC",
+    "UncertaintyPileUpOOT",
+    "UncertaintyPileUpPtBB",
+    "UncertaintyPileUpBias",
+    "UncertaintyPileUpJetRate",
+    "UncertaintySinglePionHCAL",
+    "UncertaintyRelativePtEC1",
+    "UncertaintyRelativePtEC2",
+    "UncertaintyRelativePtHF",
+    "UncertaintyRelativeSample",
+    "UncertaintyPileUpPtEC",
+    "UncertaintyPileUpPtHF",
+    "L1RC",
+    "L1Residual",
+    "UncertaintyAux3",
+    "UncertaintyAux4"
+  };
+  std::array<std::string, JetCorrectorParametersCollection::N_L5_SPECIES> const l5Flavors_{
+    "L5Flavor_bJ",
+    "L5Flavor_cJ",
+    "L5Flavor_qJ",
+    "L5Flavor_gJ",
+    "L5Flavor_bT",
+    "L5Flavor_cT",
+    "L5Flavor_qT",
+    "L5Flavor_gT"
+  };
+  std::array<std::string, JetCorrectorParametersCollection::N_L7_SPECIES> const l7Partons_{
+    "L7Parton_gJ",
+    "L7Parton_qJ",
+    "L7Parton_cJ",
+    "L7Parton_bJ",
+    "L7Parton_jJ",
+    "L7Parton_qT",
+    "L7Parton_cT",
+    "L7Parton_bT",
+    "L7Parton_tT"
+  };
+}
 
 
 void JetCorrectorParametersCollection::getSections(std::string inputFile,
@@ -493,8 +510,7 @@ void JetCorrectorParametersCollection::validKeys(std::vector<key_type> & keys) c
 // Find the L5 bin for hashing
 JetCorrectorParametersCollection::key_type
 JetCorrectorParametersCollection::getL5Bin(std::string const & flav){
-  std::vector<std::string>::const_iterator found =
-    find(l5Flavors_.begin(), l5Flavors_.end(), flav);
+  auto found = std::find(l5Flavors_.begin(), l5Flavors_.end(), flav);
   if (found != l5Flavors_.end()) {
     return (found - l5Flavors_.begin() + 1) * 100;
   }
@@ -503,8 +519,7 @@ JetCorrectorParametersCollection::getL5Bin(std::string const & flav){
 // Find the L7 bin for hashing
 JetCorrectorParametersCollection::key_type
 JetCorrectorParametersCollection::getL7Bin(std::string const & flav){
-  std::vector<std::string>::const_iterator found =
-    find(l7Partons_.begin(), l7Partons_.end(), flav);
+  auto found = std::find(l7Partons_.begin(), l7Partons_.end(), flav);
   if (found != l7Partons_.end()) {
     return (found - l7Partons_.begin() + 1) * 1000;
   }
@@ -527,22 +542,19 @@ bool JetCorrectorParametersCollection::isL7(key_type k) {
 JetCorrectorParametersCollection::key_type
 JetCorrectorParametersCollection::findKey(std::string const & label) const {
   // First check L5 corrections
-  std::vector<std::string>::const_iterator found1 =
-    find(l5Flavors_.begin(), l5Flavors_.end(), label);
+  auto found1 = std::find(l5Flavors_.begin(), l5Flavors_.end(), label);
   if (found1 != l5Flavors_.end()) {
     return getL5Bin(label);
   }
 
   // Next check L7 corrections
-  std::vector<std::string>::const_iterator found2 =
-    find(l7Partons_.begin(), l7Partons_.end(), label);
+  auto found2 = std::find(l7Partons_.begin(), l7Partons_.end(), label);
   if (found2 != l7Partons_.end()) {
     return getL7Bin(label);
   }
 
   // Finally check the default corrections
-  std::vector<std::string>::const_iterator found3 =
-    find(labels_.begin(), labels_.end(), label);
+  auto found3 = std::find(labels_.begin(), labels_.end(), label);
   if (found3 != labels_.end()) {
     return static_cast<key_type>(found3 - labels_.begin());
   }
@@ -551,4 +563,22 @@ JetCorrectorParametersCollection::findKey(std::string const & label) const {
   throw std::out_of_range(Form("[JetCorrectorParameterCollecion::findKey()]: cannot find label %s", label.c_str()));
 
   return -1;
+}
+
+std::string JetCorrectorParametersCollection::findLabel(key_type k){
+  if (isL5(k)) return findL5Flavor(k);
+  else if (isL7(k)) return findL7Parton(k);
+  else                return labels_[k];
+}
+
+std::string JetCorrectorParametersCollection::findL5Flavor(key_type k){
+  if (k == L5Flavor) return labels_[L5Flavor];
+  else
+    return l5Flavors_[k / 100 - 1];
+}
+
+std::string JetCorrectorParametersCollection::findL7Parton(key_type k){
+  if (k == L7Parton) return labels_[L7Parton];
+  else
+    return l7Partons_[k / 1000 - 1];
 }
