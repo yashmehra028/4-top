@@ -10,12 +10,9 @@ namespace JESRHelpers{
 
   enum JetType{
     kAK4PFCHS,
-    kAK8PFPuppi
-  };
-  enum JetSystematicType{
-    sNominal,
-    sJESUp, sJESDn,
-    sJERUp, sJERDn
+    kAK4PFPuppi,
+    kAK8PFPuppi,
+    nJetTypes
   };
 
   TString getJetTypeName(JetType type);

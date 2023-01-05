@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <utility>
 #include "AK4JetObject.h"
+#include "MuonObject.h"
 #include "BtagHelpers.h"
 #include "AK4JetSelectionHelpers.h"
 #include "IvyFramework/IvyDataTools/interface/IvyStreamHelpers.hh"
@@ -35,6 +36,7 @@ AK4JetVariables& AK4JetVariables::operator=(const AK4JetVariables& other){
 AK4JetObject::AK4JetObject() :
   ParticleObject(),
   mom_original(0, 0, 0, 0),
+  mom_mucands(0, 0, 0, 0),
   currentSyst(SystematicsHelpers::sNominal),
   currentJEC(1),
   currentJER(1),
@@ -44,6 +46,7 @@ AK4JetObject::AK4JetObject() :
 AK4JetObject::AK4JetObject(LorentzVector_t const& momentum_) :
   ParticleObject(0, momentum_),
   mom_original(momentum_),
+  mom_mucands(0, 0, 0, 0),
   currentSyst(SystematicsHelpers::sNominal),
   currentJEC(1),
   currentJER(1),
@@ -53,6 +56,7 @@ AK4JetObject::AK4JetObject(LorentzVector_t const& momentum_) :
 AK4JetObject::AK4JetObject(const AK4JetObject& other) :
   ParticleObject(other),
   mom_original(other.mom_original),
+  mom_mucands(other.mom_mucands),
   currentSyst(other.currentSyst),
   currentJEC(other.currentJEC),
   currentJER(other.currentJER),
@@ -62,6 +66,7 @@ AK4JetObject::AK4JetObject(const AK4JetObject& other) :
 void AK4JetObject::swap(AK4JetObject& other){
   ParticleObject::swap(other);
   std::swap(mom_original, other.mom_original);
+  std::swap(mom_mucands, other.mom_mucands);
   std::swap(currentSyst, other.currentSyst);
   std::swap(currentJEC, other.currentJEC);
   std::swap(currentJER, other.currentJER);
@@ -92,15 +97,6 @@ float AK4JetObject::getBtagValue() const{
     assert(0);
   }
   return -1;
-}
-
-void AK4JetObject::computeJECRCorrections(bool recomputeJEC){
-  extras.JECNominal = 1./(1. - extras.rawFactor);
-  mom_original = momentum * (1./extras.JECNominal);
-
-  if (recomputeJEC){
-
-  }
 }
 
 void AK4JetObject::makeFinalMomentum(SystematicsHelpers::SystematicVariationTypes const& syst){

@@ -63,6 +63,7 @@ protected:
   float currentJER;
   float currentSystScale;
   LorentzVector_t mom_original;
+  LorentzVector_t mom_mucands;
 
 public:
   constexpr static float ConeRadiusConstant = 0.4;
@@ -84,7 +85,8 @@ public:
   LorentzVector_t uncorrected_p4() const{ return this->mom_original; }
   void reset_uncorrected_p4(LorentzVector_t const& new_p4){ this->mom_original = new_p4; }
 
-  void computeJECRCorrections(bool recomputeJEC=false);
+  LorentzVector_t const& p4_mucands() const{ return this->mom_mucands; }
+  void reset_p4_mucands(LorentzVector_t const& new_p4){ this->mom_mucands = new_p4; }
 
   void makeFinalMomentum(SystematicsHelpers::SystematicVariationTypes const& syst);
 

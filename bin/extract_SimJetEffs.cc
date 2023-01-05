@@ -367,7 +367,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
         muonHandler.constructMuons();
         electronHandler.constructElectrons();
-        jetHandler.constructJetMET(syst, &simEventHandler);
+        jetHandler.constructJetMET(&simEventHandler, syst);
 
         particleDisambiguator.disambiguateParticles(&muonHandler, &electronHandler, nullptr, &jetHandler);
 

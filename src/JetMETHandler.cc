@@ -5,6 +5,7 @@
 #include "SamplesCore.h"
 #include "JetMETHandler.h"
 #include "AK4JetSelectionHelpers.h"
+#include "IvyFramework/IvyDataTools/interface/IvyStreamHelpers.hh"
 
 
 using namespace std;
@@ -33,6 +34,9 @@ const std::string JetMETHandler::colName_pfmet = GlobalCollectionNames::colName_
 JetMETHandler::JetMETHandler() :
   IvyBase(),
 
+  jecHandler_ak4jets(nullptr),
+  doComputeJECRCorrections(true),
+
   pfmet(nullptr),
   pfmet_XYcorr_xCoeffA(0),
   pfmet_XYcorr_xCoeffB(0),
@@ -56,6 +60,8 @@ JetMETHandler::JetMETHandler() :
 #define JETMET_METXY_VERTEX_VARIABLE(TYPE, NAME) this->addConsumed<TYPE>(GlobalCollectionNames::colName_pv + "_" + #NAME);
   JETMET_METXY_VERTEX_VARIABLES;
 #undef JETMET_METXY_VERTEX_VARIABLE
+
+  this->addConsumed<float>(GlobalCollectionNames::colName_energyFlux + "All");
 }
 
 void JetMETHandler::clear(){
@@ -68,10 +74,7 @@ void JetMETHandler::clear(){
   delete pfmet; pfmet=nullptr;
 }
 
-bool JetMETHandler::constructJetMET(
-  SystematicsHelpers::SystematicVariationTypes const& syst,
-  SimEventHandler const* simEventHandler
-){
+bool JetMETHandler::constructJetMET(SimEventHandler const* simEventHandler, SystematicsHelpers::SystematicVariationTypes const& syst){
   if (this->isAlreadyCached()) return true;
 
   clear();
@@ -90,7 +93,8 @@ bool JetMETHandler::constructJetMET(
 bool JetMETHandler::constructAK4Jets(SystematicsHelpers::SystematicVariationTypes const& syst){
   bool const isData = SampleHelpers::checkSampleIsData(currentTree->sampleIdentifier);
 
-  GlobalCollectionNames::collsize_t nProducts;
+  float rho = 0;
+  GlobalCollectionNames::collsize_t nProducts = 0;
 #define AK4JET_VARIABLE(TYPE, NAME, DEFVAL) TYPE* const* arr_##NAME = nullptr;
   VECTOR_ITERATOR_HANDLER_DIRECTIVES_AK4JETS;
   AK4JET_GENINFO_VARIABLES;
@@ -104,11 +108,12 @@ bool JetMETHandler::constructAK4Jets(SystematicsHelpers::SystematicVariationType
     AK4JET_GENINFO_VARIABLES;
   }
 #undef AK4JET_VARIABLE
+  allVariablesPresent &= this->getConsumedValue(GlobalCollectionNames::colName_energyFlux + "All", rho);
+
   if (!allVariablesPresent){
     if (this->verbosity>=MiscUtils::ERROR) IVYerr << "JetMETHandler::constructAK4Jets: Not all variables are consumed properly!" << endl;
     assert(0);
   }
-
   if (this->verbosity>=MiscUtils::DEBUG) IVYout << "JetMETHandler::constructAK4Jets: All variables are set up!" << endl;
 
   /************/
@@ -140,8 +145,12 @@ bool JetMETHandler::constructAK4Jets(SystematicsHelpers::SystematicVariationType
       // Set particle index as its unique identifier
       obj->setUniqueIdentifier(ip);
 
+      // Reset uncorrected p4 in regular jets
+      obj->extras.JECNominal = 1./(1. - obj->extras.rawFactor);
+      obj->reset_uncorrected_p4((obj->p4() * (1./obj->extras.JECNominal)));
+
       // Compute all JEC/JER quantities
-      obj->computeJECRCorrections(false);
+      computeJECRCorrections(*obj, rho, isData, false);
 
       // Replace momentum
       obj->makeFinalMomentum(syst);
@@ -166,7 +175,8 @@ bool JetMETHandler::constructAK4Jets(SystematicsHelpers::SystematicVariationType
 bool JetMETHandler::constructAK4Jets_LowPt(SystematicsHelpers::SystematicVariationTypes const& syst){
   bool const isData = SampleHelpers::checkSampleIsData(currentTree->sampleIdentifier);
 
-  GlobalCollectionNames::collsize_t nProducts;
+  float rho = 0;
+  GlobalCollectionNames::collsize_t nProducts = 0;
 #define AK4JET_LOWPT_VARIABLE(TYPE, NAME, DEFVAL) TYPE* const* arr_##NAME = nullptr;
   VECTOR_ITERATOR_HANDLER_DIRECTIVES_AK4JETS_LOWPT;
 #undef AK4JET_LOWPT_VARIABLE
@@ -176,11 +186,12 @@ bool JetMETHandler::constructAK4Jets_LowPt(SystematicsHelpers::SystematicVariati
 #define AK4JET_LOWPT_VARIABLE(TYPE, NAME, DEFVAL) allVariablesPresent &= this->getConsumed<TYPE* const>(JetMETHandler::colName_ak4jets_lowpt + "_" + #NAME, arr_##NAME);
   VECTOR_ITERATOR_HANDLER_DIRECTIVES_AK4JETS_LOWPT;
 #undef AK4JET_LOWPT_VARIABLE
+  allVariablesPresent &= this->getConsumedValue(GlobalCollectionNames::colName_energyFlux + "All", rho);
+
   if (!allVariablesPresent){
     if (this->verbosity>=MiscUtils::ERROR) IVYerr << "JetMETHandler::constructAK4Jets_LowPt: Not all variables are consumed properly!" << endl;
     assert(0);
   }
-
   if (this->verbosity>=MiscUtils::DEBUG) IVYout << "JetMETHandler::constructAK4Jets_LowPt: All variables are set up!" << endl;
 
   ak4jets_masked.reserve(nProducts);
@@ -202,8 +213,8 @@ bool JetMETHandler::constructAK4Jets_LowPt(SystematicsHelpers::SystematicVariati
       AK4JET_LOWPT_EXTRA_INPUT_VARIABLES;
 #undef AK4JET_LOWPT_VARIABLE
 
-      // Compute all JEC/JER quantities
-      obj->computeJECRCorrections(false);
+      // Low-pT jets are uncorrected, so Type-1 corrections should always be calculated.
+      computeJECRCorrections(*obj, rho, isData, true);
 
       // Replace momentum
       obj->makeFinalMomentum(syst);
@@ -439,6 +450,32 @@ tree->bookArrayBranch<TYPE>(JetMETHandler::colName_ak4jets + "_" + #NAME, DEFVAL
 #define JETMET_METXY_VERTEX_VARIABLE(TYPE, NAME) tree->bookBranch<TYPE>(GlobalCollectionNames::colName_pv + "_" + #NAME, 0);
   JETMET_METXY_VERTEX_VARIABLES;
 #undef JETMET_METXY_VERTEX_VARIABLE
+
+  // Energy flux variables
+  tree->bookBranch<float>(GlobalCollectionNames::colName_energyFlux + "All", 0);
+}
+
+bool JetMETHandler::computeJECRCorrections(AK4JetObject& obj, float const& rho, bool const& isData, bool recomputeJEC){
+  if (!doComputeJECRCorrections) return true;
+
+  if (!jecHandler_ak4jets){
+    // First-time setup
+    auto const& dy = SampleHelpers::getDataYear();
+
+    // Initialize JEC applicator
+    JESRHelpers::JetType type_ak4jets = JESRHelpers::nJetTypes;
+    if (dy<=2018) type_ak4jets = JESRHelpers::kAK4PFCHS;
+    else if (dy==2022) type_ak4jets = JESRHelpers::kAK4PFPuppi;
+    else{
+      IVYerr << "JetMETHandler::JetMETHandler: ak4 jet type is unknown for year " << dy << endl;
+      assert(0);
+      return false;
+    }
+    jecHandler_ak4jets = new JECScaleFactorHandler(type_ak4jets);
+  }
+  jecHandler_ak4jets->applyJEC(&obj, rho, !isData, recomputeJEC);
+
+  return true;
 }
 
 

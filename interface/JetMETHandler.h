@@ -4,9 +4,13 @@
 #include <vector>
 #include "IvyBase.h"
 #include "SimEventHandler.h"
+#include "MuonObject.h"
+#include "ElectronObject.h"
+#include "PhotonObject.h"
 #include "AK4JetObject.h"
 #include "METObject.h"
 #include "ParticleDisambiguator.h"
+#include "JECScaleFactorHandler.h"
 
 
 class JetMETHandler : public IvyBase{
@@ -18,6 +22,9 @@ public:
 protected:
   friend class ParticleDisambiguator;
 
+  JECScaleFactorHandler* jecHandler_ak4jets;
+  bool doComputeJECRCorrections;
+
   std::vector<AK4JetObject*> ak4jets;
   std::vector<AK4JetObject*> ak4jets_masked;
 
@@ -27,20 +34,22 @@ protected:
 
   void clear();
 
-  bool constructAK4Jets(SystematicsHelpers::SystematicVariationTypes const& syst);
+  bool constructAK4Jets( SystematicsHelpers::SystematicVariationTypes const& syst);
   bool constructAK4Jets_LowPt(SystematicsHelpers::SystematicVariationTypes const& syst);
   bool constructMET(SystematicsHelpers::SystematicVariationTypes const& syst);
 
   bool assignMETXYShifts();
+
+  bool computeJECRCorrections(AK4JetObject& obj, float const& rho, bool const& isData, bool recomputeJEC);
 
 public:
   // Constructors
   JetMETHandler();
 
   // Destructors
-  ~JetMETHandler(){ clear(); }
+  ~JetMETHandler(){ clear(); delete jecHandler_ak4jets; }
 
-  bool constructJetMET(SystematicsHelpers::SystematicVariationTypes const& syst, SimEventHandler const* simEventHandler);
+  bool constructJetMET(SimEventHandler const* simEventHandler, SystematicsHelpers::SystematicVariationTypes const& syst);
 
   std::vector<AK4JetObject*> const& getAK4Jets() const{ return ak4jets; }
   std::vector<AK4JetObject*> const& getMaskedAK4Jets() const{ return ak4jets_masked; }
@@ -49,6 +58,8 @@ public:
   bool wrapTree(BaseTree* tree);
 
   void bookBranches(BaseTree* tree);
+
+  void setComputeJECRCorrections(bool flag){ doComputeJECRCorrections = flag; }
 };
 
 

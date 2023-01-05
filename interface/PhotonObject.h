@@ -9,7 +9,8 @@
 #define PHOTON_EXTRA_VARIABLES \
 PHOTON_VARIABLE(bool, isScEtaEB, 0) \
 PHOTON_VARIABLE(bool, isScEtaEE, 0) \
-PHOTON_VARIABLE(bool, cutBased, 0)
+PHOTON_VARIABLE(bool, cutBased, 0) \
+PHOTON_VARIABLE(int, jetIdx, -1)
 
 
 class PhotonVariables{

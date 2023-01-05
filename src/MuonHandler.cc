@@ -2,6 +2,7 @@
 
 #include "IvyFramework/IvyDataTools/interface/ParticleObjectHelpers.h"
 #include "GlobalCollectionNames.h"
+#include "SamplesCore.h"
 #include "MuonHandler.h"
 #include "MuonSelectionHelpers.h"
 
@@ -26,10 +27,24 @@ MuonHandler::MuonHandler() :
   this->addConsumed<GlobalCollectionNames::collsize_t>(Form("n%s", MuonHandler::colName.data()));
 #define MUON_VARIABLE(TYPE, NAME, DEFVAL) this->addConsumed<TYPE* const>(MuonHandler::colName + "_" + #NAME);
   MUON_MOMENTUM_VARIABLES;
-  MUON_EXTRA_VARIABLES;
+  MUON_EXTRA_UNUSED_VARIABLES_COMMON;
+  MUON_EXTRA_USED_VARIABLES_COMMON;
+
+  auto const& dy = SampleHelpers::getDataYear();
+  if (dy>=2015 && dy<=2018){
+    MUON_EXTRA_UNUSED_VARIABLES_RUN2;
+    MUON_EXTRA_USED_VARIABLES_RUN2;
+  }
+  else if (dy==2022){
+    MUON_EXTRA_UNUSED_VARIABLES_RUN3;
+    MUON_EXTRA_USED_VARIABLES_RUN3;
+  }
+  else{
+    IVYerr << "MuonHandler::MuonHandler: Could not identify data year to determine year-dependent variable names." << endl;
+    assert(0);
+  }
 #undef MUON_VARIABLE
 }
-
 
 bool MuonHandler::constructMuons(){
   if (this->isAlreadyCached()) return true;
@@ -44,8 +59,10 @@ bool MuonHandler::constructMuons(){
 }
 
 bool MuonHandler::constructMuonObjects(){
+  auto const& dy = SampleHelpers::getDataYear();
+
   GlobalCollectionNames::collsize_t nProducts;
-#define MUON_VARIABLE(TYPE, NAME, DEFVAL) TYPE* const* arr_##NAME;
+#define MUON_VARIABLE(TYPE, NAME, DEFVAL) TYPE* const* arr_##NAME = nullptr;
   MUON_MOMENTUM_VARIABLES;
   MUON_EXTRA_VARIABLES;
 #undef MUON_VARIABLE
@@ -54,7 +71,21 @@ bool MuonHandler::constructMuonObjects(){
   bool allVariablesPresent = this->getConsumedValue(Form("n%s", MuonHandler::colName.data()), nProducts);
 #define MUON_VARIABLE(TYPE, NAME, DEFVAL) allVariablesPresent &= this->getConsumed<TYPE* const>(MuonHandler::colName + "_" + #NAME, arr_##NAME);
   MUON_MOMENTUM_VARIABLES;
-  MUON_EXTRA_VARIABLES;
+  MUON_EXTRA_UNUSED_VARIABLES_COMMON;
+  MUON_EXTRA_USED_VARIABLES_COMMON;
+
+  if (dy>=2015 && dy<=2018){
+    MUON_EXTRA_UNUSED_VARIABLES_RUN2;
+    MUON_EXTRA_USED_VARIABLES_RUN2;
+  }
+  else if (dy==2022){
+    MUON_EXTRA_UNUSED_VARIABLES_RUN3;
+    MUON_EXTRA_USED_VARIABLES_RUN3;
+  }
+  else{
+    IVYerr << "MuonHandler::constructMuonObjects: Could not identify data year to determine year-dependent variable names." << endl;
+    assert(0);
+  }
 #undef MUON_VARIABLE
 
   if (!allVariablesPresent){
@@ -67,7 +98,7 @@ bool MuonHandler::constructMuonObjects(){
   if (nProducts==0) return true; // Construction is successful, it is just that no muons exist.
 
   productList.reserve(nProducts);
-#define MUON_VARIABLE(TYPE, NAME, DEFVAL) TYPE* it_##NAME = &((*arr_##NAME)[0]);
+#define MUON_VARIABLE(TYPE, NAME, DEFVAL) TYPE* it_##NAME = nullptr; if (arr_##NAME) it_##NAME = &((*arr_##NAME)[0]);
   MUON_MOMENTUM_VARIABLES;
   MUON_EXTRA_VARIABLES
 #undef MUON_VARIABLE
@@ -82,7 +113,7 @@ bool MuonHandler::constructMuonObjects(){
       MuonObject*& obj = productList.back();
 
       // Set extras
-#define MUON_VARIABLE(TYPE, NAME, DEFVAL) obj->extras.NAME = *it_##NAME;
+#define MUON_VARIABLE(TYPE, NAME, DEFVAL) if (it_##NAME) obj->extras.NAME = *it_##NAME;
       MUON_EXTRA_VARIABLES;
 #undef MUON_VARIABLE
 
@@ -113,7 +144,22 @@ void MuonHandler::bookBranches(BaseTree* tree){
   tree->bookBranch<GlobalCollectionNames::collsize_t>(Form("n%s", MuonHandler::colName.data()), 0);
 #define MUON_VARIABLE(TYPE, NAME, DEFVAL) tree->bookArrayBranch<TYPE>(MuonHandler::colName + "_" + #NAME, DEFVAL, GlobalCollectionNames::colMaxSize_muons);
   MUON_MOMENTUM_VARIABLES;
-  MUON_EXTRA_VARIABLES;
+  MUON_EXTRA_UNUSED_VARIABLES_COMMON;
+  MUON_EXTRA_USED_VARIABLES_COMMON;
+
+  auto const& dy = SampleHelpers::getDataYear();
+  if (dy>=2015 && dy<=2018){
+    MUON_EXTRA_UNUSED_VARIABLES_RUN2;
+    MUON_EXTRA_USED_VARIABLES_RUN2;
+  }
+  else if (dy==2022){
+    MUON_EXTRA_UNUSED_VARIABLES_RUN3;
+    MUON_EXTRA_USED_VARIABLES_RUN3;
+  }
+  else{
+    IVYerr << "MuonHandler::bookBranches: Could not identify data year to determine year-dependent variable names." << endl;
+    assert(0);
+  }
 #undef MUON_VARIABLE
 }
 

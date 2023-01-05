@@ -2,11 +2,13 @@
 #define PARTICLEDISAMBIGUATOR_H
 
 #include <vector>
+#include <memory>
 #include "MuonObject.h"
 #include "ElectronObject.h"
 #include "PhotonObject.h"
 #include "HadronicTauObject.h"
 #include "AK4JetObject.h"
+#include "METObject.h"
 
 
 class MuonHandler;
@@ -24,11 +26,12 @@ protected:
     std::vector<PhotonObject*>*& photons,
     std::vector<HadronicTauObject*>*& htaus,
     std::vector<AK4JetObject*>*& ak4jets,
-    std::vector<AK4JetObject*>*& ak4jets_masked
-  );
+    std::vector<AK4JetObject*>*& ak4jets_masked,
+    METObject* met
+  ) const;
 
 public:
-  ParticleDisambiguator(){};
+  ParticleDisambiguator(){}
 
   void disambiguateParticles(
     MuonHandler* muonHandle,
@@ -36,7 +39,7 @@ public:
     PhotonHandler* photonHandle,
     JetMETHandler* jetHandle,
     HadronicTauHandler* htauHandle = nullptr
-  );
+  ) const;
 
 };
 

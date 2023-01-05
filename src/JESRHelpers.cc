@@ -12,6 +12,7 @@ using namespace IvyStreamHelpers;
 
 TString JESRHelpers::getJetTypeName(JetType type){
   if (type==kAK4PFCHS) return "AK4PFchs";
+  if (type==kAK4PFPuppi) return "AK4PFPuppi";
   else if (type==kAK8PFPuppi) return "AK8PFPuppi";
   else{ IVYerr << "JESRHelpers::getJetTypeName: JetType " << type << " is not implemented!" << endl; assert(0); return ""; }
 }
