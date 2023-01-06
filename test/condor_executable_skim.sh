@@ -13,12 +13,12 @@ OUTPUTNAME=$(echo $OUTPUTNAME | sed 's/\.root//')
 
 export SCRAM_ARCH=${SCRAMARCH}
 
-function getjobad{
+function getjobad {
   if [[ ! -z "${_CONDOR_JOB_AD+x}" ]]; then
     grep -i "^$1" "${_CONDOR_JOB_AD}" | cut -d= -f2- | xargs echo
   fi
 }
-function setup_chirp{
+function setup_chirp {
   if [[ -e condor_chirp ]]; then
     mkdir chirpdir
     mv condor_chirp chirpdir/
@@ -31,7 +31,7 @@ function setup_chirp{
     echo "[chirp] No condor_chirp :("
   fi
 }
-function chirp{
+function chirp {
   command -v condor_chirp &> /dev/null
   if [[ $? -ne 0 ]]; then
     exit 0 # Just exit normally
