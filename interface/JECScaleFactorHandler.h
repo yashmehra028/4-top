@@ -33,7 +33,7 @@ public:
   bool setup();
   void reset();
 
-  void applyJEC(ParticleObject* obj, float const& rho, bool isMC, bool doRecompute);
+  void applyJEC(ParticleObject* obj, float const& rho, bool isMC);
 
 };
 

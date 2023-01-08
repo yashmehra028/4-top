@@ -104,8 +104,8 @@ bool BtagScaleFactorHandler::setup(){
 
   std::vector<SystematicsHelpers::SystematicVariationTypes> const allowedSysts{
     sNominal,
-    //eJECDn, eJECUp,
-    //eJERDn, eJERUp,
+    eJECDn, eJECUp,
+    eJERDn, eJERUp,
     ePUDn, ePUUp,
     ePUJetIdEffDn, ePUJetIdEffUp
   };
@@ -217,8 +217,8 @@ void BtagScaleFactorHandler::getSFAndEff(SystematicsHelpers::SystematicVariation
 
   std::vector<SystematicsHelpers::SystematicVariationTypes> allowedJetSysts{
     sNominal,
-    //eJECDn, eJECUp,
-    //eJERDn, eJERUp,
+    eJECDn, eJECUp,
+    eJERDn, eJERUp,
     ePUDn, ePUUp
   };
   if (pujetidcat>=0){

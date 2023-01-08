@@ -68,6 +68,13 @@ public:
   void setAcquireGenAK4Jets(bool flag){ acquireGenAK4Jets=flag; }
   //void setAcquireGenAK8Jets(bool flag){ acquireGenAK8Jets=flag; }
 
+
+  bool const& getAcquireCoreGenInfo() const{ return acquireCoreGenInfo; }
+  bool const& getAcquireLHEParticles() const{ return acquireLHEParticles; }
+  bool const& getAcquireGenParticles() const{ return acquireGenParticles; }
+  bool const& getAcquireGenAK4Jets() const{ return acquireGenAK4Jets; }
+  //bool const& getAcquireGenAK8Jets() const{ return acquireGenAK8Jets; }
+
   // This function needs to be called the first time K factors are computed.
   // Once they are compute and stored, they can be retrieved automatically.
   void setupKFactorHandles(std::vector<std::string> const& strkfactoropts);

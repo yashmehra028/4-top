@@ -68,7 +68,9 @@ void JECScaleFactorHandler::reset(){
   delete uncertaintyEstimator_MC; uncertaintyEstimator_MC = nullptr;
 }
 
-void JECScaleFactorHandler::applyJEC(ParticleObject* obj, float const& rho, bool isMC, bool doRecompute){
+void JECScaleFactorHandler::applyJEC(ParticleObject* obj, float const& rho, bool isMC){
+  static bool printFirstWarning = false;
+
   AK4JetObject* ak4jet = dynamic_cast<AK4JetObject*>(obj);
   if (
     !(
@@ -88,7 +90,6 @@ void JECScaleFactorHandler::applyJEC(ParticleObject* obj, float const& rho, bool
   JetCorrectionUncertainty* uncEst = nullptr;
   if (isMC) uncEst = uncertaintyEstimator_MC;
 
-  // Unfortunately, we also need to record the version of JEC without the muons, so we need to create new vectors
   auto const& jet_p4_uncor = ak4jet->uncorrected_p4();
   double jpt_unc = jet_p4_uncor.Pt();
   double jeta_unc = jet_p4_uncor.Eta();
@@ -105,11 +106,11 @@ void JECScaleFactorHandler::applyJEC(ParticleObject* obj, float const& rho, bool
     std::vector<float> const corr_vals = corrector->getSubCorrections(); // Subcorrections are stored with corr_vals(N) = corr(N)*corr(N-1)*...*corr(1)
     auto const& JEC_L1L2L3_comp = corr_vals.back();
     JEC_L1 = corr_vals.front();
-    if (doRecompute) JEC = JEC_L1L2L3_comp;
-    else if (std::abs(JEC_L1L2L3_comp - JEC)>JEC*0.01){
-      IVYerr << "JECScaleFactorHandler::applyJEC: Nominal JEC value " << JEC << " != " << JEC_L1L2L3_comp << "." << endl;
-      JEC_L1 *= JEC / JEC_L1L2L3_comp;
+    if (!printFirstWarning && std::abs(JEC_L1L2L3_comp - JEC)>JEC*0.01){
+      printFirstWarning = true;
+      IVYout << "JECScaleFactorHandler::applyJEC: WARNING! Nominal JEC value " << JEC << " != " << JEC_L1L2L3_comp << "." << endl;
     }
+    JEC = JEC_L1L2L3_comp;
   }
 
   if (JEC<0.f){

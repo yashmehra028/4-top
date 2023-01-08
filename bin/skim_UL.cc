@@ -360,7 +360,7 @@ if (MAXSIZE>0) tin->getSelectedTree()->SetBranchStatus(Form("n%s", GlobalCollect
     unsigned int const n_htaus_selected = htaus_selected.size();
 
     // Passing sNominal is ok because we do not use jet pT explicitly.
-    jetHandler.constructJetMET(&simEventHandler, SystematicsHelpers::sNominal);
+    jetHandler.constructJetMET(&genInfoHandler, &simEventHandler, SystematicsHelpers::sNominal);
     auto const& ak4jets = jetHandler.getAK4Jets();
 
     // Do not apply any requirements using tight leptons because at skim level, we are not supposed to know what a tight lepton is!

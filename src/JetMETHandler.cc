@@ -74,14 +74,30 @@ void JetMETHandler::clear(){
   delete pfmet; pfmet=nullptr;
 }
 
-bool JetMETHandler::constructJetMET(SimEventHandler const* simEventHandler, SystematicsHelpers::SystematicVariationTypes const& syst){
+bool JetMETHandler::constructJetMET(GenInfoHandler const* genInfoHandler, SimEventHandler const* simEventHandler, SystematicsHelpers::SystematicVariationTypes const& syst){
   if (this->isAlreadyCached()) return true;
 
   clear();
   if (!currentTree) return false;
 
+  bool const isData = SampleHelpers::checkSampleIsData(currentTree->sampleIdentifier);
+  std::vector<GenJetObject*> const* genak4jets = nullptr;
+  if (genInfoHandler && !isData){
+    if (!(currentTree==genInfoHandler->getWrappedTree() && genInfoHandler->isAlreadyCached())){
+      IVYerr << "JetMETHandler::constructJetMET: genInfoHandler is not cached for the current event." << endl;
+      assert(0);
+      return false;
+    }
+    else if (!genInfoHandler->getAcquireGenAK4Jets()){
+      IVYerr << "JetMETHandler::constructJetMET: genInfoHandler needs to have GenInfoHandler::setAcquireGenAK4Jets(true) called before being passed to a JetMETHandler." << endl;
+      assert(0);
+      return false;
+    }
+    genak4jets = &(genInfoHandler->getGenAK4Jets());
+  }
+
   bool res = (
-    constructAK4Jets(syst) && constructAK4Jets_LowPt(syst)
+    constructAK4Jets(syst, genak4jets) && constructAK4Jets_LowPt(syst, genak4jets)
     &&
     constructMET(syst) && assignMETXYShifts()
     );
@@ -90,7 +106,7 @@ bool JetMETHandler::constructJetMET(SimEventHandler const* simEventHandler, Syst
   return res;
 }
 
-bool JetMETHandler::constructAK4Jets(SystematicsHelpers::SystematicVariationTypes const& syst){
+bool JetMETHandler::constructAK4Jets(SystematicsHelpers::SystematicVariationTypes const& syst, std::vector<GenJetObject*> const* genak4jets){
   bool const isData = SampleHelpers::checkSampleIsData(currentTree->sampleIdentifier);
 
   float rho = 0;
@@ -116,9 +132,9 @@ bool JetMETHandler::constructAK4Jets(SystematicsHelpers::SystematicVariationType
   }
   if (this->verbosity>=MiscUtils::DEBUG) IVYout << "JetMETHandler::constructAK4Jets: All variables are set up!" << endl;
 
-  /************/
-  /* ak4 jets */
-  /************/
+  bool res = true;
+
+  // Construct the jet products
   ak4jets.reserve(nProducts);
 #define AK4JET_VARIABLE(TYPE, NAME, DEFVAL) TYPE* it_##NAME = nullptr; if (arr_##NAME) it_##NAME = &((*arr_##NAME)[0]);
   VECTOR_ITERATOR_HANDLER_DIRECTIVES_AK4JETS;
@@ -149,8 +165,26 @@ bool JetMETHandler::constructAK4Jets(SystematicsHelpers::SystematicVariationType
       obj->extras.JECNominal = 1./(1. - obj->extras.rawFactor);
       obj->reset_uncorrected_p4((obj->p4() * (1./obj->extras.JECNominal)));
 
+      // Match the jet to a gen. jet
+      {
+        GenJetObject* matched_genjet = nullptr;
+        double matched_genjet_dR = -1;
+        if (genak4jets){
+          for (auto const& genjet:(*genak4jets)){
+            double dR = obj->deltaR(genjet);
+            if (dR>=obj->ConeRadiusConstant) continue;
+            if (!matched_genjet || matched_genjet_dR>dR){
+              matched_genjet = genjet;
+              matched_genjet_dR = dR;
+            }
+          }
+        }
+        // Add the matched gen. jet as the mother of the reco. jet
+        if (matched_genjet) obj->addMother(matched_genjet);
+      }
+
       // Compute all JEC/JER quantities
-      computeJECRCorrections(*obj, rho, isData, false);
+      res &= computeJECRCorrections(*obj, rho, isData);
 
       // Replace momentum
       obj->makeFinalMomentum(syst);
@@ -170,9 +204,9 @@ bool JetMETHandler::constructAK4Jets(SystematicsHelpers::SystematicVariationType
   // Sort particles
   ParticleObjectHelpers::sortByGreaterPt(ak4jets);
 
-  return true;
+  return res;
 }
-bool JetMETHandler::constructAK4Jets_LowPt(SystematicsHelpers::SystematicVariationTypes const& syst){
+bool JetMETHandler::constructAK4Jets_LowPt(SystematicsHelpers::SystematicVariationTypes const& syst, std::vector<GenJetObject*> const* genak4jets){
   bool const isData = SampleHelpers::checkSampleIsData(currentTree->sampleIdentifier);
 
   float rho = 0;
@@ -194,6 +228,9 @@ bool JetMETHandler::constructAK4Jets_LowPt(SystematicsHelpers::SystematicVariati
   }
   if (this->verbosity>=MiscUtils::DEBUG) IVYout << "JetMETHandler::constructAK4Jets_LowPt: All variables are set up!" << endl;
 
+  bool res = true;
+  
+  // Construct the jet products
   ak4jets_masked.reserve(nProducts);
 #define AK4JET_LOWPT_VARIABLE(TYPE, NAME, DEFVAL) TYPE* it_##NAME = nullptr; if (arr_##NAME) it_##NAME = &((*arr_##NAME)[0]);
   VECTOR_ITERATOR_HANDLER_DIRECTIVES_AK4JETS_LOWPT;
@@ -213,8 +250,26 @@ bool JetMETHandler::constructAK4Jets_LowPt(SystematicsHelpers::SystematicVariati
       AK4JET_LOWPT_EXTRA_INPUT_VARIABLES;
 #undef AK4JET_LOWPT_VARIABLE
 
-      // Low-pT jets are uncorrected, so Type-1 corrections should always be calculated.
-      computeJECRCorrections(*obj, rho, isData, true);
+      // Match the jet to a gen. jet
+      {
+        GenJetObject* matched_genjet = nullptr;
+        double matched_genjet_dR = -1;
+        if (genak4jets){
+          for (auto const& genjet:(*genak4jets)){
+            double dR = obj->deltaR(genjet);
+            if (dR>=obj->ConeRadiusConstant) continue;
+            if (!matched_genjet || matched_genjet_dR>dR){
+              matched_genjet = genjet;
+              matched_genjet_dR = dR;
+            }
+          }
+        }
+        // Add the matched gen. jet as the mother of the reco. jet
+        if (matched_genjet) obj->addMother(matched_genjet);
+      }
+
+      // Compute all JEC/JER quantities
+      res &= computeJECRCorrections(*obj, rho, isData);
 
       // Replace momentum
       obj->makeFinalMomentum(syst);
@@ -235,7 +290,7 @@ bool JetMETHandler::constructAK4Jets_LowPt(SystematicsHelpers::SystematicVariati
   // Sort particles
   ParticleObjectHelpers::sortByGreaterPt(ak4jets_masked);
 
-  return true;
+  return res;
 }
 
 bool JetMETHandler::constructMET(SystematicsHelpers::SystematicVariationTypes const& syst){
@@ -258,9 +313,7 @@ bool JetMETHandler::constructMET(SystematicsHelpers::SystematicVariationTypes co
 
   if (this->verbosity>=MiscUtils::DEBUG) IVYout << "JetMETHandler::constructMET: All variables are set up!" << endl;
 
-  /**********/
-  /* PF MET */
-  /**********/
+  // Construct the MET object
   pfmet = new METObject();
 #define MET_VARIABLE(TYPE, NAME) pfmet->extras.NAME = *pfmet_##NAME;
   MET_EXTRA_VARIABLES;
@@ -413,6 +466,20 @@ bool JetMETHandler::wrapTree(BaseTree* tree){
     }
   }
 
+  if (doComputeJECRCorrections){
+    // Re-initialize JEC applicator
+    delete jecHandler_ak4jets;
+    JESRHelpers::JetType type_ak4jets = JESRHelpers::nJetTypes;
+    if (theDY<=2018) type_ak4jets = JESRHelpers::kAK4PFCHS;
+    else if (theDY==2022) type_ak4jets = JESRHelpers::kAK4PFPuppi;
+    else{
+      IVYerr << "JetMETHandler::wrapTree: ak4 jet type is unknown for year " << theDY << "." << endl;
+      assert(0);
+      return false;
+    }
+    jecHandler_ak4jets = new JECScaleFactorHandler(type_ak4jets);
+  }
+
   printWarnings = false;
 
   return IvyBase::wrapTree(tree);
@@ -455,25 +522,16 @@ tree->bookArrayBranch<TYPE>(JetMETHandler::colName_ak4jets + "_" + #NAME, DEFVAL
   tree->bookBranch<float>(GlobalCollectionNames::colName_energyFlux + "All", 0);
 }
 
-bool JetMETHandler::computeJECRCorrections(AK4JetObject& obj, float const& rho, bool const& isData, bool recomputeJEC){
+bool JetMETHandler::computeJECRCorrections(AK4JetObject& obj, float const& rho, bool const& isData){
   if (!doComputeJECRCorrections) return true;
 
   if (!jecHandler_ak4jets){
-    // First-time setup
-    auto const& dy = SampleHelpers::getDataYear();
-
-    // Initialize JEC applicator
-    JESRHelpers::JetType type_ak4jets = JESRHelpers::nJetTypes;
-    if (dy<=2018) type_ak4jets = JESRHelpers::kAK4PFCHS;
-    else if (dy==2022) type_ak4jets = JESRHelpers::kAK4PFPuppi;
-    else{
-      IVYerr << "JetMETHandler::JetMETHandler: ak4 jet type is unknown for year " << dy << endl;
-      assert(0);
-      return false;
-    }
-    jecHandler_ak4jets = new JECScaleFactorHandler(type_ak4jets);
+    IVYerr << "JetMETHandler::computeJECRCorrections: jecHandler_ak4jets is null.\n\t- JetMETHandler::setComputeJECRCorrections(true) should be called before JetMETHandler::wrapTree(tree). " << endl;
+    assert(0);
+    return false;
   }
-  jecHandler_ak4jets->applyJEC(&obj, rho, !isData, recomputeJEC);
+
+  jecHandler_ak4jets->applyJEC(&obj, rho, !isData);
 
   return true;
 }

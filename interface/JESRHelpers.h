@@ -6,8 +6,6 @@
 
 
 namespace JESRHelpers{
-  constexpr bool doReapplyJES = false;
-
   enum JetType{
     kAK4PFCHS,
     kAK4PFPuppi,
@@ -26,6 +24,24 @@ namespace JESRHelpers{
   TString getJERPtFileName(JetType type);
   TString getJERPhiFileName(JetType type);
   TString getJERSFFileName(JetType type);
+
+  enum JERVariation{
+    kJERNominal = 0,
+    kJERDown,
+    kJERUp,
+    nJERVariations
+  };
+  enum JERBinning{
+    JetPt = 0,
+    JetEta,
+    JetAbsEta,
+    JetE,
+    JetArea,
+    Mu,
+    Rho,
+    NPV
+  };
+
 }
 
 

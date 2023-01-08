@@ -534,7 +534,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
       muonHandler.constructMuons();
       electronHandler.constructElectrons();
-      jetHandler.constructJetMET(&simEventHandler, theGlobalSyst);
+      jetHandler.constructJetMET(&genInfoHandler, &simEventHandler, theGlobalSyst);
 
       // !!!IMPORTANT!!!
       // NEVER USE LEPTONS AND JETS IN AN ANALYSIS BEFORE DISAMBIGUATING THEM!

@@ -3,6 +3,7 @@
 
 #include <vector>
 #include "IvyBase.h"
+#include "GenInfoHandler.h"
 #include "SimEventHandler.h"
 #include "MuonObject.h"
 #include "ElectronObject.h"
@@ -34,13 +35,13 @@ protected:
 
   void clear();
 
-  bool constructAK4Jets( SystematicsHelpers::SystematicVariationTypes const& syst);
-  bool constructAK4Jets_LowPt(SystematicsHelpers::SystematicVariationTypes const& syst);
+  bool constructAK4Jets(SystematicsHelpers::SystematicVariationTypes const& syst, std::vector<GenJetObject*> const* genak4jets);
+  bool constructAK4Jets_LowPt(SystematicsHelpers::SystematicVariationTypes const& syst, std::vector<GenJetObject*> const* genak4jets);
   bool constructMET(SystematicsHelpers::SystematicVariationTypes const& syst);
 
   bool assignMETXYShifts();
 
-  bool computeJECRCorrections(AK4JetObject& obj, float const& rho, bool const& isData, bool recomputeJEC);
+  bool computeJECRCorrections(AK4JetObject& obj, float const& rho, bool const& isData);
 
 public:
   // Constructors
@@ -49,7 +50,7 @@ public:
   // Destructors
   ~JetMETHandler(){ clear(); delete jecHandler_ak4jets; }
 
-  bool constructJetMET(SimEventHandler const* simEventHandler, SystematicsHelpers::SystematicVariationTypes const& syst);
+  bool constructJetMET(GenInfoHandler const* genInfoHandler, SimEventHandler const* simEventHandler, SystematicsHelpers::SystematicVariationTypes const& syst);
 
   std::vector<AK4JetObject*> const& getAK4Jets() const{ return ak4jets; }
   std::vector<AK4JetObject*> const& getMaskedAK4Jets() const{ return ak4jets_masked; }
