@@ -12,6 +12,7 @@
 #include "METObject.h"
 #include "ParticleDisambiguator.h"
 #include "JECScaleFactorHandler.h"
+#include "JERScaleFactorHandler.h"
 
 
 class JetMETHandler : public IvyBase{
@@ -23,8 +24,9 @@ public:
 protected:
   friend class ParticleDisambiguator;
 
-  JECScaleFactorHandler* jecHandler_ak4jets;
   bool doComputeJECRCorrections;
+  JECScaleFactorHandler* jecHandler_ak4jets;
+  JERScaleFactorHandler* jerHandler_ak4jets;
 
   std::vector<AK4JetObject*> ak4jets;
   std::vector<AK4JetObject*> ak4jets_masked;
@@ -48,7 +50,7 @@ public:
   JetMETHandler();
 
   // Destructors
-  ~JetMETHandler(){ clear(); delete jecHandler_ak4jets; }
+  ~JetMETHandler(){ clear(); delete jecHandler_ak4jets; delete jerHandler_ak4jets; }
 
   bool constructJetMET(GenInfoHandler const* genInfoHandler, SimEventHandler const* simEventHandler, SystematicsHelpers::SystematicVariationTypes const& syst);
 

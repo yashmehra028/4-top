@@ -1,18 +1,24 @@
 #ifndef JERSCALEFACTORHANDLER_H
 #define JERSCALEFACTORHANDLER_H
 
-
 #include <vector>
+#include <utility>
+#include "TDirectory.h"
+#include "TFile.h"
+#include "TString.h"
+#include "ScaleFactorHandlerBase.h"
 #include "JESRHelpers.h"
 #include "JetResolution.h"
-#include "ScaleFactorHandlerBase.h"
+#include "AK4JetObject.h"
+//#include "AK8JetObject.h"
 
 
 class JERScaleFactorHandler : public ScaleFactorHandlerBase{
 protected:
-  JetResolution resolution_pt_data;
-  JetResolution resolution_pt_mc;
-  JetResolutionScaleFactor resolution_sf; // Only MC
+  // These are only for the MC
+  JetResolution resolution_pt;
+  //JetResolution resolution_phi;
+  JetResolutionScaleFactor resolution_sf;
 
 public:
   JESRHelpers::JetType const type;
@@ -23,7 +29,8 @@ public:
   bool setup();
   void reset();
 
-  template<typename T> void smear(std::vector<T*>& jets, float const& rho, bool isMC);
+  bool applyJER(AK4JetObject* jet, float const& rho) const;
+  //bool applyJER(AK8JetObject* jet, float const& rho) const;
 
 };
 

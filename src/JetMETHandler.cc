@@ -34,8 +34,9 @@ const std::string JetMETHandler::colName_pfmet = GlobalCollectionNames::colName_
 JetMETHandler::JetMETHandler() :
   IvyBase(),
 
-  jecHandler_ak4jets(nullptr),
   doComputeJECRCorrections(true),
+  jecHandler_ak4jets(nullptr),
+  jerHandler_ak4jets(nullptr),
 
   pfmet(nullptr),
   pfmet_XYcorr_xCoeffA(0),
@@ -467,8 +468,6 @@ bool JetMETHandler::wrapTree(BaseTree* tree){
   }
 
   if (doComputeJECRCorrections){
-    // Re-initialize JEC applicator
-    delete jecHandler_ak4jets;
     JESRHelpers::JetType type_ak4jets = JESRHelpers::nJetTypes;
     if (theDY<=2018) type_ak4jets = JESRHelpers::kAK4PFCHS;
     else if (theDY==2022) type_ak4jets = JESRHelpers::kAK4PFPuppi;
@@ -477,7 +476,14 @@ bool JetMETHandler::wrapTree(BaseTree* tree){
       assert(0);
       return false;
     }
+
+    // Re-initialize JEC applicator
+    delete jecHandler_ak4jets;
     jecHandler_ak4jets = new JECScaleFactorHandler(type_ak4jets);
+
+    // Re-initialize JER applicator
+    delete jerHandler_ak4jets; jerHandler_ak4jets = nullptr;
+    if (!isData) jerHandler_ak4jets = new JERScaleFactorHandler(type_ak4jets);
   }
 
   printWarnings = false;
@@ -526,12 +532,20 @@ bool JetMETHandler::computeJECRCorrections(AK4JetObject& obj, float const& rho, 
   if (!doComputeJECRCorrections) return true;
 
   if (!jecHandler_ak4jets){
-    IVYerr << "JetMETHandler::computeJECRCorrections: jecHandler_ak4jets is null.\n\t- JetMETHandler::setComputeJECRCorrections(true) should be called before JetMETHandler::wrapTree(tree). " << endl;
+    IVYerr << "JetMETHandler::computeJECRCorrections: jecHandler_ak4jets is null.\n\t- JetMETHandler::setComputeJECRCorrections(true) should be called before JetMETHandler::wrapTree(tree)." << endl;
     assert(0);
     return false;
   }
-
   jecHandler_ak4jets->applyJEC(&obj, rho, !isData);
+
+  if (!isData){
+    if (!jerHandler_ak4jets){
+      IVYerr << "JetMETHandler::computeJECRCorrections: jerHandler_ak4jets is null.\n\t- JetMETHandler::setComputeJECRCorrections(true) should be called before JetMETHandler::wrapTree(tree)." << endl;
+      assert(0);
+      return false;
+    }
+    jerHandler_ak4jets->applyJER(&obj, rho);
+  }
 
   return true;
 }
