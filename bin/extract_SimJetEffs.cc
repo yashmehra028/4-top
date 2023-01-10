@@ -342,6 +342,10 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, ak4jets, eta) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, ak4jets, phi) \
       SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, ak4jets, mass) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, ak4jets, genjet_pt) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, ak4jets, genjet_eta) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, ak4jets, genjet_phi) \
+      SYNC_OBJ_BRANCH_VECTOR_COMMAND(float, ak4jets, genjet_mass) \
       AK4JET_EXTRA_INPUT_VARIABLES
       // All outputs
 #define SYNC_ALLOBJS_BRANCH_VECTOR_COMMANDS \
@@ -408,17 +412,35 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         auto const& ak4jets = jetHandler.getAK4Jets();
         unsigned int nak4jets_selected = 0;
         for (auto const& jet:ak4jets){
+          if (!jet->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTaggable)) continue;
+
           float pt = jet->pt();
           float eta = jet->eta();
           float phi = jet->phi();
           float mass = jet->mass();
 
-          if (!jet->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTaggable)) continue;
-
           unsigned short btagcat = 0;
           if (jet->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTagged_Loose)) btagcat++;
           if (jet->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTagged_Medium)) btagcat++;
           if (jet->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTagged_Tight)) btagcat++;
+
+          float genjet_pt = -1;
+          float genjet_eta = 0;
+          float genjet_phi = 0;
+          float genjet_mass = 0;
+          {
+            GenJetObject* genjet = nullptr;
+            for (auto const& part:jet->getMothers()){
+              genjet = dynamic_cast<GenJetObject*>(part);
+              if (genjet) break;
+            }
+            if (genjet){
+              genjet_pt = genjet->pt();
+              genjet_eta = genjet->eta();
+              genjet_phi = genjet->phi();
+              genjet_mass = genjet->mass();
+            }
+          }
 
 #define SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, COLLNAME, NAME) COLLNAME##_##NAME.push_back(NAME);
 #define AK4JET_VARIABLE(TYPE, NAME, DEFVAL) ak4jets_##NAME.push_back(jet->extras.NAME);
