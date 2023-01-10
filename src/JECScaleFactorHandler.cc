@@ -13,12 +13,12 @@ using namespace JESRHelpers;
 using namespace IvyStreamHelpers;
 
 
-JECScaleFactorHandler::JECScaleFactorHandler(JESRHelpers::JetType type_) :
+JECScaleFactorHandler::JECScaleFactorHandler(JESRHelpers::JetType type_, bool isMC_) :
   ScaleFactorHandlerBase(),
   type(type_),
-  corrector_data(nullptr),
-  corrector_MC(nullptr),
-  uncertaintyEstimator_MC(nullptr)
+  isMC(isMC_),
+  corrector(nullptr),
+  uncertaintyEstimator(nullptr)
 {
   setup();
 }
@@ -49,26 +49,22 @@ bool JECScaleFactorHandler::setup(){
 
   TDirectory* curdir = gDirectory;
 
-  std::vector<TString> correctornames_data = getJESFileNames(type, false);
-  if (!correctornames_data.empty()) corrector_data = makeCorrector(correctornames_data);
+  std::vector<TString> correctornames = getJESFileNames(type, isMC);
+  if (!correctornames.empty()) corrector = makeCorrector(correctornames);
 
-  std::vector<TString> correctornames_MC = getJESFileNames(type, true);
-  if (!correctornames_MC.empty()) corrector_MC = makeCorrector(correctornames_MC);
-
-  TString uncname_MC = getJESUncertaintyFileName(type, true);
-  if (uncname_MC!="") uncertaintyEstimator_MC = makeUncertaintyEstimator(uncname_MC);
+  TString uncname = getJESUncertaintyFileName(type, isMC);
+  if (uncname!="") uncertaintyEstimator = makeUncertaintyEstimator(uncname);
 
   curdir->cd();
 
   return res;
 }
 void JECScaleFactorHandler::reset(){
-  delete corrector_data; corrector_data = nullptr;
-  delete corrector_MC; corrector_MC = nullptr;
-  delete uncertaintyEstimator_MC; uncertaintyEstimator_MC = nullptr;
+  delete corrector; corrector = nullptr;
+  delete uncertaintyEstimator; uncertaintyEstimator = nullptr;
 }
 
-void JECScaleFactorHandler::applyJEC(ParticleObject* obj, float const& rho, bool isMC){
+void JECScaleFactorHandler::applyJEC(ParticleObject* obj, float const& rho){
   static bool printFirstWarning = false;
 
   AK4JetObject* ak4jet = dynamic_cast<AK4JetObject*>(obj);
@@ -81,14 +77,11 @@ void JECScaleFactorHandler::applyJEC(ParticleObject* obj, float const& rho, bool
     assert(0);
   }
 
-  FactorizedJetCorrector* corrector = nullptr;
-  if (!isMC) corrector = corrector_data;
-  else corrector = corrector_MC;
-
   if (!corrector) return;
+  if (isMC && !uncertaintyEstimator) return;
 
-  JetCorrectionUncertainty* uncEst = nullptr;
-  if (isMC) uncEst = uncertaintyEstimator_MC;
+  //static unsigned long long njets = 0;
+  //static unsigned long long njets_warning = 0;
 
   auto const& jet_p4_uncor = ak4jet->uncorrected_p4();
   double jpt_unc = jet_p4_uncor.Pt();
@@ -99,6 +92,8 @@ void JECScaleFactorHandler::applyJEC(ParticleObject* obj, float const& rho, bool
   auto& JEC = ak4jet->extras.JECNominal;
   auto& JEC_L1 = ak4jet->extras.JECL1Nominal;
   if (corrector){
+    //njets++;
+
     corrector->setRho(rho);
     corrector->setJetA(ak4jet->extras.area);
     corrector->setJetPt(jpt_unc);
@@ -106,9 +101,19 @@ void JECScaleFactorHandler::applyJEC(ParticleObject* obj, float const& rho, bool
     std::vector<float> const corr_vals = corrector->getSubCorrections(); // Subcorrections are stored with corr_vals(N) = corr(N)*corr(N-1)*...*corr(1)
     auto const& JEC_L1L2L3_comp = corr_vals.back();
     JEC_L1 = corr_vals.front();
-    if (!printFirstWarning && std::abs(JEC_L1L2L3_comp - JEC)>JEC*0.01){
+    if (!printFirstWarning && !ak4jet->extras.isLowPtJet && std::abs(JEC_L1L2L3_comp - JEC)>JEC*0.01){
       printFirstWarning = true;
-      IVYout << "JECScaleFactorHandler::applyJEC: WARNING! Nominal JEC value " << JEC << " != " << JEC_L1L2L3_comp << "." << endl;
+      //njets_warning++;
+
+      IVYout
+        << "JECScaleFactorHandler::applyJEC: WARNING"/* << " (" << njets_warning << "/" << njets << ")"*/ << "! Nominal JEC value " << JEC << " (recorded) != " << JEC_L1L2L3_comp << " (computed). The properties of the jet are as follows:"
+        << "\n\t- Uncorrected pT = " << jpt_unc
+        << "\n\t- eta = " << jeta_unc
+        << "\n\t- phi = " << jphi_unc
+        << "\n\t- rho = " << rho
+        << "\n\t- area = " << ak4jet->extras.area
+        << "\n\t- rawFactor = " << ak4jet->extras.rawFactor
+        << endl;
     }
     JEC = JEC_L1L2L3_comp;
   }
@@ -124,10 +129,10 @@ void JECScaleFactorHandler::applyJEC(ParticleObject* obj, float const& rho, bool
 
   // Get up/dn variations
   auto& JECunc = ak4jet->extras.relJECUnc;
-  if (uncEst){
-    uncEst->setJetPt(jpt_unc*JEC); // Must use corrected pT
-    uncEst->setJetEta(jeta_unc);
-    uncEst->setJetPhi(jphi_unc);
-    JECunc = uncEst->getUncertainty(true);
+  if (uncertaintyEstimator){
+    uncertaintyEstimator->setJetPt(jpt_unc*JEC); // Must use corrected pT
+    uncertaintyEstimator->setJetEta(jeta_unc);
+    uncertaintyEstimator->setJetPhi(jphi_unc);
+    JECunc = uncertaintyEstimator->getUncertainty(true);
   }
 }

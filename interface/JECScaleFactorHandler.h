@@ -17,23 +17,23 @@
 class JECScaleFactorHandler : public ScaleFactorHandlerBase{
 public:
   JESRHelpers::JetType const type;
+  bool const isMC;
 
 protected:
-  FactorizedJetCorrector* corrector_data;
-  FactorizedJetCorrector* corrector_MC;
-  JetCorrectionUncertainty* uncertaintyEstimator_MC;
+  FactorizedJetCorrector* corrector;
+  JetCorrectionUncertainty* uncertaintyEstimator;
 
   FactorizedJetCorrector* makeCorrector(std::vector<TString> const& fnames);
   JetCorrectionUncertainty* makeUncertaintyEstimator(TString const& fname);
 
 public:
-  JECScaleFactorHandler(JESRHelpers::JetType type_);
+  JECScaleFactorHandler(JESRHelpers::JetType type_, bool isMC_);
   ~JECScaleFactorHandler();
 
   bool setup();
   void reset();
 
-  void applyJEC(ParticleObject* obj, float const& rho, bool isMC);
+  void applyJEC(ParticleObject* obj, float const& rho);
 
 };
 

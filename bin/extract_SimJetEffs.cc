@@ -362,6 +362,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       seltracker.accumulate("Pass unique event check", wgt_nominal);
 
       // Loop over jet momentum systematics
+      bool passAnyMomSyst = false;
       for (auto const& syst:allowedSysts_MomScale){
         auto systname = SystematicsHelpers::getSystName(syst);
 
@@ -429,11 +430,13 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         }
 
         // PRESELECTION
-        if ((nleptons_tight + nleptons_fakeable)==0) continue;
-        if (syst==sNominal) seltracker.accumulate("Has at least one fakeable lepton", wgt_nominal);
+        bool hasFakeableLepton = ((nleptons_tight + nleptons_fakeable)>0);
+        if (syst==sNominal) seltracker.accumulate("Has at least one fakeable lepton", wgt_nominal*static_cast<float>(hasFakeableLepton));
 
-        if (nak4jets_selected==0) continue;
-        if (syst==sNominal) seltracker.accumulate("Has at least one tight, b-taggable jet", wgt_nominal);
+        bool hasTightBJet = (nak4jets_selected>0);
+        if (syst==sNominal) seltracker.accumulate("Has at least one tight, b-taggable jet", wgt_nominal*static_cast<float>((hasFakeableLepton && hasTightBJet)));
+
+        passAnyMomSyst |= hasFakeableLepton && hasTightBJet;
 
         // No need to apply a HEM veto in the MC
 
@@ -455,7 +458,15 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         muonHandler.resetCache();
         electronHandler.resetCache();
         jetHandler.resetCache();
+
+        // Clear collections
+#define SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, COLLNAME, NAME) COLLNAME##_##NAME.clear();
+#define AK4JET_VARIABLE(TYPE, NAME, DEFVAL) SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, ak4jets, NAME)
+        SYNC_ALLOBJS_BRANCH_VECTOR_COMMANDS;
+#undef AK4JET_VARIABLE
+#undef SYNC_OBJ_BRANCH_VECTOR_COMMAND
       }
+      if (!passAnyMomSyst) continue;
 
       if (firstOutputEvent){
 #define SIMPLE_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.named##name_t##s.begin(); itb!=rcd_output.named##name_t##s.end(); itb++) tout->putBranch(itb->first, itb->second);

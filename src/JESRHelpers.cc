@@ -19,9 +19,9 @@ TString JESRHelpers::getJetTypeName(JetType type){
 
 TString JESRHelpers::getJESFilePath(bool isMC){
   std::unordered_map<TString, TString> eraMap;
-  auto const& year = SampleHelpers::getDataYear();
+  auto const& dy = SampleHelpers::getDataYear();
   auto const& dp = SampleHelpers::getDataPeriod();
-  switch (year){
+  switch (dy){
   case 2016:
     eraMap["2016B"] = eraMap["2016C"] = eraMap["2016D"] = "Summer19UL16APV_RunBCD_V7_DATA";
     eraMap["2016E"] = eraMap["2016F_APV"] = "Summer19UL16APV_RunEF_V7_DATA";
@@ -45,14 +45,14 @@ TString JESRHelpers::getJESFilePath(bool isMC){
     eraMap["MC_2018"] = "Summer19UL18_V5_MC";
     break;
   default:
-    IVYerr << "JESRHelpers::getJESFilePath: Data year " << year << " is not implemented. Aborting..." << endl;
+    IVYerr << "JESRHelpers::getJESFilePath: Data year " << dy << " is not implemented. Aborting..." << endl;
     assert(0);
   }
 
-  TString res = ANALYSISPKGDATAPATH + "external/JES/";
+  TString res = ANALYSISPKGDATAPATH + "external/JetMET/JES/";
   if (isMC){
-    if (year==2016) res += eraMap[(SampleHelpers::isAPV2016Affected(dp) ? "MC_2016_APV" : "MC_2016_NonAPV")];
-    else res += eraMap[Form("MC_%i", year)];
+    if (dy==2016) res += eraMap[(SampleHelpers::isAPV2016Affected(dp) ? "MC_2016_APV" : "MC_2016_NonAPV")];
+    else res += eraMap[Form("MC_%i", dy)];
   }
   else res += eraMap[dp];
 
@@ -81,7 +81,7 @@ TString JESRHelpers::getJESUncertaintyFileName(JetType type, bool isMC){
 }
 
 TString JESRHelpers::getJERFilePath(){
-  TString res = ANALYSISPKGDATAPATH + "external/JER/";
+  TString res = ANALYSISPKGDATAPATH + "external/JetMET/JER/";
   auto const& year = SampleHelpers::getDataYear();
   auto const& dp = SampleHelpers::getDataPeriod();
   switch (year){
@@ -90,10 +90,10 @@ TString JESRHelpers::getJERFilePath(){
     else res += "Summer20UL16_JRV3_MC";
     break;
   case 2017:
-    res += "Summer20UL17_JRV3_MC";
+    res += "Summer19UL17_JRV3_MC";
     break;
   case 2018:
-    res += "Summer20UL18_JRV2_MC";
+    res += "Summer19UL18_JRV2_MC";
     break;
   default:
     IVYerr << "JESRHelpers::getJERFilePath: Data year " << year << " is not implemented. Aborting..." << endl;

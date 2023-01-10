@@ -185,7 +185,7 @@ bool JetMETHandler::constructAK4Jets(SystematicsHelpers::SystematicVariationType
       }
 
       // Compute all JEC/JER quantities
-      res &= computeJECRCorrections(*obj, rho, isData);
+      res &= computeJECRCorrections(*obj, rho);
 
       // Replace momentum
       obj->makeFinalMomentum(syst);
@@ -208,8 +208,6 @@ bool JetMETHandler::constructAK4Jets(SystematicsHelpers::SystematicVariationType
   return res;
 }
 bool JetMETHandler::constructAK4Jets_LowPt(SystematicsHelpers::SystematicVariationTypes const& syst, std::vector<GenJetObject*> const* genak4jets){
-  bool const isData = SampleHelpers::checkSampleIsData(currentTree->sampleIdentifier);
-
   float rho = 0;
   GlobalCollectionNames::collsize_t nProducts = 0;
 #define AK4JET_LOWPT_VARIABLE(TYPE, NAME, DEFVAL) TYPE* const* arr_##NAME = nullptr;
@@ -251,6 +249,9 @@ bool JetMETHandler::constructAK4Jets_LowPt(SystematicsHelpers::SystematicVariati
       AK4JET_LOWPT_EXTRA_INPUT_VARIABLES;
 #undef AK4JET_LOWPT_VARIABLE
 
+      // Mark this jet as a low-pT extra-info. jet
+      obj->extras.isLowPtJet = true;
+
       // Match the jet to a gen. jet
       {
         GenJetObject* matched_genjet = nullptr;
@@ -270,7 +271,7 @@ bool JetMETHandler::constructAK4Jets_LowPt(SystematicsHelpers::SystematicVariati
       }
 
       // Compute all JEC/JER quantities
-      res &= computeJECRCorrections(*obj, rho, isData);
+      res &= computeJECRCorrections(*obj, rho);
 
       // Replace momentum
       obj->makeFinalMomentum(syst);
@@ -295,7 +296,7 @@ bool JetMETHandler::constructAK4Jets_LowPt(SystematicsHelpers::SystematicVariati
 }
 
 bool JetMETHandler::constructMET(SystematicsHelpers::SystematicVariationTypes const& syst){
-  bool const isData = SampleHelpers::checkSampleIsData(currentTree->sampleIdentifier);
+  //bool const isData = SampleHelpers::checkSampleIsData(currentTree->sampleIdentifier);
 
 #define MET_VARIABLE(TYPE, NAME) TYPE const* pfmet_##NAME = nullptr;
   MET_EXTRA_VARIABLES;
@@ -479,7 +480,7 @@ bool JetMETHandler::wrapTree(BaseTree* tree){
 
     // Re-initialize JEC applicator
     delete jecHandler_ak4jets;
-    jecHandler_ak4jets = new JECScaleFactorHandler(type_ak4jets);
+    jecHandler_ak4jets = new JECScaleFactorHandler(type_ak4jets, !isData);
 
     // Re-initialize JER applicator
     delete jerHandler_ak4jets; jerHandler_ak4jets = nullptr;
@@ -528,7 +529,7 @@ tree->bookArrayBranch<TYPE>(JetMETHandler::colName_ak4jets + "_" + #NAME, DEFVAL
   tree->bookBranch<float>(GlobalCollectionNames::colName_energyFlux + "All", 0);
 }
 
-bool JetMETHandler::computeJECRCorrections(AK4JetObject& obj, float const& rho, bool const& isData){
+bool JetMETHandler::computeJECRCorrections(AK4JetObject& obj, float const& rho){
   if (!doComputeJECRCorrections) return true;
 
   if (!jecHandler_ak4jets){
@@ -536,16 +537,8 @@ bool JetMETHandler::computeJECRCorrections(AK4JetObject& obj, float const& rho, 
     assert(0);
     return false;
   }
-  jecHandler_ak4jets->applyJEC(&obj, rho, !isData);
-
-  if (!isData){
-    if (!jerHandler_ak4jets){
-      IVYerr << "JetMETHandler::computeJECRCorrections: jerHandler_ak4jets is null.\n\t- JetMETHandler::setComputeJECRCorrections(true) should be called before JetMETHandler::wrapTree(tree)." << endl;
-      assert(0);
-      return false;
-    }
-    jerHandler_ak4jets->applyJER(&obj, rho);
-  }
+  jecHandler_ak4jets->applyJEC(&obj, rho);
+  if (jerHandler_ak4jets) jerHandler_ak4jets->applyJER(&obj, rho);
 
   return true;
 }

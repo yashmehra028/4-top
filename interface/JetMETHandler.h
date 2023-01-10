@@ -43,7 +43,7 @@ protected:
 
   bool assignMETXYShifts();
 
-  bool computeJECRCorrections(AK4JetObject& obj, float const& rho, bool const& isData);
+  bool computeJECRCorrections(AK4JetObject& obj, float const& rho);
 
 public:
   // Constructors

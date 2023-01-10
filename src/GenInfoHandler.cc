@@ -31,8 +31,8 @@ GenInfoHandler::GenInfoHandler() :
   acquireLHEMEWeights(true),
   acquireLHEParticles(true),
   acquireGenParticles(true),
-  acquireGenAK4Jets(false),
-  //acquireGenAK8Jets(false),
+  acquireGenAK4Jets(true),
+  //acquireGenAK8Jets(true),
 
   genInfo(nullptr)
 {}
