@@ -26,7 +26,7 @@ BtagScaleFactorHandler::BtagScaleFactorHandler() : ScaleFactorHandlerBase()
 BtagScaleFactorHandler::~BtagScaleFactorHandler(){ this->reset(); }
 
 void BtagScaleFactorHandler::evalEfficiencyFromHistogram(float& theSF, float const& pt, float const& eta, ExtendedHistogram_2D_f const& hist, bool etaOnY, bool useAbsEta) const{
-  TH2F const* hh = hist.getHistogram();
+  auto const* hh = hist.getHistogram();
   if (!hh){
     IVYerr << "BtagScaleFactorHandler::evalScaleFactorFromHistogram: Histogram is null." << endl;
     return;
@@ -131,7 +131,7 @@ bool BtagScaleFactorHandler::setup(){
             BtagWPType wptype = (BtagWPType) iwp;
             hname = BtagHelpers::getBtagEffHistName(wptype, strflav.Data()); hname = hname + "_PUJetId_" + strpujetidcat + "_" + systname;
             if (verbosity>=MiscUtils::DEBUG) IVYout << "\t- Extracting MC efficiency histogram " << hname << "..." << endl;
-            bool tmpres = getHistogram<TH2F, ExtendedHistogram_2D_f>(syst_flav_pujetid_WP_mceffhist_map[syst][jflav].at(ipujetidwp).at(iwp), finput_eff, hname);
+            bool tmpres = getHistogram<TH2D, ExtendedHistogram_2D_f>(syst_flav_pujetid_WP_mceffhist_map[syst][jflav].at(ipujetidwp).at(iwp), finput_eff, hname);
             if (!tmpres && verbosity>=MiscUtils::DEBUG) IVYerr << "\t\t- FAILED!" << endl;
             res &= tmpres;
           }

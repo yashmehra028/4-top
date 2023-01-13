@@ -90,7 +90,7 @@ TString JESRHelpers::getJERFilePath(){
     else res += "Summer20UL16_JRV3_MC";
     break;
   case 2017:
-    res += "Summer19UL17_JRV3_MC";
+    res += "Summer19UL17_JRV2_MC";
     break;
   case 2018:
     res += "Summer19UL18_JRV2_MC";
