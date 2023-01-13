@@ -33,7 +33,7 @@ python submit_skims.py --tarfile tarball.tar.xz --tag [TAG] [CSV FILES]
 ```
 
 # Example executable to test and try
-Assuming you have skims available (see below), you can run the test looper by typing a command that looks like
+Assuming you have skims available (after running skims using the instructions above), you can run the test looper by typing a command that looks like
 ```
 test_looper dataset=/TTTT_TuneCP5_13TeV-amcatnlo-pythia8/RunIISummer20UL18NanoAODv9-106X_upgrade2018_realistic_v16_L1v1-v2/NANOAODSIM short_name=TTTT period=2018 xsec=0.009103 BR=1 input_tag=[INPUT TAG] output_tag=[OUTPUT TAG]
 ```
