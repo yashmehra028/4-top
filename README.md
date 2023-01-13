@@ -65,7 +65,8 @@ The arguments to the executable also play the purpose of filtering the data sets
 After you run this first step, all submission folders are created, but the jobs are not yet submitted.
 In order to submit them, following the examples above, you need to run
 ```
-watchFTAnalysisJobs.sh test/output/tasks/220920_TopLeptonMVA # Add sleep=N in seconds to modify sleep duration
+watchFTAnalysisJobs.sh test/output/tasks/220920_TopLeptonMVA
+# Add sleep=N in seconds to modify sleep duration, email=[EMAIL] for watch to notify you when all jobs are done.
 ```
 This script will trigger the checking and resubmission of jobs until all jobs in the folder you specified are completed.
 Internally, this script runs checkFTAnalysisJobs.sh and resubmitFTAnalysisJobs.sh, and sleeps for a while before checking again.
