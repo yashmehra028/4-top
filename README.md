@@ -24,12 +24,12 @@ cd ../ProjectMetis
 . setup.sh
 cd -
 cd test
-mtarfile tarball.tar.xz --xz --xz_level 3 -x NanoTools HiggsAnalysis/CombinedLimit
+createFTAnalysisTarball.sh # Creates ftanalysis.tar in the current directory
 ```
 This will make a tarball to be uploaded to Condor.
 You can then run the skim submission script as follows:
 ```
-python submit_skims.py --tarfile tarball.tar.xz --tag [TAG] [CSV FILES]
+python submit_skims.py --tarfile ftanalysis.tar --tag [TAG] [CSV FILES]
 ```
 
 # Example executable to test and try
