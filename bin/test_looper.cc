@@ -544,8 +544,8 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       std::vector<MuonObject*> muons_fakeable;
       std::vector<MuonObject*> muons_loose;
       for (auto const& part:muons){
-        if (ParticleSelectionHelpers::isTightParticle(part))  muons_tight.push_back(part);
-        else if (ParticleSelectionHelpers::isFakeableParticle(part))  muons_fakeable.push_back(part);
+        if (ParticleSelectionHelpers::isTightParticle(part)) muons_tight.push_back(part);
+        else if (ParticleSelectionHelpers::isFakeableParticle(part)) muons_fakeable.push_back(part);
         else if (ParticleSelectionHelpers::isLooseParticle(part)) muons_loose.push_back(part);
         /*
         // Here is how to get some other quantities. Commented out so that looper remains faster.
@@ -795,7 +795,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       bool const pass_triggers_dilepton_matched = (event_weight_triggers_dilepton_matched!=0.);
       // Do not skip the event. Instead, record a flag for HLT object matching.
       rcd_output.setNamedVal("pass_triggers_dilepton_matched", pass_triggers_dilepton_matched);
-      seltracker.accumulate("Pass triggers after matching", (event_weight_triggers_dilepton_matched>0.)*wgt);
+      seltracker.accumulate("Pass triggers after matching", wgt*static_cast<double>(pass_triggers_dilepton_matched));
 
 
       /*************************************************/
@@ -803,7 +803,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       /*************************************************/
       if (tout){
         // Event weight
-        rcd_output.setNamedVal("event_wgt", wgt);
+        rcd_output.setNamedVal("event_wgt", static_cast<float>(wgt));
 
         rcd_output.setNamedVal("EventNumber", *ptr_EventNumber);
         if (!isData){

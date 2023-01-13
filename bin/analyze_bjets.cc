@@ -4,12 +4,6 @@
 #include "TSystem.h"
 #include "TDirectory.h"
 #include "TFile.h"
-#include "TH1D.h"
-#include "TH2D.h"
-#include "TMath.h"
-#include "TTree.h"
-#include "TBranch.h"
-#include "TChain.h"
 #include "IvyFramework/IvyDataTools/interface/HelperFunctions.h"
 #include "IvyFramework/IvyDataTools/interface/IvyStreamHelpers.hh"
 #include "IvyFramework/IvyDataTools/interface/BaseTree.h"
@@ -29,7 +23,7 @@
 #include "EventFilterHandler.h"
 #include "SimEventHandler.h"
 #include "GenInfoHandler.h"
-#include "IsotrackHandler.h"
+#include "BtagScaleFactorHandler.h"
 #include "SamplesCore.h"
 #include "FourTopTriggerHelpers.h"
 #include "DileptonHandler.h"
@@ -38,7 +32,6 @@
 
 
 using namespace std;
-using namespace HelperFunctions;
 using namespace IvyStreamHelpers;
 
 
@@ -66,26 +59,38 @@ void SelectionTracker::print() const{
   }
 }
 
+
 int ScanChain(std::string const& strdate, std::string const& dset, std::string const& proc, double const& xsec, int const& ichunk, int const& nchunks, SimpleEntry const& extra_arguments){
   bool const isCondorRun = SampleHelpers::checkRunOnCondor();
   if (!isCondorRun) std::signal(SIGINT, SampleHelpers::setSignalInterrupt);
 
   TDirectory* curdir = gDirectory;
 
-  // Configure analysis-specific stuff
+  // Systematics hypothesis: For now, keep as "Nominal" for the purposes of this example. This could be made an argument, or the looper could go through each relevant systematic hypothesis in each event.
+  SystematicsHelpers::SystematicVariationTypes const theGlobalSyst = SystematicsHelpers::sNominal;
+
+  // Data period quantities
+  auto const& theDataPeriod = SampleHelpers::getDataPeriod();
+  auto const& theDataYear = SampleHelpers::getDataYear();
+
+  // Keep this as true for checks as cleaning jets from fakeable leptons
   constexpr bool useFakeableIdForPhysicsChecks = true;
   ParticleSelectionHelpers::setUseFakeableIdForPhysicsChecks(useFakeableIdForPhysicsChecks);
 
-  float const absEtaThr_ak4jets = (SampleHelpers::getDataYear()<=2016 ? AK4JetSelectionHelpers::etaThr_btag_Phase0Tracker : AK4JetSelectionHelpers::etaThr_btag_Phase1Tracker);
+  // b-tagging |eta| threshold should be 2.4 in year<=2016 (Phase-0 tracker acceptance) and 2.5 afterward (Phase-1 tracker)
+  float const absEtaThr_ak4jets = (theDataYear<=2016 ? AK4JetSelectionHelpers::etaThr_btag_Phase0Tracker : AK4JetSelectionHelpers::etaThr_btag_Phase1Tracker);
 
-  double const lumi = SampleHelpers::getIntegratedLuminosity(SampleHelpers::getDataPeriod());
-  IVYout << "Valid data periods for " << SampleHelpers::getDataPeriod() << ": " << SampleHelpers::getValidDataPeriods() << endl;
+  // Integrated luminosity for the data period
+  double const lumi = SampleHelpers::getIntegratedLuminosity(theDataPeriod);
+  // If theDataPeriod is not a specific era, print the data eras that are actually contained.
+  // lumi is computed for the contained eras only.
+  IVYout << "Valid data periods for " << theDataPeriod << ": " << SampleHelpers::getValidDataPeriods() << endl;
   IVYout << "Integrated luminosity: " << lumi << endl;
 
   // This is the output directory.
   // Output should always be recorded as if you are running the job locally.
   // We will inform the Condor job later on that some files would need transfer if we are running on Condor.
-  TString coutput_main = TString("output/Analysis_FakeRates/") + strdate.data() + "/" + SampleHelpers::getDataPeriod();
+  TString coutput_main = TString("output/Analysis_TTJetRadiation/") + strdate.data() + "/" + SampleHelpers::getDataPeriod();
   if (!isCondorRun) coutput_main = ANALYSISPKGPATH + "/test/" + coutput_main;
   HostHelpers::ExpandEnvironmentVariables(coutput_main);
   gSystem->mkdir(coutput_main, true);
@@ -191,7 +196,9 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   MuonHandler muonHandler;
   ElectronHandler electronHandler;
   JetMETHandler jetHandler;
-  IsotrackHandler isotrackHandler;
+
+  // SF handlers
+  BtagScaleFactorHandler btagSFHandler;
 
   // These are called handlers, but they are more like helpers.
   DileptonHandler dileptonHandler;
@@ -215,27 +222,28 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   curdir->cd();
 
   // Acquire input tree/chains
-  TString strinputdpdir = SampleHelpers::getDataPeriod();
-  if (SampleHelpers::testDataPeriodIsLikeData(SampleHelpers::getDataPeriod())){
-    auto const& dy = SampleHelpers::getDataYear();
-    if (dy==2016){
-      if (SampleHelpers::isAPV2016Affected(SampleHelpers::getDataPeriod())) strinputdpdir = Form("%i_APV", dy);
-      else strinputdpdir = Form("%i_NonAPV", dy);
+  TString strinputdpdir = theDataPeriod;
+  if (SampleHelpers::testDataPeriodIsLikeData(theDataPeriod)){
+    if (theDataYear==2016){
+      if (SampleHelpers::isAPV2016Affected(theDataPeriod)) strinputdpdir = Form("%i_APV", theDataYear);
+      else strinputdpdir = Form("%i_NonAPV", theDataYear);
     }
-    else strinputdpdir = Form("%i", dy);
+    else strinputdpdir = Form("%i", theDataYear);
   }
 
   signed char is_sim_data_flag = -1; // =0 for sim, =1 for data
   int nevents_total = 0;
+  unsigned int nevents_total_traversed = 0;
   std::vector<BaseTree*> tinlist; tinlist.reserve(dset_proc_pairs.size());
   std::unordered_map<BaseTree*, double> tin_normScale_map;
   for (auto const& dset_proc_pair:dset_proc_pairs){
     TString strinput = SampleHelpers::getInputDirectory() + "/" + strinputdpdir + "/" + dset_proc_pair.second.data();
     TString cinput = (input_files=="" ? strinput + "/*.root" : strinput + "/" + input_files.data());
     IVYout << "Accessing input files " << cinput << "..." << endl;
-    BaseTree* tin = new BaseTree(cinput, "Events", "", "");
-    tin->sampleIdentifier = SampleHelpers::getSampleIdentifier(dset_proc_pair.first);
-    bool const isData = SampleHelpers::checkSampleIsData(tin->sampleIdentifier);
+    TString const sid = SampleHelpers::getSampleIdentifier(dset_proc_pair.first);
+    bool const isData = SampleHelpers::checkSampleIsData(sid);
+    BaseTree* tin = new BaseTree(cinput, "Events", "", (isData ? "" : "Counters"));
+    tin->sampleIdentifier = sid;
     if (!isData){
       if (xsec<0.){
         IVYerr << "xsec = " << xsec << " is not valid." << endl;
@@ -254,15 +262,19 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
     double sum_wgts = (isData ? 1 : 0);
     if (!isData){
-      for (auto const& fname:SampleHelpers::lsdir(strinput.Data())){
-        if (input_files!="" && fname!=input_files.data()) continue;
-        if (fname.EndsWith(".root")){
-          TFile* ftmp = TFile::Open(strinput + "/" + fname, "read");
-          TH2D* hCounters = (TH2D*) ftmp->Get("Counters");
-          sum_wgts += hCounters->GetBinContent(1, 1);
-          ftmp->Close();
-        }
+      int ix = 1;
+      switch (theGlobalSyst){
+      case SystematicsHelpers::ePUDn:
+        ix = 2;
+        break;
+      case SystematicsHelpers::ePUUp:
+        ix = 3;
+        break;
+      default:
+        break;
       }
+      TH2D* hCounters = (TH2D*) tin->getCountersHistogram();
+      sum_wgts = hCounters->GetBinContent(ix, 1);
     }
     if (sum_wgts==0.){
       IVYerr << "Sum of pre-recorded weights cannot be zero." << endl;
@@ -290,11 +302,14 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     muonHandler.bookBranches(tin);
     electronHandler.bookBranches(tin);
     jetHandler.bookBranches(tin);
-    isotrackHandler.bookBranches(tin);
 
     // Book a few additional branches
     tin->bookBranch<EventNumber_t>("event", 0);
-    if (isData){
+    if (!isData){
+      tin->bookBranch<float>("GenMET_pt", 0);
+      tin->bookBranch<float>("GenMET_phi", 0);
+    }
+    else{
       tin->bookBranch<RunNumber_t>("run", 0);
       tin->bookBranch<LuminosityBlock_t>("luminosityBlock", 0);
     }
@@ -334,13 +349,18 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     muonHandler.wrapTree(tin);
     electronHandler.wrapTree(tin);
     jetHandler.wrapTree(tin);
-    isotrackHandler.wrapTree(tin);
 
     RunNumber_t* ptr_RunNumber = nullptr;
     LuminosityBlock_t* ptr_LuminosityBlock = nullptr;
     EventNumber_t* ptr_EventNumber = nullptr;
+    float* ptr_genmet_pt = nullptr;
+    float* ptr_genmet_phi = nullptr;
     tin->getValRef("event", ptr_EventNumber);
-    if (isData){
+    if (!isData){
+      tin->getValRef("GenMET_pt", ptr_genmet_pt);
+      tin->getValRef("GenMET_phi", ptr_genmet_phi);
+    }
+    else{
       tin->getValRef("run", ptr_RunNumber);
       tin->getValRef("luminosityBlock", ptr_LuminosityBlock);
     }
@@ -377,129 +397,86 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
       genInfoHandler.constructGenInfo();
       auto const& genInfo = genInfoHandler.getGenInfo();
+      auto const& genparticles = genInfoHandler.getGenParticles();
+
+      std::vector<GenParticleObject*> genmatch_promptleptons;
+      for (auto const& part:genparticles){
+        if (part->status()!=1) continue; // Only final states
+        if (!part->extras.isPromptFinalState) continue; // Only prompt final states
+        bool const isLepton = std::abs(part->pdgId())==11 || std::abs(part->pdgId())==13;
+        if (!isLepton) continue; // Only leptons
+        genmatch_promptleptons.push_back(part);
+      }
 
       simEventHandler.constructSimEvent();
 
       double wgt = 1;
       if (!isData){
+        // Regular gen. weight
         double genwgt = 1;
-        genwgt = genInfo->getGenWeight(SystematicsHelpers::sNominal);
+        genwgt = genInfo->getGenWeight(theGlobalSyst);
 
+        // PU reweighting (time-dependent)
         double puwgt = 1;
-        puwgt = simEventHandler.getPileUpWeight(SystematicsHelpers::sNominal);
+        puwgt = simEventHandler.getPileUpWeight(theGlobalSyst);
 
         wgt = genwgt * puwgt;
 
         // Add L1 prefiring weight for 2016 and 2017
-        wgt *= simEventHandler.getL1PrefiringWeight(SystematicsHelpers::sNominal);
+        wgt *= simEventHandler.getL1PrefiringWeight(theGlobalSyst);
       }
+      // Overall sample normalization
       wgt *= norm_scale;
 
       muonHandler.constructMuons();
       electronHandler.constructElectrons();
-      jetHandler.constructJetMET(&simEventHandler);
-
+      jetHandler.constructJetMET(&genInfoHandler, &simEventHandler, theGlobalSyst);
       particleDisambiguator.disambiguateParticles(&muonHandler, &electronHandler, nullptr, &jetHandler);
 
+      // Get leptons and match them to gen. particles
+      auto const& muons = muonHandler.getProducts();
+      auto const& electrons = electronHandler.getProducts();
+      std::vector<ParticleObject*> leptons; leptons.reserve(muons.size()+electrons.size());
+      for (auto const& part:muons) leptons.push_back(part);
+      for (auto const& part:electrons) leptons.push_back(part);
+      std::unordered_map<ParticleObject*, GenParticleObject*> lepton_genmatchpart_map;
+      ParticleObjectHelpers::matchParticles(
+        ParticleObjectHelpers::kMatchBy_DeltaR, 0.2,
+        leptons.begin(), leptons.end(),
+        genmatch_promptleptons.begin(), genmatch_promptleptons.end(),
+        lepton_genmatchpart_map
+      );
+
+      // Keep track of leptons
       std::vector<ParticleObject*> leptons_tight;
 
-      auto const& muons = muonHandler.getProducts();
       std::vector<MuonObject*> muons_selected;
       std::vector<MuonObject*> muons_tight;
       std::vector<MuonObject*> muons_fakeable;
       std::vector<MuonObject*> muons_loose;
       for (auto const& part:muons){
-        float pt = part->pt();
-        float eta = part->eta();
-        float phi = part->phi();
-        float mass = part->mass();
-
-        bool is_tight = false;
-        bool is_fakeable = false;
-        bool is_loose = false;
-
         if (ParticleSelectionHelpers::isTightParticle(part)){
           muons_tight.push_back(part);
           leptons_tight.push_back(dynamic_cast<ParticleObject*>(part));
-          is_loose = is_fakeable = is_tight = true;
         }
-        else if (ParticleSelectionHelpers::isFakeableParticle(part)){
-          muons_fakeable.push_back(part);
-          is_loose = is_fakeable = true;
-        }
-        else if (ParticleSelectionHelpers::isLooseParticle(part)){
-          muons_loose.push_back(part);
-          is_loose = true;
-        }
-
-        if (!is_loose) continue;
-
-        float ptrel_final = part->ptrel();
-        float ptratio_final = part->ptratio();
-
-        float extMVAscore=-99;
-        bool has_extMVAscore = part->getExternalMVAScore(MuonSelectionHelpers::selection_type, extMVAscore);
-
-        float bscore = 0;
-        AK4JetObject* mother = nullptr;
-        for (auto const& mom:part->getMothers()){
-          mother = dynamic_cast<AK4JetObject*>(mom);
-          if (mother) break;
-        }
-        if (mother) bscore = mother->extras.btagDeepFlavB;
-
+        else if (ParticleSelectionHelpers::isFakeableParticle(part)) muons_fakeable.push_back(part);
+        else if (ParticleSelectionHelpers::isLooseParticle(part)) muons_loose.push_back(part);
       }
       HelperFunctions::appendVector(muons_selected, muons_tight);
       HelperFunctions::appendVector(muons_selected, muons_fakeable);
       HelperFunctions::appendVector(muons_selected, muons_loose);
 
-      auto const& electrons = electronHandler.getProducts();
       std::vector<ElectronObject*> electrons_selected;
       std::vector<ElectronObject*> electrons_tight;
       std::vector<ElectronObject*> electrons_fakeable;
       std::vector<ElectronObject*> electrons_loose;
       for (auto const& part:electrons){
-        float pt = part->pt();
-        float eta = part->eta();
-        float etaSC = part->etaSC();
-        float phi = part->phi();
-        float mass = part->mass();
-
-        bool is_tight = false;
-        bool is_fakeable = false;
-        bool is_loose = false;
-
         if (ParticleSelectionHelpers::isTightParticle(part)){
           electrons_tight.push_back(part);
           leptons_tight.push_back(dynamic_cast<ParticleObject*>(part));
-          is_loose = is_fakeable = is_tight = true;
         }
-        else if (ParticleSelectionHelpers::isFakeableParticle(part)){
-          electrons_fakeable.push_back(part);
-          is_loose = is_fakeable = true;
-        }
-        else if (ParticleSelectionHelpers::isLooseParticle(part)){
-          electrons_loose.push_back(part);
-          is_loose = true;
-        }
-
-        if (!is_loose) continue;
-
-        float mvaFall17V2noIso_raw = 0.5 * std::log((1. + part->extras.mvaFall17V2noIso)/(1. - part->extras.mvaFall17V2noIso));
-        float ptrel_final = part->ptrel();
-        float ptratio_final = part->ptratio();
-
-        float extMVAscore=-99;
-        bool has_extMVAscore = part->getExternalMVAScore(ElectronSelectionHelpers::selection_type, extMVAscore);
-
-        float bscore = 0;
-        AK4JetObject* mother = nullptr;
-        for (auto const& mom:part->getMothers()){
-          mother = dynamic_cast<AK4JetObject*>(mom);
-          if (mother) break;
-        }
-        if (mother) bscore = mother->extras.btagDeepFlavB;
-
+        else if (ParticleSelectionHelpers::isFakeableParticle(part)) electrons_fakeable.push_back(part);
+        else if (ParticleSelectionHelpers::isLooseParticle(part)) electrons_loose.push_back(part);
       }
       HelperFunctions::appendVector(electrons_selected, electrons_tight);
       HelperFunctions::appendVector(electrons_selected, electrons_fakeable);
@@ -512,21 +489,35 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
       ParticleObjectHelpers::sortByGreaterPt(leptons_tight);
 
+      // Keep track of jets
+      double event_wgt_SFs_btagging = 1;
       auto const& ak4jets = jetHandler.getAK4Jets();
-      std::vector<AK4JetObject*> ak4jets_tight;
+      std::vector<AK4JetObject*> ak4jets_tight_selected;
       unsigned int nbjets_tight = 0;
       for (auto const& jet:ak4jets){
-        float pt = jet->pt();
-        float eta = jet->eta();
-        float phi = jet->phi();
-        float mass = jet->mass();
-
-        bool is_tight = ParticleSelectionHelpers::isTightJet(jet);
+        bool is_btaggable = jet->testSelectionBit(AK4JetSelectionHelpers::kPreselectionTight_BTaggable);
         bool is_btagged = jet->testSelectionBit(bit_preselection_btag);
         constexpr bool is_clean = true;
-        if (is_tight && pt>=25. && std::abs(eta)<absEtaThr_ak4jets){
-          ak4jets_tight.push_back(jet);
+        if (is_btaggable){
+          ak4jets_tight_selected.push_back(jet);
           if (is_btagged) nbjets_tight++;
+
+          float theSF_btag = 1;
+          float theEff_btag = 1;
+          btagSFHandler.getSFAndEff(theGlobalSyst, jet, theSF_btag, &theEff_btag); theSF_btag = std::max(theSF_btag, 1e-5f); event_wgt_SFs_btagging *= theSF_btag;
+          if (theSF_btag<=1e-5f){
+            IVYout
+              << "Jet has b-tagging SF<=1e-5:"
+              << "\n\t- pt = " << jet->pt()
+              << "\n\t- eta = " << jet->eta()
+              << "\n\t- b kin = " << jet->testSelectionBit(AK4JetSelectionHelpers::kKinOnly_BTag)
+              << "\n\t- Loose = " << jet->testSelectionBit(AK4JetSelectionHelpers::kBTagged_Loose)
+              << "\n\t- Medium = " << jet->testSelectionBit(AK4JetSelectionHelpers::kBTagged_Medium)
+              << "\n\t- Tight = " << jet->testSelectionBit(AK4JetSelectionHelpers::kBTagged_Tight)
+              << "\n\t- Eff =  " << theEff_btag
+              << "\n\t- SF = " << theSF_btag
+              << endl;
+          }
         }
       }
 
@@ -536,7 +527,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       // BEGIN PRESELECTION
       seltracker.accumulate("Full sample", wgt);
 
-      if (nleptons_fakeable>0 || nleptons_loose>0) continue; 
+      if (nleptons_fakeable+nleptons_loose>0) continue;
       seltracker.accumulate("Has exactly 0 loose and 0 fakeable leptons", wgt);
 
       if (electrons_tight.size()!=1) continue;
@@ -551,140 +542,142 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
       // check lep1 pt>25 lep2 pt>20
       if (leptons_tight.front()->pt() < 25. || leptons_tight.back()->pt() < 20.) continue;
-      seltracker.accumulate("Has lep1 pt>25 lep2 pt>20", wgt);
+      seltracker.accumulate("Has pTl1>=25 GeV and pTl2>=20 GeV", wgt);
 
-      // check MET (jet1 25, jet2 20)
-      if (eventmet->pt() < 25.f) continue;
-      seltracker.accumulate("MET > 25 GeV", wgt);
-
-      // check njet>2 and nbjets_tight>2
-      if (ak4jets_tight.size() < 2) continue;
-      seltracker.accumulate("njet > 2", wgt);
-
-      if (nbjets_tight < 2) continue;
-      seltracker.accumulate("nbjet > 2", wgt);
+      // check MET
+      float const pTmiss = eventmet->pt();
+      float const phimiss = eventmet->phi();
+      if (pTmiss<25.f) continue;
+      seltracker.accumulate("pTmiss>=25 GeV", wgt);
 
       // Put event filters to the last because data has unique event tracking enabled.
       eventFilter.constructFilters(&simEventHandler);
-      //if (!eventFilter.test2018HEMFilter(&simEventHandler, nullptr, nullptr, &ak4jets)) continue; // Test for 2018 partial HEM failure
-      //if (!eventFilter.test2018HEMFilter(&simEventHandler, &electrons, nullptr, nullptr)) continue; // Test for 2018 partial HEM failure
-      //seltracker.accumulate("Pass HEM veto", wgt);
-      if (!eventFilter.passMETFilters()) continue; // Test for MET filters
+      constexpr bool pass_HEMveto = true;
+      //bool const pass_HEMveto = eventFilter.test2018HEMFilter(&simEventHandler, nullptr, nullptr, &ak4jets);
+      //bool const pass_HEMveto = eventFilter.test2018HEMFilter(&simEventHandler, &electrons, nullptr, &ak4jets);
+      if (!pass_HEMveto) continue;
+      seltracker.accumulate("Pass HEM veto", wgt);
+
+      if (!eventFilter.passMETFilters()) continue;
       seltracker.accumulate("Pass MET filters", wgt);
-      if (!eventFilter.isUniqueDataEvent()) continue; // Test if the data event is unique (i.e., dorky). Does not do anything in the MC.
+
+      if (!eventFilter.isUniqueDataEvent()) continue;
       seltracker.accumulate("Pass unique event check", wgt);
 
       // Triggers
-      double event_wgt_triggers_dilepton = eventFilter.getTriggerWeight(hltnames_Dilepton);
-      if (event_wgt_triggers_dilepton==0.) continue; // Test if any triggers passed at all
+      float event_wgt_triggers_dilepton = eventFilter.getTriggerWeight(hltnames_Dilepton);
+      if (event_wgt_triggers_dilepton==0.f) continue;
       seltracker.accumulate("Pass any trigger", wgt);
 
-      double event_wgt_triggers_dilepton_matched = eventFilter.getTriggerWeight(
+      float event_wgt_triggers_dilepton_matched = eventFilter.getTriggerWeight(
         triggerPropsCheckList_Dilepton,
         &muons, &electrons, nullptr, &ak4jets, nullptr, nullptr
       );
-      seltracker.accumulate("Pass triggers after matching", (event_wgt_triggers_dilepton_matched>0.)*wgt);
-      
+      bool const pass_triggers_dilepton_matched = (event_wgt_triggers_dilepton_matched!=0.f);
+      // Do not skip the event. Instead, record a flag for HLT object matching.
+      rcd_output.setNamedVal("pass_triggers_dilepton_matched", pass_triggers_dilepton_matched);
+      seltracker.accumulate("Pass triggers after matching", wgt*static_cast<double>(pass_triggers_dilepton_matched));
+
+
       /*************************************************/
       /* NO MORE CALLS TO SELECTION BEYOND THIS POINT! */
       /*************************************************/
       // calculate min_mlb, Ht, min_mbb, max_mbb
-
-      // min_mlb
-      // loop over tight leptons:
-      float min_mlb = -1;
-      for (auto const& lep:leptons_tight){
-        // loop over jets:
-        for (auto const& jet:ak4jets_tight){
-          if (!jet->testSelectionBit(bit_preselection_btag)) continue;
-          float mlb = (lep->p4() + jet->p4()).M();
-          if (mlb<min_mlb || min_mlb<0.f) min_mlb = mlb;
-        }
-      }
-
-      // Ht
-      float Ht = 0;
-      for (auto const& jet:ak4jets_tight){
-        Ht += jet->pt();
-      }
-
-      // min_mbb and max_mbb
-      float min_mbb = -1;
-      float max_mbb = -1;
-      for (auto jet1 = ak4jets_tight.begin(); jet1 != ak4jets_tight.end(); ++jet1){
-        for (auto jet2 = jet1+1; jet2 != ak4jets_tight.end(); ++jet2){
-          float mbb = ((*jet1)->p4() + (*jet2)->p4()).M();
-          if (mbb<min_mbb || min_mbb<0.f) min_mbb = mbb;
-          if (mbb>max_mbb || max_mbb<0.f) max_mbb = mbb;
+      float HT_ak4jets = 0.f;
+      float min_mlb = -1.f;
+      float min_mbb = -1.f;
+      float max_mbb = -1.f;
+      for (auto it_jet1=ak4jets_tight_selected.begin(); it_jet1!=ak4jets_tight_selected.end(); it_jet1++){
+        auto const& jet1 = *it_jet1;
+        bool is_btagged = jet1->testSelectionBit(bit_preselection_btag);
+        float pt_jet1 = jet1->pt();
+        HT_ak4jets += pt_jet1;
+        if (is_btagged){
+          for (auto const& lep:leptons_tight){
+            float mlb = (lep->p4() + jet1->p4()).M();
+            if (min_mlb<0.f || mlb<min_mlb) min_mlb = mlb;
+          }
+          for (auto it_jet2=it_jet1+1; it_jet2!=ak4jets_tight_selected.end(); it_jet2++){
+            auto const& jet2 = *it_jet2;
+            if (!jet2->testSelectionBit(bit_preselection_btag)) continue;
+            float mbb = (jet1->p4() + jet2->p4()).M();
+            if (min_mbb<0.f || mbb<min_mbb) min_mbb = mbb;
+            if (max_mbb<0.f || mbb>max_mbb) max_mbb = mbb;
+          }
         }
       }
 
       // Write output
-      rcd_output.setNamedVal("event_wgt_triggers_dilepton", static_cast<float>(event_wgt_triggers_dilepton));
-      rcd_output.setNamedVal("event_wgt_triggers_dilepton_matched", static_cast<float>(event_wgt_triggers_dilepton_matched));
-      rcd_output.setNamedVal("njet", static_cast<unsigned int>(ak4jets_tight.size()));
-      rcd_output.setNamedVal("nbjet", nbjets_tight);
       rcd_output.setNamedVal("event_wgt", static_cast<float>(wgt));
+      rcd_output.setNamedVal("event_wgt_triggers_dilepton", event_wgt_triggers_dilepton);
+      rcd_output.setNamedVal("event_wgt_triggers_dilepton_matched", event_wgt_triggers_dilepton_matched);
+      rcd_output.setNamedVal("event_wgt_SFs_btagging", static_cast<float>(event_wgt_SFs_btagging));
+      rcd_output.setNamedVal("nak4jets_tight_pt25", static_cast<unsigned int>(ak4jets_tight_selected.size()));
+      rcd_output.setNamedVal("nak4jets_tight_pt25_btagged", nbjets_tight);
       rcd_output.setNamedVal("min_mlb", min_mlb);
       rcd_output.setNamedVal("min_mbb", min_mbb);
       rcd_output.setNamedVal("max_mbb", max_mbb);
-      rcd_output.setNamedVal("Ht", Ht); 
-
-      // make vectors of pt, eta, phi, mass, pdgId for leptons
-      std::vector<float> lep_pt;
-      std::vector<float> lep_eta;
-      std::vector<float> lep_phi;
-      std::vector<float> lep_mass;
-      std::vector<int> lep_pdgId;
-      for (auto const& lep:leptons_tight){
-        lep_pt.push_back(lep->pt());
-        lep_eta.push_back(lep->eta());
-        lep_phi.push_back(lep->phi());
-        lep_mass.push_back(lep->mass());
-        lep_pdgId.push_back(lep->pdgId());
-      }
-
-      // setNamedVal for pt, eta, phi, mass, pdgId for leptons
-      rcd_output.setNamedVal("lep_pt", lep_pt);
-      rcd_output.setNamedVal("lep_eta", lep_eta);
-      rcd_output.setNamedVal("lep_phi", lep_phi);
-      rcd_output.setNamedVal("lep_mass", lep_mass);
-      rcd_output.setNamedVal("lep_pdgId", lep_pdgId);
-
-      // make vectors of pt eta phi, mass, is_btagged, partonFlavour, and hadronFlavour for jets
-      std::vector<float> jet_pt;
-      std::vector<float> jet_eta;
-      std::vector<float> jet_phi;
-      std::vector<float> jet_mass;
-      std::vector<bool> jet_is_btagged;
-      std::vector<int> jet_partonFlavour;
-      std::vector<int> jet_hadronFlavour;
-      for (auto const& jet:ak4jets_tight){
-        jet_pt.push_back(jet->pt());
-        jet_eta.push_back(jet->eta());
-        jet_phi.push_back(jet->phi());
-        jet_mass.push_back(jet->mass());
-        jet_is_btagged.push_back(jet->testSelectionBit(bit_preselection_btag));
-        jet_partonFlavour.push_back(jet->extras.partonFlavour);
-        jet_hadronFlavour.push_back(jet->extras.hadronFlavour);
-      }
-
-      // setNamedVal for pt, eta, phi, mass, is_btagged, genLevelInfo for jets
-      rcd_output.setNamedVal("jet_pt", jet_pt);
-      rcd_output.setNamedVal("jet_eta", jet_eta);
-      rcd_output.setNamedVal("jet_phi", jet_phi);
-      rcd_output.setNamedVal("jet_mass", jet_mass);
-      rcd_output.setNamedVal("jet_is_btagged", jet_is_btagged);
-      rcd_output.setNamedVal("jet_partonFlavour", jet_partonFlavour);
-      rcd_output.setNamedVal("jet_hadronFlavour", jet_hadronFlavour);
-
+      rcd_output.setNamedVal("HT_ak4jets", HT_ak4jets);
+      rcd_output.setNamedVal("pTmiss", pTmiss);
+      rcd_output.setNamedVal("phimiss", phimiss);
       rcd_output.setNamedVal("EventNumber", *ptr_EventNumber);
-      if (isData){
+      if (!isData){
+        rcd_output.setNamedVal("GenMET_pt", *ptr_genmet_pt);
+        rcd_output.setNamedVal("GenMET_phi", *ptr_genmet_phi);
+      }
+      else{
         rcd_output.setNamedVal("RunNumber", *ptr_RunNumber);
         rcd_output.setNamedVal("LuminosityBlock", *ptr_LuminosityBlock);
       }
-      rcd_output.setNamedVal("PFMET_pt_final", eventmet->pt());
-      rcd_output.setNamedVal("PFMET_phi_final", eventmet->phi());
+
+      {
+        // make vectors of pt, eta, phi, mass, pdgId for leptons
+        std::vector<int> leptons_pdgId;
+        std::vector<float> leptons_pt;
+        std::vector<float> leptons_eta;
+        std::vector<float> leptons_phi;
+        std::vector<float> leptons_mass;
+        for (auto const& lep:leptons_tight){
+          leptons_pdgId.push_back(lep->pdgId());
+          leptons_pt.push_back(lep->pt());
+          leptons_eta.push_back(lep->eta());
+          leptons_phi.push_back(lep->phi());
+          leptons_mass.push_back(lep->mass());
+        }
+
+        // setNamedVal for pt, eta, phi, mass, pdgId for leptons
+        rcd_output.setNamedVal("leptons_pt", leptons_pt);
+        rcd_output.setNamedVal("leptons_eta", leptons_eta);
+        rcd_output.setNamedVal("leptons_phi", leptons_phi);
+        rcd_output.setNamedVal("leptons_mass", leptons_mass);
+        rcd_output.setNamedVal("leptons_pdgId", leptons_pdgId);
+      }
+
+      {
+        // make vectors of pt, eta, phi, mass, is_btagged, and hadronFlavour for jets
+        std::vector<bool> ak4jets_is_btagged;
+        std::vector<int> ak4jets_hadronFlavour;
+        std::vector<float> ak4jets_pt;
+        std::vector<float> ak4jets_eta;
+        std::vector<float> ak4jets_phi;
+        std::vector<float> ak4jets_mass;
+        for (auto const& jet:ak4jets_tight_selected){
+          ak4jets_is_btagged.push_back(jet->testSelectionBit(bit_preselection_btag));
+          ak4jets_hadronFlavour.push_back(jet->extras.hadronFlavour);
+          ak4jets_pt.push_back(jet->pt());
+          ak4jets_eta.push_back(jet->eta());
+          ak4jets_phi.push_back(jet->phi());
+          ak4jets_mass.push_back(jet->mass());
+        }
+
+        // setNamedVal for pt, eta, phi, mass, is_btagged, and hadronFlavour for jets
+        rcd_output.setNamedVal("ak4jets_is_btagged", ak4jets_is_btagged);
+        rcd_output.setNamedVal("ak4jets_hadronFlavour", ak4jets_hadronFlavour);
+        rcd_output.setNamedVal("ak4jets_pt", ak4jets_pt);
+        rcd_output.setNamedVal("ak4jets_eta", ak4jets_eta);
+        rcd_output.setNamedVal("ak4jets_phi", ak4jets_phi);
+        rcd_output.setNamedVal("ak4jets_mass", ak4jets_mass);
+      }
 
       if (firstOutputEvent){
 #define SIMPLE_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.named##name_t##s.begin(); itb!=rcd_output.named##name_t##s.end(); itb++) tout->putBranch(itb->first, itb->second);
@@ -740,6 +733,11 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 int main(int argc, char** argv){
   constexpr int iarg_offset=1; // argv[0]==[Executable name]
 
+  // Switches that do not need =true.
+  std::vector<std::string> const extra_argument_flags{
+    "shorthand_Run2_UL_proposal_config"
+  };
+
   bool print_help=false, has_help=false;
   int ichunk=0, nchunks=0;
   std::string str_dset;
@@ -752,15 +750,21 @@ int main(int argc, char** argv){
   for (int iarg=iarg_offset; iarg<argc; iarg++){
     std::string strarg = argv[iarg];
     std::string wish, value;
-    splitOption(strarg, wish, value, '=');
+    HelperFunctions::splitOption(strarg, wish, value, '=');
 
     if (wish.empty()){
       if (value=="help"){ print_help=has_help=true; }
-      else if (value=="shorthand_Run2_UL_proposal_config") extra_arguments.setNamedVal<bool>(value, true);
+      else if (HelperFunctions::checkListVariable(extra_argument_flags, value)) extra_arguments.setNamedVal<bool>(value, true);
       else{
         IVYerr << "ERROR: Unknown argument " << value << endl;
         print_help=true;
       }
+    }
+    else if (HelperFunctions::checkListVariable(extra_argument_flags, wish)){
+      // Case where the user runs '[executable] [flag]=true/false' as a variation of the above.
+      bool tmpval;
+      HelperFunctions::castStringToValue(value, tmpval);
+      extra_arguments.setNamedVal(wish, tmpval);
     }
     else if (wish=="dataset") str_dset = value;
     else if (wish=="short_name") str_proc = value;

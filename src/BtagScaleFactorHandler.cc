@@ -48,9 +48,9 @@ void BtagScaleFactorHandler::evalEfficiencyFromHistogram(float& theSF, float con
   }
 
   if (ix==0) ix=1;
-  else if (ix>nbinsx+1) ix=nbinsx+1; // Overflows exist
+  else if (ix>nbinsx) ix=nbinsx;
   if (iy==0) iy=1;
-  else if (iy==nbinsy+1) iy=nbinsy;
+  else if (iy>nbinsy) iy=nbinsy;
 
   theSF = hh->GetBinContent(ix, iy);
 }
