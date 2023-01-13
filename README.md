@@ -15,6 +15,9 @@ cmsenv
 cd tttt
 ./setup.sh -j [Ncores] # Ncores is optional. Unless you are running on a Condor node, you can keep it blank.
 eval $(./setup.sh env)
+# ./setup.sh -j is only run to compile, so it is only run once.
+# The eval statement is for environment variables,
+# so it should be run at every log in.
 ```
 
 # How to submit jobs using Metis to produce skims
