@@ -632,25 +632,30 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
       {
         // make vectors of pt, eta, phi, mass, pdgId for leptons
+        std::vector<bool> leptons_is_genmatched_prompt;
         std::vector<int> leptons_pdgId;
         std::vector<float> leptons_pt;
         std::vector<float> leptons_eta;
         std::vector<float> leptons_phi;
         std::vector<float> leptons_mass;
-        for (auto const& lep:leptons_tight){
-          leptons_pdgId.push_back(lep->pdgId());
-          leptons_pt.push_back(lep->pt());
-          leptons_eta.push_back(lep->eta());
-          leptons_phi.push_back(lep->phi());
-          leptons_mass.push_back(lep->mass());
+        for (auto const& part:leptons_tight){
+          leptons_pdgId.push_back(part->pdgId());
+          leptons_pt.push_back(part->pt());
+          leptons_eta.push_back(part->eta());
+          leptons_phi.push_back(part->phi());
+          leptons_mass.push_back(part->mass());
+
+          auto it_genmatch = lepton_genmatchpart_map.find(part);
+          leptons_is_genmatched_prompt.push_back((it_genmatch!=lepton_genmatchpart_map.end() && it_genmatch->second!=nullptr));
         }
 
         // setNamedVal for pt, eta, phi, mass, pdgId for leptons
+        rcd_output.setNamedVal("leptons_is_genmatched_prompt", leptons_is_genmatched_prompt);
+        rcd_output.setNamedVal("leptons_pdgId", leptons_pdgId);
         rcd_output.setNamedVal("leptons_pt", leptons_pt);
         rcd_output.setNamedVal("leptons_eta", leptons_eta);
         rcd_output.setNamedVal("leptons_phi", leptons_phi);
         rcd_output.setNamedVal("leptons_mass", leptons_mass);
-        rcd_output.setNamedVal("leptons_pdgId", leptons_pdgId);
       }
 
       {
