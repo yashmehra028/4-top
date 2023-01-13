@@ -802,6 +802,9 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       /* NO MORE CALLS TO SELECTION BEYOND THIS POINT! */
       /*************************************************/
       if (tout){
+        // Event weight
+        rcd_output.setNamedVal("event_wgt", wgt);
+
         rcd_output.setNamedVal("EventNumber", *ptr_EventNumber);
         if (!isData){
           rcd_output.setNamedVal("GenMET_pt", *ptr_genmet_pt);
