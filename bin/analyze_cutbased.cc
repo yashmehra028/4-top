@@ -87,9 +87,19 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   extra_arguments.getNamedVal("no_FOs_phys_checks", no_FOs_phys_checks);
   bool const useFakeableIdForPhysicsChecks = !no_FOs_phys_checks;
   ParticleSelectionHelpers::setUseFakeableIdForPhysicsChecks(useFakeableIdForPhysicsChecks);
+  IVYout << "Configured to use " << (useFakeableIdForPhysicsChecks ? "fakeable" : "only tight") << " leptons in physics objects checks..." << endl;
 
   bool only_tight_dileptons = false;
   extra_arguments.getNamedVal("only_tight_dileptons", only_tight_dileptons);
+  IVYout << "Configured to use " << (only_tight_dileptons ? "only tight" : "loose, fakeable, or tight") << " leptons in pairing..." << endl;
+
+  bool ignore_PU_rewgt = false;
+  extra_arguments.getNamedVal("ignore_PU_rewgt", ignore_PU_rewgt);
+  if (ignore_PU_rewgt) IVYout << "The PU weight will be ignored from the 'event_wgt' variable and will be recorded separately instead." << endl;
+
+  bool ignore_L1Prefiring_rewgt = false;
+  extra_arguments.getNamedVal("ignore_L1Prefiring_rewgt", ignore_L1Prefiring_rewgt);
+  if (ignore_L1Prefiring_rewgt) IVYout << "The L1 prefiring weight will be ignored from the 'event_wgt' variable and will be recorded separately instead." << endl;
 
   constexpr bool useIsotrackVeto = false;
 
@@ -139,7 +149,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   // Note: With this switch is on, keeping track of the sums of weights becomes meaningless.
   bool produce_trees = false;
   extra_arguments.getNamedVal("produce_trees", produce_trees);
-  if (produce_trees) IVYout << "Producing output tres instead of histograms..." << endl;
+  if (produce_trees) IVYout << "Producing output trees instead of histograms..." << endl;
 
   // Turn on synchronization exercise options
   std::string input_files;
@@ -376,6 +386,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   unsigned int nevents_total_traversed = 0;
   std::vector<BaseTree*> tinlist; tinlist.reserve(dset_proc_pairs.size());
   std::unordered_map<BaseTree*, double> tin_normScale_map;
+  std::unordered_map<BaseTree*, double> tin_normScale_noPU_map;
   for (auto const& dset_proc_pair:dset_proc_pairs){
     TString strinput = SampleHelpers::getInputDirectory() + "/" + strinputdpdir + "/" + dset_proc_pair.second.data();
     TString cinput = (input_files=="" ? strinput + "/*.root" : strinput + "/" + input_files.data());
@@ -383,6 +394,10 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     TString const sid = SampleHelpers::getSampleIdentifier(dset_proc_pair.first);
     bool const isData = SampleHelpers::checkSampleIsData(sid);
     BaseTree* tin = new BaseTree(cinput, "Events", "", (isData ? "" : "Counters"));
+    if (!tin->isValid()){
+      IVYout << "An error occured while acquiring the input from " << cinput << ". Aborting..." << endl;
+      assert(0);
+    }
     tin->sampleIdentifier = sid;
     if (!isData){
       if (xsec<0.){
@@ -401,9 +416,22 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     }
 
     double sum_wgts = (isData ? 1 : 0);
+    double sum_wgts_noPU = (isData ? 1 : 0);
     if (!isData){
+      int ix = 1;
+      switch (theGlobalSyst){
+      case SystematicsHelpers::ePUDn:
+        ix = 2;
+        break;
+      case SystematicsHelpers::ePUUp:
+        ix = 3;
+        break;
+      default:
+        break;
+      }
       TH2D* hCounters = (TH2D*) tin->getCountersHistogram();
-      sum_wgts = hCounters->GetBinContent(1, 1);
+      sum_wgts = hCounters->GetBinContent(ix, 1);
+      sum_wgts_noPU = hCounters->GetBinContent(0, 0);
     }
     if (sum_wgts==0.){
       IVYerr << "Sum of pre-recorded weights cannot be zero." << endl;
@@ -418,7 +446,10 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     // Data normalizaion factor is always 1.
     double norm_scale = (isData ? 1. : xsec * xsecScale * lumi)/sum_wgts;
     tin_normScale_map[tin] = norm_scale;
+    double norm_scale_noPU = (isData ? 1. : xsec * xsecScale * lumi)/sum_wgts_noPU;
+    tin_normScale_noPU_map[tin] = norm_scale_noPU;
     IVYout << "Acquired a sum of weights of " << sum_wgts << ". Overall normalization will be " << norm_scale << "." << endl;
+    IVYout << "\t- Without PU reweighting, the sum of weights would have been " << sum_wgts_noPU << " instead. Overall normalization would have become " << norm_scale_noPU << "." << endl;
 
     nevents_total += tin->getNEvents();
 
@@ -463,6 +494,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     if (SampleHelpers::doSignalInterrupt==1) break;
 
     auto const& norm_scale = tin_normScale_map.find(tin)->second;
+    auto const& norm_scale_noPU = tin_normScale_noPU_map.find(tin)->second;
     bool const isData = (is_sim_data_flag==1);
 
     // Wrap the ivies around the input tree:
@@ -559,20 +591,18 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
       simEventHandler.constructSimEvent();
 
-      double wgt = 1;
+      double genwgt = 1;
+      double puwgt = 1;
+      double l1prefiringwgt = 1;
       if (!isData){
-        double genwgt = 1;
         genwgt = genInfo->getGenWeight(theGlobalSyst);
-
-        double puwgt = 1;
         puwgt = simEventHandler.getPileUpWeight(theGlobalSyst);
-
-        wgt = genwgt * puwgt;
-
-        // Add L1 prefiring weight for 2016 and 2017
-        wgt *= simEventHandler.getL1PrefiringWeight(theGlobalSyst);
+        // When ignore_PU_rewgt=true, make sure puwgt is scaled correctly.
+        if (ignore_PU_rewgt) puwgt *= norm_scale / norm_scale_noPU;
+        // L1 prefiring weight for 2016 and 2017
+        l1prefiringwgt = simEventHandler.getL1PrefiringWeight(theGlobalSyst);
       }
-      wgt *= norm_scale;
+      double wgt = genwgt * (!ignore_L1Prefiring_rewgt ? l1prefiringwgt : 1.) * (!ignore_PU_rewgt ? puwgt*norm_scale : norm_scale_noPU);
 
       muonHandler.constructMuons();
       electronHandler.constructElectrons();
@@ -1238,6 +1268,12 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
       if (tout){
         rcd_output.setNamedVal<float>("event_wgt", wgt);
+        if (!isData){
+          // If PU or L1 prefiring weights are ignored from the event reweighting scheme,
+          // we should still be able to access them using event weight adjustments later.
+          if (ignore_PU_rewgt) rcd_output.setNamedVal<float>("event_wgt_adjustment_PU", puwgt);
+          if (ignore_L1Prefiring_rewgt) rcd_output.setNamedVal<float>("event_wgt_adjustment_L1Prefiring", l1prefiringwgt);
+        }
         rcd_output.setNamedVal<float>("event_wgt_triggers_dilepton", event_wgt_triggers_dilepton);
         rcd_output.setNamedVal<float>("event_wgt_triggers_dilepton_matched", event_wgt_triggers_dilepton_matched);
         rcd_output.setNamedVal<float>("event_wgt_SFs_btagging", event_wgt_SFs_btagging);
@@ -1482,7 +1518,10 @@ int main(int argc, char** argv){
 
   // Switches that do not need =true.
   std::vector<std::string> const extra_argument_flags{
+    "ignore_PU_rewgt",
+    "ignore_L1Prefiring_rewgt",
     "no_FOs_phys_checks",
+    "only_tight_dileptons",
     "produce_trees",
     "run_sync",
     "write_sync_objects",
@@ -1592,6 +1631,8 @@ int main(int argc, char** argv){
     IVYout << "- minpt_l3: Minimum pT of third lepton in units of GeV. Default=20.\n";
     IVYout << "- minpt_miss: Minimum pTmiss in units of GeV. Default=50.\n";
     IVYout << "- minHT_jets: Minimum HT over ak4 jets in units of GeV. Default=300.\n";
+    IVYout << "- ignore_PU_rewgt: Flag to turn off PU reweighting. Optional. Default is to include it.\n";
+    IVYout << "- ignore_L1Prefiring_rewgt: Flag to turn off L1 prefiring reweighting in 2016 and 2017. Optional. Default is to include it.\n";
     IVYout << "- no_FOs_phys_checks: Flag to turn off the usage of fakeable leptons in physics object checks such as jet cleaning. Optional. Default is to take FOs into account.\n";
     IVYout << "- only_tight_dileptons: Flag to use only tight leptons in general dilepton pair construction. Optional. Default is to use all loose, fakeable, or tight leptons.\n";
     IVYout << "- produce_trees: Flag to switch to tree output instead of histograms. Optional. Default is to produce histograms.\n";

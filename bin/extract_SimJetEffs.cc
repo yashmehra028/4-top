@@ -222,6 +222,11 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       assert(0);
     }
     BaseTree* tin = new BaseTree(cinput, "Events", "", (isData ? "" : "Counters"));
+    if (!tin->isValid()){
+      IVYout << "An error occured while acquiring the input from " << cinput << ". Aborting..." << endl;
+      delete tin;
+      assert(0);
+    }
     tin->sampleIdentifier = sid;
 
     tin_normScale_map[tin] = std::unordered_map<SystematicsHelpers::SystematicVariationTypes, double>();

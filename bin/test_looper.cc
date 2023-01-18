@@ -303,6 +303,11 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     TString const sid = SampleHelpers::getSampleIdentifier(dset_proc_pair.first);
     bool const isData = SampleHelpers::checkSampleIsData(sid);
     BaseTree* tin = new BaseTree(cinput, "Events", "", (isData ? "" : "Counters"));
+    if (!tin->isValid()){
+      IVYout << "An error occured while acquiring the input from " << cinput << ". Aborting..." << endl;
+      delete tin;
+      assert(0);
+    }
     tin->sampleIdentifier = sid;
     if (!isData){
       if (xsec<0.){

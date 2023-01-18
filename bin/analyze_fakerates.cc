@@ -267,6 +267,11 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     TString const sid = SampleHelpers::getSampleIdentifier(dset_proc_pair.first);
     bool const isData = SampleHelpers::checkSampleIsData(sid);
     BaseTree* tin = new BaseTree(cinput, "Events", "", (isData ? "" : "Counters"));
+    if (!tin->isValid()){
+      IVYout << "An error occured while acquiring the input from " << cinput << ". Aborting..." << endl;
+      delete tin;
+      assert(0);
+    }
     tin->sampleIdentifier = sid;
     if (!isData){
       if (xsec<0.){
@@ -286,8 +291,19 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
     double sum_wgts = (isData ? 1 : 0);
     if (!isData){
+      int ix = 1;
+      switch (theGlobalSyst){
+      case SystematicsHelpers::ePUDn:
+        ix = 2;
+        break;
+      case SystematicsHelpers::ePUUp:
+        ix = 3;
+        break;
+      default:
+        break;
+      }
       TH2D* hCounters = (TH2D*) tin->getCountersHistogram();
-      sum_wgts = hCounters->GetBinContent(1, 1);
+      sum_wgts = hCounters->GetBinContent(ix, 1);
     }
     if (sum_wgts==0.){
       IVYerr << "Sum of pre-recorded weights cannot be zero." << endl;
