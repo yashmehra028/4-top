@@ -520,6 +520,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
           }
         }
       }
+      unsigned int const njets_tight = ak4jets_tight_selected.size();
 
       // MET info
       auto const& eventmet = jetHandler.getPFMET();
@@ -608,18 +609,10 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       }
 
       // Write output
-      rcd_output.setNamedVal("event_wgt", static_cast<float>(wgt));
-      rcd_output.setNamedVal("event_wgt_triggers_dilepton", event_wgt_triggers_dilepton);
-      rcd_output.setNamedVal("event_wgt_triggers_dilepton_matched", event_wgt_triggers_dilepton_matched);
-      rcd_output.setNamedVal("event_wgt_SFs_btagging", static_cast<float>(event_wgt_SFs_btagging));
-      rcd_output.setNamedVal("nak4jets_tight_pt25", static_cast<unsigned int>(ak4jets_tight_selected.size()));
-      rcd_output.setNamedVal("nak4jets_tight_pt25_btagged", nbjets_tight);
-      rcd_output.setNamedVal("min_mlb", min_mlb);
-      rcd_output.setNamedVal("min_mbb", min_mbb);
-      rcd_output.setNamedVal("max_mbb", max_mbb);
-      rcd_output.setNamedVal("HT_ak4jets", HT_ak4jets);
-      rcd_output.setNamedVal("pTmiss", pTmiss);
-      rcd_output.setNamedVal("phimiss", phimiss);
+      rcd_output.setNamedVal<float>("event_wgt", wgt);
+      rcd_output.setNamedVal<float>("event_wgt_triggers_dilepton", event_wgt_triggers_dilepton);
+      rcd_output.setNamedVal<float>("event_wgt_triggers_dilepton_matched", event_wgt_triggers_dilepton_matched);
+      rcd_output.setNamedVal<float>("event_wgt_SFs_btagging", event_wgt_SFs_btagging);
       rcd_output.setNamedVal("EventNumber", *ptr_EventNumber);
       if (!isData){
         rcd_output.setNamedVal("GenMET_pt", *ptr_genmet_pt);
@@ -629,6 +622,14 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         rcd_output.setNamedVal("RunNumber", *ptr_RunNumber);
         rcd_output.setNamedVal("LuminosityBlock", *ptr_LuminosityBlock);
       }
+      rcd_output.setNamedVal("nak4jets_tight_pt25", njets_tight);
+      rcd_output.setNamedVal("nak4jets_tight_pt25_btagged", nbjets_tight);
+      rcd_output.setNamedVal("min_mlb", min_mlb);
+      rcd_output.setNamedVal("min_mbb", min_mbb);
+      rcd_output.setNamedVal("max_mbb", max_mbb);
+      rcd_output.setNamedVal("HT_ak4jets", HT_ak4jets);
+      rcd_output.setNamedVal("pTmiss", pTmiss);
+      rcd_output.setNamedVal("phimiss", phimiss);
 
       {
         // make vectors of pt, eta, phi, mass, pdgId for leptons
@@ -722,7 +723,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   foutput->Close();
 
   curdir->cd();
-  for (auto& tin:tinlist) delete tin;;
+  for (auto& tin:tinlist) delete tin;
 
   // Split large files, and add them to the transfer queue from Condor to the target site
   // Does nothing if you are running the program locally because your output is already in the desired location.

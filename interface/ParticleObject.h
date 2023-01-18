@@ -2,8 +2,8 @@
 #define PARTICLEOBJECT_H
 
 #include <unordered_map>
-#include <IvyFramework/IvyDataTools/interface/IvyDataTypes.h>
-#include <IvyFramework/IvyDataTools/interface/IvyParticle.h>
+#include "IvyFramework/IvyDataTools/interface/IvyDataTypes.h"
+#include "IvyFramework/IvyDataTools/interface/IvyParticle.h"
 
 
 class ParticleObject : public IvyParticle{

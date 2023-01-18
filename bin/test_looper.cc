@@ -28,6 +28,7 @@ This is an example looper to go through the different setup, looper, and output 
 #include "SimEventHandler.h"
 #include "GenInfoHandler.h"
 #include "IsotrackHandler.h"
+#include "BtagScaleFactorHandler.h"
 #include "SamplesCore.h"
 #include "FourTopTriggerHelpers.h"
 #include "DileptonHandler.h"
@@ -243,6 +244,9 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   JetMETHandler jetHandler;
   // We do not use isolated tracks, but we could think about it.
   IsotrackHandler isotrackHandler;
+
+  // SF handlers
+  BtagScaleFactorHandler btagSFHandler;
 
   // These are called handlers, but they are more like helpers.
   DileptonHandler dileptonHandler;
@@ -635,16 +639,34 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       /************/
       /* AK4 JETS */
       /************/
+      double event_wgt_SFs_btagging = 1;
       double HT_ak4jets=0;
       auto const& ak4jets = jetHandler.getAK4Jets();
       std::vector<AK4JetObject*> ak4jets_tight_recordable;
       std::vector<AK4JetObject*> ak4jets_tight_selected;
       std::vector<AK4JetObject*> ak4jets_tight_selected_btagged;
       for (auto const& jet:ak4jets){
+        float theSF_btag = 1;
+        float theEff_btag = 1;
+        btagSFHandler.getSFAndEff(theGlobalSyst, jet, theSF_btag, &theEff_btag); theSF_btag = std::max(theSF_btag, 1e-5f); event_wgt_SFs_btagging *= theSF_btag;
+        if (theSF_btag<=1e-5f){
+          IVYout
+            << "Jet has b-tagging SF<=1e-5:"
+            << "\n\t- pt = " << jet->pt()
+            << "\n\t- eta = " << jet->eta()
+            << "\n\t- b kin = " << jet->testSelectionBit(AK4JetSelectionHelpers::kKinOnly_BTag)
+            << "\n\t- Loose = " << jet->testSelectionBit(AK4JetSelectionHelpers::kBTagged_Loose)
+            << "\n\t- Medium = " << jet->testSelectionBit(AK4JetSelectionHelpers::kBTagged_Medium)
+            << "\n\t- Tight = " << jet->testSelectionBit(AK4JetSelectionHelpers::kBTagged_Tight)
+            << "\n\t- Eff =  " << theEff_btag
+            << "\n\t- SF = " << theSF_btag
+            << endl;
+        }
+
         float pt = jet->pt();
         float eta = jet->eta();
-        float phi = jet->phi();
-        float mass = jet->mass();
+        //float phi = jet->phi();
+        //float mass = jet->mass();
 
         bool is_tight = ParticleSelectionHelpers::isTightJet(jet);
         bool is_btagged = jet->testSelectionBit(bit_preselection_btag);
@@ -782,17 +804,17 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       seltracker.accumulate("Pass unique event check", wgt);
 
       // Triggers without HLT object matching
-      float event_weight_triggers_dilepton = eventFilter.getTriggerWeight(hltnames_Dilepton);
-      bool const pass_triggers_dilepton = (event_weight_triggers_dilepton!=0.);
+      float event_wgt_triggers_dilepton = eventFilter.getTriggerWeight(hltnames_Dilepton);
+      bool const pass_triggers_dilepton = (event_wgt_triggers_dilepton!=0.f);
       if (!pass_triggers_dilepton) continue; // Test if any triggers passed at all
       seltracker.accumulate("Pass any trigger", wgt);
 
       // Trigger with HLT object matching
-      float event_weight_triggers_dilepton_matched = eventFilter.getTriggerWeight(
+      float event_wgt_triggers_dilepton_matched = eventFilter.getTriggerWeight(
         triggerPropsCheckList_Dilepton,
         &muons, &electrons, nullptr, &ak4jets, nullptr, nullptr
       );
-      bool const pass_triggers_dilepton_matched = (event_weight_triggers_dilepton_matched!=0.);
+      bool const pass_triggers_dilepton_matched = (event_wgt_triggers_dilepton_matched!=0.f);
       // Do not skip the event. Instead, record a flag for HLT object matching.
       rcd_output.setNamedVal("pass_triggers_dilepton_matched", pass_triggers_dilepton_matched);
       seltracker.accumulate("Pass triggers after matching", wgt*static_cast<double>(pass_triggers_dilepton_matched));
@@ -801,123 +823,123 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       /*************************************************/
       /* NO MORE CALLS TO SELECTION BEYOND THIS POINT! */
       /*************************************************/
-      if (tout){
-        // Event weight
-        rcd_output.setNamedVal("event_wgt", static_cast<float>(wgt));
+      // Event weight
+      rcd_output.setNamedVal<float>("event_wgt", wgt);
+      rcd_output.setNamedVal<float>("event_wgt_triggers_dilepton", event_wgt_triggers_dilepton);
+      rcd_output.setNamedVal<float>("event_wgt_triggers_dilepton_matched", event_wgt_triggers_dilepton_matched);
+      rcd_output.setNamedVal<float>("event_wgt_SFs_btagging", event_wgt_SFs_btagging);
 
-        rcd_output.setNamedVal("EventNumber", *ptr_EventNumber);
-        if (!isData){
-          rcd_output.setNamedVal("GenMET_pt", *ptr_genmet_pt);
-          rcd_output.setNamedVal("GenMET_phi", *ptr_genmet_phi);
-        }
-        else{
-          rcd_output.setNamedVal("RunNumber", *ptr_RunNumber);
-          rcd_output.setNamedVal("LuminosityBlock", *ptr_LuminosityBlock);
-        }
+      rcd_output.setNamedVal("EventNumber", *ptr_EventNumber);
+      if (!isData){
+        rcd_output.setNamedVal("GenMET_pt", *ptr_genmet_pt);
+        rcd_output.setNamedVal("GenMET_phi", *ptr_genmet_phi);
+      }
+      else{
+        rcd_output.setNamedVal("RunNumber", *ptr_RunNumber);
+        rcd_output.setNamedVal("LuminosityBlock", *ptr_LuminosityBlock);
+      }
 
-        rcd_output.setNamedVal<float>("HT_ak4jets", HT_ak4jets);
-        rcd_output.setNamedVal<float>("pTmiss", pTmiss);
-        rcd_output.setNamedVal<float>("phimiss", phimiss);
+      rcd_output.setNamedVal<float>("HT_ak4jets", HT_ak4jets);
+      rcd_output.setNamedVal<float>("pTmiss", pTmiss);
+      rcd_output.setNamedVal<float>("phimiss", phimiss);
 
-        // Record leptons
-        {
+      // Record leptons
+      {
 #define BRANCH_VECTOR_COMMANDS \
-          BRANCH_VECTOR_COMMAND(bool, is_genmatched_prompt) \
-          BRANCH_VECTOR_COMMAND(unsigned short, selection_id_category) \
-          BRANCH_VECTOR_COMMAND(int, pdgId) \
-          BRANCH_VECTOR_COMMAND(float, pt) \
-          BRANCH_VECTOR_COMMAND(float, eta) \
-          BRANCH_VECTOR_COMMAND(float, phi) \
-          BRANCH_VECTOR_COMMAND(float, mass) 
+        BRANCH_VECTOR_COMMAND(bool, is_genmatched_prompt) \
+        BRANCH_VECTOR_COMMAND(unsigned short, selection_id_category) \
+        BRANCH_VECTOR_COMMAND(int, pdgId) \
+        BRANCH_VECTOR_COMMAND(float, pt) \
+        BRANCH_VECTOR_COMMAND(float, eta) \
+        BRANCH_VECTOR_COMMAND(float, phi) \
+        BRANCH_VECTOR_COMMAND(float, mass) 
 #define BRANCH_VECTOR_COMMAND(TYPE, NAME) std::vector<TYPE> leptons_##NAME;
-          BRANCH_VECTOR_COMMANDS;
+        BRANCH_VECTOR_COMMANDS;
 #undef BRANCH_VECTOR_COMMAND
 
-          for (auto const& part:leptons_selected){
-            int pdgId = part->pdgId();
-            float pt = part->pt();
-            float eta = part->eta();
-            float phi = part->phi();
-            float mass = part->mass();
+        for (auto const& part:leptons_selected){
+          int pdgId = part->pdgId();
+          float pt = part->pt();
+          float eta = part->eta();
+          float phi = part->phi();
+          float mass = part->mass();
 
-            unsigned short selection_id_category = 0;
-            if (HelperFunctions::checkListVariable(leptons_fakeable, part)) selection_id_category=1;
-            else if (HelperFunctions::checkListVariable(leptons_tight, part)) selection_id_category=2;
+          unsigned short selection_id_category = 0;
+          if (HelperFunctions::checkListVariable(leptons_fakeable, part)) selection_id_category=1;
+          else if (HelperFunctions::checkListVariable(leptons_tight, part)) selection_id_category=2;
 
-            auto it_genmatch = lepton_genmatchpart_map.find(part);
-            bool is_genmatched_prompt = it_genmatch!=lepton_genmatchpart_map.end() && it_genmatch->second!=nullptr;
+          auto it_genmatch = lepton_genmatchpart_map.find(part);
+          bool is_genmatched_prompt = it_genmatch!=lepton_genmatchpart_map.end() && it_genmatch->second!=nullptr;
 
 #define BRANCH_VECTOR_COMMAND(TYPE, NAME) leptons_##NAME.push_back(NAME);
-            BRANCH_VECTOR_COMMANDS;
+          BRANCH_VECTOR_COMMANDS;
 #undef BRANCH_VECTOR_COMMAND
-          }
+        }
 
 #define BRANCH_VECTOR_COMMAND(TYPE, NAME) rcd_output.setNamedVal(Form("leptons_%s", #NAME), leptons_##NAME);
-          BRANCH_VECTOR_COMMANDS;
+        BRANCH_VECTOR_COMMANDS;
 #undef BRANCH_VECTOR_COMMAND
 
 #undef BRANCH_VECTOR_COMMANDS
-        }
+      }
 
-        // Record ak4jets
-        {
+      // Record ak4jets
+      {
 #define BRANCH_VECTOR_COMMANDS \
-          BRANCH_VECTOR_COMMAND(bool, pass_btagging_selection) \
-          BRANCH_VECTOR_COMMAND(bool, pass_regularJet_selection) \
-          BRANCH_VECTOR_COMMAND(int, hadronFlavour) \
-          BRANCH_VECTOR_COMMAND(float, pt) \
-          BRANCH_VECTOR_COMMAND(float, eta) \
-          BRANCH_VECTOR_COMMAND(float, phi) \
-          BRANCH_VECTOR_COMMAND(float, mass)
+        BRANCH_VECTOR_COMMAND(bool, pass_btagging_selection) \
+        BRANCH_VECTOR_COMMAND(bool, pass_regularJet_selection) \
+        BRANCH_VECTOR_COMMAND(int, hadronFlavour) \
+        BRANCH_VECTOR_COMMAND(float, pt) \
+        BRANCH_VECTOR_COMMAND(float, eta) \
+        BRANCH_VECTOR_COMMAND(float, phi) \
+        BRANCH_VECTOR_COMMAND(float, mass)
 #define BRANCH_VECTOR_COMMAND(TYPE, NAME) std::vector<TYPE> ak4jets_##NAME;
-          BRANCH_VECTOR_COMMANDS;
+        BRANCH_VECTOR_COMMANDS;
 #undef BRANCH_VECTOR_COMMAND
 
-          for (auto const& jet:ak4jets_tight_recordable){
-            bool pass_btagging_selection = HelperFunctions::checkListVariable(ak4jets_tight_selected_btagged, jet);
-            bool pass_regularJet_selection = HelperFunctions::checkListVariable(ak4jets_tight_selected, jet);
-            auto const& hadronFlavour = jet->extras.hadronFlavour;
-            float pt = jet->pt();
-            float eta = jet->eta();
-            float phi = jet->phi();
-            float mass = jet->mass();
+        for (auto const& jet:ak4jets_tight_recordable){
+          bool pass_btagging_selection = HelperFunctions::checkListVariable(ak4jets_tight_selected_btagged, jet);
+          bool pass_regularJet_selection = HelperFunctions::checkListVariable(ak4jets_tight_selected, jet);
+          auto const& hadronFlavour = jet->extras.hadronFlavour;
+          float pt = jet->pt();
+          float eta = jet->eta();
+          float phi = jet->phi();
+          float mass = jet->mass();
 
 #define BRANCH_VECTOR_COMMAND(TYPE, NAME) ak4jets_##NAME.push_back(NAME);
-            BRANCH_VECTOR_COMMANDS;
+          BRANCH_VECTOR_COMMANDS;
 #undef BRANCH_VECTOR_COMMAND
-          }
+        }
 
 #define BRANCH_VECTOR_COMMAND(TYPE, NAME) rcd_output.setNamedVal(Form("ak4jets_%s", #NAME), ak4jets_##NAME);
-          BRANCH_VECTOR_COMMANDS;
+        BRANCH_VECTOR_COMMANDS;
 #undef BRANCH_VECTOR_COMMAND
 
 #undef BRANCH_VECTOR_COMMANDS
-        }
+      }
 
-        if (firstOutputEvent){
+      if (firstOutputEvent){
 #define SIMPLE_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.named##name_t##s.begin(); itb!=rcd_output.named##name_t##s.end(); itb++) tout->putBranch(itb->first, itb->second);
 #define VECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.namedV##name_t##s.begin(); itb!=rcd_output.namedV##name_t##s.end(); itb++) tout->putBranch(itb->first, &(itb->second));
 #define DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.namedVV##name_t##s.begin(); itb!=rcd_output.namedVV##name_t##s.end(); itb++) tout->putBranch(itb->first, &(itb->second));
-          SIMPLE_DATA_OUTPUT_DIRECTIVES;
-          VECTOR_DATA_OUTPUT_DIRECTIVES;
-          DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVES;
-#undef SIMPLE_DATA_OUTPUT_DIRECTIVE
-#undef VECTOR_DATA_OUTPUT_DIRECTIVE
-#undef DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE
-        }
-#define SIMPLE_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.named##name_t##s.begin(); itb!=rcd_output.named##name_t##s.end(); itb++) tout->setVal(itb->first, itb->second);
-#define VECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.namedV##name_t##s.begin(); itb!=rcd_output.namedV##name_t##s.end(); itb++) tout->setVal(itb->first, &(itb->second));
-#define DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.namedVV##name_t##s.begin(); itb!=rcd_output.namedVV##name_t##s.end(); itb++) tout->setVal(itb->first, &(itb->second));
         SIMPLE_DATA_OUTPUT_DIRECTIVES;
         VECTOR_DATA_OUTPUT_DIRECTIVES;
         DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVES;
 #undef SIMPLE_DATA_OUTPUT_DIRECTIVE
 #undef VECTOR_DATA_OUTPUT_DIRECTIVE
 #undef DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE
-
-        tout->fill();
       }
+#define SIMPLE_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.named##name_t##s.begin(); itb!=rcd_output.named##name_t##s.end(); itb++) tout->setVal(itb->first, itb->second);
+#define VECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.namedV##name_t##s.begin(); itb!=rcd_output.namedV##name_t##s.end(); itb++) tout->setVal(itb->first, &(itb->second));
+#define DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE(name_t, type) for (auto itb=rcd_output.namedVV##name_t##s.begin(); itb!=rcd_output.namedVV##name_t##s.end(); itb++) tout->setVal(itb->first, &(itb->second));
+      SIMPLE_DATA_OUTPUT_DIRECTIVES;
+      VECTOR_DATA_OUTPUT_DIRECTIVES;
+      DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVES;
+#undef SIMPLE_DATA_OUTPUT_DIRECTIVE
+#undef VECTOR_DATA_OUTPUT_DIRECTIVE
+#undef DOUBLEVECTOR_DATA_OUTPUT_DIRECTIVE
 
+      tout->fill();
       n_recorded++;
 
       if (firstOutputEvent) firstOutputEvent = false;
@@ -928,14 +950,12 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   }
   seltracker.print();
 
-  if (tout){
-    tout->writeToFile(foutput);
-    delete tout;
-  }
+  tout->writeToFile(foutput);
+  delete tout;
   foutput->Close();
 
   curdir->cd();
-  for (auto& tin:tinlist) delete tin;;
+  for (auto& tin:tinlist) delete tin;
 
   // Split large files, and add them to the transfer queue from Condor to the target site
   // Does nothing if you are running the program locally because your output is already in the desired location.

@@ -30,6 +30,7 @@
 #include "SimEventHandler.h"
 #include "GenInfoHandler.h"
 #include "IsotrackHandler.h"
+#include "BtagScaleFactorHandler.h"
 #include "SamplesCore.h"
 #include "FourTopTriggerHelpers.h"
 #include "DileptonHandler.h"
@@ -207,6 +208,9 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   ElectronHandler electronHandler;
   JetMETHandler jetHandler;
   IsotrackHandler isotrackHandler;
+
+  // SF handlers
+  BtagScaleFactorHandler btagSFHandler;
 
   // These are called handlers, but they are more like helpers.
   DileptonHandler dileptonHandler;
@@ -602,6 +606,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       unsigned int const nleptons_loose = muons_loose.size() + electrons_loose.size();
       unsigned int const nleptons_selected = nleptons_tight + nleptons_fakeable + nleptons_loose;
 
+      double event_wgt_SFs_btagging = 1;
       auto const& ak4jets = jetHandler.getAK4Jets();
       unsigned int nak4jets_tight_selected_etaCentral = 0;
       for (auto const& jet:ak4jets){
@@ -614,6 +619,23 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         bool is_btagged = jet->testSelectionBit(bit_preselection_btag);
         constexpr bool is_clean = true;
 
+        float theSF_btag = 1;
+        float theEff_btag = 1;
+        btagSFHandler.getSFAndEff(theGlobalSyst, jet, theSF_btag, &theEff_btag); theSF_btag = std::max(theSF_btag, 1e-5f); event_wgt_SFs_btagging *= theSF_btag;
+        if (theSF_btag<=1e-5f){
+          IVYout
+            << "Jet has b-tagging SF<=1e-5:"
+            << "\n\t- pt = " << jet->pt()
+            << "\n\t- eta = " << jet->eta()
+            << "\n\t- b kin = " << jet->testSelectionBit(AK4JetSelectionHelpers::kKinOnly_BTag)
+            << "\n\t- Loose = " << jet->testSelectionBit(AK4JetSelectionHelpers::kBTagged_Loose)
+            << "\n\t- Medium = " << jet->testSelectionBit(AK4JetSelectionHelpers::kBTagged_Medium)
+            << "\n\t- Tight = " << jet->testSelectionBit(AK4JetSelectionHelpers::kBTagged_Tight)
+            << "\n\t- Eff =  " << theEff_btag
+            << "\n\t- SF = " << theSF_btag
+            << endl;
+        }
+
 #define SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, COLLNAME, NAME) COLLNAME##_##NAME.push_back(NAME);
 #define AK4JET_VARIABLE(TYPE, NAME, DEFVAL) ak4jets_##NAME.push_back(jet->extras.NAME);
         SYNC_AK4JETS_BRANCH_VECTOR_COMMANDS;
@@ -625,7 +647,8 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
       // MET info
       auto const& eventmet = jetHandler.getPFMET();
-
+      float const pTmiss = eventmet->pt();
+      float const phimiss = eventmet->phi();
 
       // BEGIN PRESELECTION
       seltracker.accumulate("Full sample", wgt);
@@ -648,25 +671,25 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
       // Triggers
       bool pass_any_trigger = false;
-      bool pass_any_trigger_TOmatched = false;
+      bool pass_any_trigger_matched = false;
       for (auto const& hlt_type_prop_pair:triggerPropsCheckList_SingleLepton){
         std::string const& hltname = hlt_type_prop_pair.second->getName();
         std::vector< std::pair<TriggerHelpers::TriggerType, HLTTriggerPathProperties const*> > dummy_type_prop_vector{ hlt_type_prop_pair };
-        float event_weight_trigger = eventFilter.getTriggerWeight(std::vector<std::string>{hltname});
-        float event_weight_trigger_TOmatched = eventFilter.getTriggerWeight(
+        float event_wgt_trigger = eventFilter.getTriggerWeight(std::vector<std::string>{hltname});
+        float event_wgt_trigger_matched = eventFilter.getTriggerWeight(
           dummy_type_prop_vector,
           &muons, &electrons, nullptr, &ak4jets, nullptr, nullptr
         );
-        pass_any_trigger |= (event_weight_trigger>0.);
-        pass_any_trigger_TOmatched |= (event_weight_trigger_TOmatched>0.);
+        pass_any_trigger |= (event_wgt_trigger!=0.f);
+        pass_any_trigger_matched |= (event_wgt_trigger_matched!=0.f);
 
         std::string hltname_pruned = hltname;
         {
           auto ipos = hltname_pruned.find_last_of("_v");
           if (ipos!=std::string::npos) hltname_pruned = hltname_pruned.substr(0, ipos-1);
         }
-        rcd_output.setNamedVal(Form("event_wgt_trigger_%s", hltname_pruned.data()), event_weight_trigger);
-        rcd_output.setNamedVal(Form("event_wgt_trigger_TOmatched_%s", hltname_pruned.data()), event_weight_trigger_TOmatched);
+        rcd_output.setNamedVal<float>(Form("event_wgt_trigger_%s", hltname_pruned.data()), event_wgt_trigger);
+        rcd_output.setNamedVal<float>(Form("event_wgt_trigger_matched_%s", hltname_pruned.data()), event_wgt_trigger_matched);
       }
       // In case we need extra L1 records, make sure event selection and output record also include them!
       for (auto const& pp:ptrs_extraL1rcd){
@@ -675,21 +698,22 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       }
       if (!pass_any_trigger) continue;
       seltracker.accumulate("Pass any trigger", wgt);
-      seltracker.accumulate("Pass triggers after TO matching", static_cast<float>(pass_any_trigger_TOmatched)*wgt);
+      seltracker.accumulate("Pass triggers after HLT object matching", wgt*static_cast<double>(pass_any_trigger_matched));
 
       /*************************************************/
       /* NO MORE CALLS TO SELECTION BEYOND THIS POINT! */
       /*************************************************/
       // Write output
-      rcd_output.setNamedVal("event_wgt", wgt);
-
+      rcd_output.setNamedVal<float>("event_wgt", wgt);
+      // Trigger info is recorded for each trigger separately.
+      rcd_output.setNamedVal<float>("event_wgt_SFs_btagging", event_wgt_SFs_btagging);
       rcd_output.setNamedVal("EventNumber", *ptr_EventNumber);
       if (isData){
         rcd_output.setNamedVal("RunNumber", *ptr_RunNumber);
         rcd_output.setNamedVal("LuminosityBlock", *ptr_LuminosityBlock);
       }
-      rcd_output.setNamedVal("PFMET_pt_final", eventmet->pt());
-      rcd_output.setNamedVal("PFMET_phi_final", eventmet->phi());
+      rcd_output.setNamedVal("pTmiss", pTmiss);
+      rcd_output.setNamedVal("phimiss", phimiss);
 
 #define SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, COLLNAME, NAME) rcd_output.setNamedVal(Form("%s_%s", #COLLNAME, #NAME), COLLNAME##_##NAME);
 #define MUON_VARIABLE(TYPE, NAME, DEFVAL) SYNC_OBJ_BRANCH_VECTOR_COMMAND(TYPE, muons, NAME)
@@ -739,7 +763,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   foutput->Close();
 
   curdir->cd();
-  for (auto& tin:tinlist) delete tin;;
+  for (auto& tin:tinlist) delete tin;
 
   // Split large files, and add them to the transfer queue from Condor to the target site
   // Does nothing if you are running the program locally because your output is already in the desired location.

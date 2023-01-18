@@ -30,6 +30,7 @@
 #include "SimEventHandler.h"
 #include "GenInfoHandler.h"
 #include "IsotrackHandler.h"
+#include "BtagScaleFactorHandler.h"
 #include "SamplesCore.h"
 #include "FourTopTriggerHelpers.h"
 #include "DileptonHandler.h"
@@ -84,6 +85,8 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   // Configure analysis-specific stuff
   constexpr bool useFakeableIdForPhysicsChecks = true;
   ParticleSelectionHelpers::setUseFakeableIdForPhysicsChecks(useFakeableIdForPhysicsChecks);
+
+  constexpr bool useIsotrackVeto = false;
 
   float const absEtaThr_ak4jets = (theDataYear<=2016 ? AK4JetSelectionHelpers::etaThr_btag_Phase0Tracker : AK4JetSelectionHelpers::etaThr_btag_Phase1Tracker);
 
@@ -177,15 +180,43 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
   std::vector<EventNumber_t> eventnumber_filter;
   if (sync_evtno_filter_input!=""){
-    ifstream fin_evtnos(sync_evtno_filter_input.data());
-    while (!fin_evtnos.eof()){
-      std::string strline;
-      std::getline(fin_evtnos, strline);
-      HelperFunctions::lrstrip(strline, " \n\t{}");
-      if (strline.empty()) continue;
-      std::vector<std::string> tmpevtnos;
-      HelperFunctions::splitOptionRecursive(strline, tmpevtnos, ',', false);
-      for (auto const& evtno:tmpevtnos) eventnumber_filter.push_back(std::stoi(evtno));
+    if (sync_evtno_filter_input.find(".root")!=std::string::npos){
+      std::string sync_evtno_filter_input_fname = sync_evtno_filter_input;
+      std::string sync_evtno_filter_input_treename = "SyncObjects";
+      if (sync_evtno_filter_input.find(":")!=std::string::npos) HelperFunctions::splitOption(sync_evtno_filter_input, sync_evtno_filter_input_fname, sync_evtno_filter_input_treename, ':');
+      BaseTree tin_sync_evtno_input(sync_evtno_filter_input_fname.data(), { sync_evtno_filter_input_treename.data() }, "");
+      tin_sync_evtno_input.bookBranch<BaseTree::BranchType_unknown_t>("EventNumber");
+      BaseTree::BranchType sync_evtno_input_type = BaseTree::BranchType_unknown_t;
+      if (!tin_sync_evtno_input.branchExists("EventNumber", &sync_evtno_input_type)){
+        IVYerr << "Failed to book 'EventNumber' in the input sync. tree." << endl;
+        assert(0);
+      }
+#define SIMPLE_DATA_INPUT_DIRECTIVE(name, type, default_value) \
+      type* ptr_sync_evtno_input_##name = nullptr; \
+      if (sync_evtno_input_type==BaseTree::BranchType_##name##_t){ \
+        IVYout << "Found a sync 'EventNumber' branch of type name '" << #name << "'." << endl; \
+        tin_sync_evtno_input.getValRef("EventNumber", ptr_sync_evtno_input_##name); \
+      }
+      FUNDAMENTAL_DATA_INPUT_DIRECTIVES;
+#undef SIMPLE_DATA_INPUT_DIRECTIVE
+      for (int ev=0; ev<tin_sync_evtno_input.getNEvents(); ev++){
+        tin_sync_evtno_input.getEvent(ev);
+#define SIMPLE_DATA_INPUT_DIRECTIVE(name, type, default_value) if (sync_evtno_input_type==BaseTree::BranchType_##name##_t) eventnumber_filter.push_back(*ptr_sync_evtno_input_##name);
+        FUNDAMENTAL_DATA_INPUT_DIRECTIVES;
+#undef SIMPLE_DATA_INPUT_DIRECTIVE
+      }
+    }
+    else{
+      ifstream fin_evtnos(sync_evtno_filter_input.data());
+      while (!fin_evtnos.eof()){
+        std::string strline;
+        std::getline(fin_evtnos, strline);
+        HelperFunctions::lrstrip(strline, " \n\t{}");
+        if (strline.empty()) continue;
+        std::vector<std::string> tmpevtnos;
+        HelperFunctions::splitOptionRecursive(strline, tmpevtnos, ',', false);
+        for (auto const& evtno:tmpevtnos) eventnumber_filter.push_back(std::stoi(evtno));
+      }
     }
   }
   bool const has_eventnumber_filter = !eventnumber_filter.empty();
@@ -282,6 +313,9 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   ElectronHandler electronHandler;
   JetMETHandler jetHandler;
   IsotrackHandler isotrackHandler;
+
+  // SF handlers
+  BtagScaleFactorHandler btagSFHandler;
 
   // These are called handlers, but they are more like helpers.
   DileptonHandler dileptonHandler;
@@ -392,7 +426,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     muonHandler.bookBranches(tin);
     electronHandler.bookBranches(tin);
     jetHandler.bookBranches(tin);
-    isotrackHandler.bookBranches(tin);
+    if (useIsotrackVeto) isotrackHandler.bookBranches(tin);
 
     // Book a few additional branches
     tin->bookBranch<EventNumber_t>("event", 0);
@@ -441,7 +475,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     muonHandler.wrapTree(tin);
     electronHandler.wrapTree(tin);
     jetHandler.wrapTree(tin);
-    isotrackHandler.wrapTree(tin);
+    if (useIsotrackVeto) isotrackHandler.wrapTree(tin);
 
     RunNumber_t* ptr_RunNumber = nullptr;
     LuminosityBlock_t* ptr_LuminosityBlock = nullptr;
@@ -480,11 +514,14 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         &&
         (eventIndex_end<0 || eventIndex_tracker<static_cast<int>(eventIndex_end))
         );
-      if (has_eventnumber_filter) doAccumulate &= (
-        tin->updateBranch(ev, "event", false)
-        &&
-        HelperFunctions::checkListVariable(eventnumber_filter, *ptr_EventNumber)
-        );
+      if (has_eventnumber_filter){
+        if (eventnumber_filter.empty()) break;
+        doAccumulate &= (
+          tin->updateBranch(ev, "event", false)
+          &&
+          HelperFunctions::removeListVariable(eventnumber_filter, *ptr_EventNumber)
+          );
+      }
 
       eventIndex_tracker++;
       if (!doAccumulate) continue;
@@ -862,8 +899,20 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         else hasNonPromptLepton |= true;
       }
 
+      bool hasVetoIsotrack = false;
+      if (useIsotrackVeto){
+        isotrackHandler.constructIsotracks(&muons, &electrons);
+        for (auto const& isotrack:isotrackHandler.getProducts()){
+          if (isotrack->testSelectionBit(IsotrackSelectionHelpers::kPreselectionVeto)){
+            hasVetoIsotrack = true;
+            break;
+          }
+        }
+      }
+
       if (printObjInfo) IVYout << "Jet info for event " << ev << ":" << endl;
-      double HT_ak4jets=0;
+      double event_wgt_SFs_btagging = 1;
+      float HT_ak4jets=0;
       auto const& ak4jets = jetHandler.getAK4Jets();
       std::vector<AK4JetObject*> ak4jets_tight_selected;
       std::vector<AK4JetObject*> ak4jets_tight_selected_btagged;
@@ -877,6 +926,23 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         bool is_btagged = jet->testSelectionBit(bit_preselection_btag);
         constexpr bool is_clean = true;
         unsigned int uniqueIdenntifier = jet->getUniqueIdentifier();
+
+        float theSF_btag = 1;
+        float theEff_btag = 1;
+        btagSFHandler.getSFAndEff(theGlobalSyst, jet, theSF_btag, &theEff_btag); theSF_btag = std::max(theSF_btag, 1e-5f); event_wgt_SFs_btagging *= theSF_btag;
+        if (theSF_btag<=1e-5f){
+          IVYout
+            << "Jet has b-tagging SF<=1e-5:"
+            << "\n\t- pt = " << jet->pt()
+            << "\n\t- eta = " << jet->eta()
+            << "\n\t- b kin = " << jet->testSelectionBit(AK4JetSelectionHelpers::kKinOnly_BTag)
+            << "\n\t- Loose = " << jet->testSelectionBit(AK4JetSelectionHelpers::kBTagged_Loose)
+            << "\n\t- Medium = " << jet->testSelectionBit(AK4JetSelectionHelpers::kBTagged_Medium)
+            << "\n\t- Tight = " << jet->testSelectionBit(AK4JetSelectionHelpers::kBTagged_Tight)
+            << "\n\t- Eff =  " << theEff_btag
+            << "\n\t- SF = " << theSF_btag
+            << endl;
+        }
 
         if (printObjInfo) IVYout
           << "\t- pt = " << pt << ", eta = " << eta << ", phi = " << phi
@@ -945,6 +1011,8 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       unsigned int const nak4jets_tight_selected_btagged = ak4jets_tight_selected_btagged.size();
 
       auto const& eventmet = jetHandler.getPFMET();
+      float const pTmiss = eventmet->pt();
+      float const phimiss = eventmet->phi();
 
       // Write object sync. info.
       if (writeSyncObjects){
@@ -1009,7 +1077,6 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       if (!produce_trees && applyPreselection && (!pass_Nj_geq_2 || !pass_Nb_geq_2)) continue;
       seltracker.accumulate("Pass Nj>=2 and Nb>=2", wgt, printObjInfo);
 
-      double const pTmiss = eventmet->pt();
       bool const pass_pTmiss = pTmiss>=minpt_miss; rcd_output.setNamedVal("pass_pTmiss", pass_pTmiss);
       if (!produce_trees && applyPreselection && !pass_pTmiss) continue;
       seltracker.accumulate("Pass pTmiss", wgt, printObjInfo);
@@ -1114,17 +1181,22 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       seltracker.accumulate("Pass unique event check", wgt, printObjInfo);
 
       // Triggers
-      float event_weight_triggers_dilepton = eventFilter.getTriggerWeight(hltnames_Dilepton);
-      bool const pass_triggers_dilepton = (event_weight_triggers_dilepton!=0.); rcd_output.setNamedVal("pass_triggers_dilepton", pass_triggers_dilepton);
+      float event_wgt_triggers_dilepton = eventFilter.getTriggerWeight(hltnames_Dilepton);
+      bool const pass_triggers_dilepton = (event_wgt_triggers_dilepton!=0.f); rcd_output.setNamedVal("pass_triggers_dilepton", pass_triggers_dilepton);
       if (!produce_trees && applyPreselection && !pass_triggers_dilepton) continue; // Test if any triggers passed at all
       seltracker.accumulate("Pass any trigger", wgt, printObjInfo);
-      float event_weight_triggers_dilepton_matched = eventFilter.getTriggerWeight(
+      float event_wgt_triggers_dilepton_matched = eventFilter.getTriggerWeight(
         triggerPropsCheckList_Dilepton,
         &muons, &electrons, nullptr, &ak4jets, nullptr, nullptr
       );
-      bool const pass_triggers_dilepton_matched = (event_weight_triggers_dilepton_matched!=0.); rcd_output.setNamedVal("pass_triggers_dilepton_matched", pass_triggers_dilepton_matched);
-      seltracker.accumulate("Pass triggers after matching", (event_weight_triggers_dilepton_matched>0.)*wgt, printObjInfo);
+      bool const pass_triggers_dilepton_matched = (event_wgt_triggers_dilepton_matched!=0.f); rcd_output.setNamedVal("pass_triggers_dilepton_matched", pass_triggers_dilepton_matched);
+      seltracker.accumulate("Pass triggers after matching", wgt*static_cast<double>(pass_triggers_dilepton_matched), printObjInfo);
 
+      // Optional check for an isotrack veto
+      if (useIsotrackVeto){
+        if (hasVetoIsotrack) continue;
+        seltracker.accumulate("Pass isolated track veto", wgt, printObjInfo);
+      }
 
       /*************************************************/
       /* NO MORE CALLS TO SELECTION BEYOND THIS POINT! */
@@ -1160,6 +1232,10 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       }
 
       if (tout){
+        rcd_output.setNamedVal<float>("event_wgt", wgt);
+        rcd_output.setNamedVal<float>("event_wgt_triggers_dilepton", event_wgt_triggers_dilepton);
+        rcd_output.setNamedVal<float>("event_wgt_triggers_dilepton_matched", event_wgt_triggers_dilepton_matched);
+        rcd_output.setNamedVal<float>("event_wgt_SFs_btagging", event_wgt_SFs_btagging);
         rcd_output.setNamedVal("EventNumber", *ptr_EventNumber);
         if (!isData){
           rcd_output.setNamedVal("GenMET_pt", *ptr_genmet_pt);
@@ -1169,7 +1245,6 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
           rcd_output.setNamedVal("RunNumber", *ptr_RunNumber);
           rcd_output.setNamedVal("LuminosityBlock", *ptr_LuminosityBlock);
         }
-
         rcd_output.setNamedVal("nak4jets_tight_selected", nak4jets_tight_selected);
         rcd_output.setNamedVal("nak4jets_tight_selected_btagged", nak4jets_tight_selected_btagged);
         rcd_output.setNamedVal("nleptons_tight", nleptons_tight);
@@ -1177,9 +1252,9 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         rcd_output.setNamedVal("nleptons_loose", nleptons_loose);
         rcd_output.setNamedVal("iCRZ_Run2Analysis", iCRZ);
         rcd_output.setNamedVal("icat_Run2Analysis", icat);
-
-        rcd_output.setNamedVal<float>("HT_ak4jets", HT_ak4jets);
-        rcd_output.setNamedVal<float>("pTmiss", pTmiss);
+        rcd_output.setNamedVal("HT_ak4jets", HT_ak4jets);
+        rcd_output.setNamedVal("pTmiss", pTmiss);
+        rcd_output.setNamedVal("phimiss", phimiss);
 
         // Record leptons
         {
@@ -1383,7 +1458,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   foutput->Close();
 
   curdir->cd();
-  for (auto& tin:tinlist) delete tin;;
+  for (auto& tin:tinlist) delete tin;
 
   // Split large files, and add them to the transfer queue from Condor to the target site
   // Does nothing if you are running the program locally because your output is already in the desired location.
@@ -1516,7 +1591,7 @@ int main(int argc, char** argv){
     IVYout << "- run_sync: Turn on synchronization output. Optional. Default is to run without synchronization output.\n";
     IVYout << "- write_sync_objects: Create a file that contains the info. for all leptons and jets, and event identifiers. Ignored if run_sync=false. Optional. Default is to not produce such a file.\n";
     IVYout << "- force_sync_preselection: When sync. mode is on, also apply SR/CR preselection.  Ignored if run_sync=false. Optional. Default is to run without preselection.\n";
-    IVYout << "- sync_evtno_filter_input: Input file to specify filter on event numbers. Opional. Processed only if run_sync=true.\n";
+    IVYout << "- sync_evtno_filter_input: Input file to specify filter on event numbers. Optional. Processed only if run_sync=true.\n";
     IVYout
       << "- shorthand_Run2_UL_proposal_config: Shorthand flag for the switches for the Run 2 UL analysis proposal:\n"
       << "  * muon_id='TopMVA_Run2'\n"

@@ -528,7 +528,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   foutput->Close();
 
   curdir->cd();
-  for (auto& tin:tinlist) delete tin;;
+  for (auto& tin:tinlist) delete tin;
 
   // Split large files, and add them to the transfer queue from Condor to the target site
   // Does nothing if you are running the program locally because your output is already in the desired location.
