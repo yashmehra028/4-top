@@ -83,8 +83,13 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   auto const& theDataYear = SampleHelpers::getDataYear();
 
   // Configure analysis-specific stuff
-  constexpr bool useFakeableIdForPhysicsChecks = true;
+  bool no_FOs_phys_checks = false;
+  extra_arguments.getNamedVal("no_FOs_phys_checks", no_FOs_phys_checks);
+  bool const useFakeableIdForPhysicsChecks = !no_FOs_phys_checks;
   ParticleSelectionHelpers::setUseFakeableIdForPhysicsChecks(useFakeableIdForPhysicsChecks);
+
+  bool only_tight_dileptons = false;
+  extra_arguments.getNamedVal("only_tight_dileptons", only_tight_dileptons);
 
   constexpr bool useIsotrackVeto = false;
 
@@ -1106,7 +1111,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       if (!produce_trees && applyPreselection && !pass_trileptonSameCharge) continue;
       seltracker.accumulate("Pass 3-lepton same charge veto", wgt, printObjInfo);
 
-      dileptonHandler.constructDileptons(&muons_selected, &electrons_selected);
+      dileptonHandler.constructDileptons((!only_tight_dileptons ? &muons_selected : &muons_tight), (!only_tight_dileptons ? &electrons_selected : &electrons_tight));
       auto const& dileptons = dileptonHandler.getProducts();
       unsigned int ndileptons_SS = 0;
       unsigned int ndileptons_OS = 0;
@@ -1477,6 +1482,7 @@ int main(int argc, char** argv){
 
   // Switches that do not need =true.
   std::vector<std::string> const extra_argument_flags{
+    "no_FOs_phys_checks",
     "produce_trees",
     "run_sync",
     "write_sync_objects",
@@ -1586,6 +1592,8 @@ int main(int argc, char** argv){
     IVYout << "- minpt_l3: Minimum pT of third lepton in units of GeV. Default=20.\n";
     IVYout << "- minpt_miss: Minimum pTmiss in units of GeV. Default=50.\n";
     IVYout << "- minHT_jets: Minimum HT over ak4 jets in units of GeV. Default=300.\n";
+    IVYout << "- no_FOs_phys_checks: Flag to turn off the usage of fakeable leptons in physics object checks such as jet cleaning. Optional. Default is to take FOs into account.\n";
+    IVYout << "- only_tight_dileptons: Flag to use only tight leptons in general dilepton pair construction. Optional. Default is to use all loose, fakeable, or tight leptons.\n";
     IVYout << "- produce_trees: Flag to switch to tree output instead of histograms. Optional. Default is to produce histograms.\n";
     IVYout << "  Note that tree production keeps all events, so one needs to use the selection bit map.\n";
     IVYout << "- run_sync: Turn on synchronization output. Optional. Default is to run without synchronization output.\n";
