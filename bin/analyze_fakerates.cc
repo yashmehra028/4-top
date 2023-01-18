@@ -269,7 +269,6 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     BaseTree* tin = new BaseTree(cinput, "Events", "", (isData ? "" : "Counters"));
     if (!tin->isValid()){
       IVYout << "An error occured while acquiring the input from " << cinput << ". Aborting..." << endl;
-      delete tin;
       assert(0);
     }
     tin->sampleIdentifier = sid;
