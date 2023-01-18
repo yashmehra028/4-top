@@ -51,16 +51,26 @@ BTagEntry::BTagEntry(const std::string &csvLine)
   std::stringstream buff(csvLine);
   std::vector<std::string> vec;
   std::string token;
-  while (std::getline(buff, token, ","[0])) {
+  std::string token_composite;
+  bool isComposite = false;
+  while (std::getline(buff, token, ',')){
+    if (!isComposite && token.find("\"")!=std::string::npos) isComposite = true;
     token = BTagEntry::trimStr(token);
-    if (token.empty()) {
-      continue;
+    if (token.empty()) continue;
+    if (isComposite){
+      if (token_composite=="") token_composite = token;
+      else token_composite = token_composite + "," + token;
     }
-    vec.push_back(token);
+    if (isComposite && std::count(token_composite.begin(), token_composite.end(), '\"')==2){
+      isComposite = false;
+      token = token_composite;
+      token_composite = "";
+    }
+    if (!isComposite) vec.push_back(token);
   }
   if (vec.size() != 11) {
     std::cerr << "ERROR in BTagCalibration: "
-      << "Invalid csv line; num tokens != 11: "
+      << "Invalid csv line; num tokens " << vec.size() << " != 11: "
       << csvLine << std::endl;
     throw std::exception();
   }
