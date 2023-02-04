@@ -143,7 +143,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   TString stroutput_log = coutput_main + "/log_" + output_file.data() + ".out"; // This is the output log file.
   TString stroutput_err = coutput_main + "/log_" + output_file.data() + ".err"; // This is the error log file.
   
-  TString stroutput_csv = coutput_main + "/" + output_file.data() + ".csv"; // This is the error log file.
+  TString stroutput_csv = coutput_main + "/" + output_file.data() + ".csv"; // This is the output csv file.
 	
 	ofstream output_csv;
 	
@@ -788,10 +788,10 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 						bool electron_pair = (std::abs(charge_daughter_1) == 11) && (std::abs(charge_daughter_2) == 11);
 						if (electron_pair) {
 							filtered_zcand.push_back(dilepton_OS_ZCand_tight);
-							float pt_trailing = dilepton_OS_ZCand_tight->getDaughter(1)->pt();
+						/*	float pt_trailing = dilepton_OS_ZCand_tight->getDaughter(1)->pt();
 							float pt_leading = dilepton_OS_ZCand_tight->getDaughter(0)->pt();
 							trailing_pt.push_back(pt_trailing);
-							leading_pt.push_back(pt_leading);				
+							leading_pt.push_back(pt_leading); */				
 }
 																																
 }
@@ -940,19 +940,24 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 #define BRANCH_VECTOR_COMMANDS \
         BRANCH_VECTOR_COMMAND(float, mass) \
 				BRANCH_VECTOR_COMMAND(float,lpt) \
-				BRANCH_VECTOR_COMMAND(float,tpt) 
+				BRANCH_VECTOR_COMMAND(float,tpt) \
+				BRANCH_VECTOR_COMMAND(float,leading_eta) \
+				BRANCH_VECTOR_COMMAND(float,trailing_eta) \
+				BRANCH_VECTOR_COMMAND(float,leading_phi) \
+				BRANCH_VECTOR_COMMAND(float,trailing_phi)
 #define BRANCH_VECTOR_COMMAND(TYPE, NAME) std::vector<TYPE> dileptons_##NAME;
         BRANCH_VECTOR_COMMANDS;
 #undef BRANCH_VECTOR_COMMAND
 
         for (auto const& dilepton:filtered_zcand){
 
-					float mass = dilepton->mass();	
-						
-				for (int j=0; j<leading_pt.size(); j++){
-					lpt = leading_pt[j];
-					tpt = trailing_pt[j];
-}	
+					float mass = dilepton->mass();
+					float lpt = dilepton->getDaughter(0)->pt();
+					float tpt = dilepton->getDaughter(1)->pt(); 	
+					float leading_eta = dilepton->getDaughter(0)->eta();
+					float trailing_eta = dilepton->getDaughter(1)->eta();
+					float leading_phi = dilepton->getDaughter(0)->phi();
+					float trailing_phi = dilepton->getDaughter(1)->phi();
 #define BRANCH_VECTOR_COMMAND(TYPE, NAME) dileptons_##NAME.push_back(NAME);
           BRANCH_VECTOR_COMMANDS;
 #undef BRANCH_VECTOR_COMMAND
