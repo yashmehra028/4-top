@@ -34,7 +34,8 @@ This is an example looper to go through the different setup, looper, and output 
 #include "DileptonHandler.h"
 #include "InputChunkSplitter.h"
 #include "SplitFileAndAddForTransfer.h"
-
+#include <fstream>
+#include <cmath>
 
 using namespace std;
 using namespace IvyStreamHelpers;
@@ -72,6 +73,9 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   if (!isCondorRun) std::signal(SIGINT, SampleHelpers::setSignalInterrupt);
 
   TDirectory* curdir = gDirectory;
+
+
+
 
   /***********************/
   /* COMMON GLOBAL SETUP */
@@ -138,15 +142,23 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   TString stroutput = coutput_main + "/" + output_file.data() + ".root"; // This is the output ROOT file.
   TString stroutput_log = coutput_main + "/log_" + output_file.data() + ".out"; // This is the output log file.
   TString stroutput_err = coutput_main + "/log_" + output_file.data() + ".err"; // This is the error log file.
-  IVYout.open(stroutput_log.Data());
+  
+  TString stroutput_csv = coutput_main + "/" + output_file.data() + ".csv"; // This is the error log file.
+	
+	ofstream output_csv;
+	
+	IVYout.open(stroutput_log.Data());
   IVYerr.open(stroutput_err.Data());
+	output_csv.open(stroutput_csv);
 
+	
+	output_csv << "event,# tight electrons,# tight muons,has_ss_pair,has_3_ss,#jets,#bjets,has_mass_resonance\n";
   // In case the user wants to run on particular files
   std::string input_files;
   extra_arguments.getNamedVal("input_files", input_files);
 
   // Shorthand option for the Run 2 UL analysis proposal
-  bool use_shorthand_Run2_UL_proposal_config = false;
+  bool use_shorthand_Run2_UL_proposal_config = true; // was false earlier
   extra_arguments.getNamedVal("shorthand_Run2_UL_proposal_config", use_shorthand_Run2_UL_proposal_config);
 
   // Options to set alternative muon and electron IDs, or b-tagging WP
@@ -171,9 +183,9 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     extra_arguments.getNamedVal("minpt_l3", minpt_l3);
   }
 
-  double minpt_miss = 50;
+  double minpt_miss = 0; // was 50 earlier
   extra_arguments.getNamedVal("minpt_miss", minpt_miss);
-  double minHT_jets = 300;
+  double minHT_jets = 0; // was 300 earlier
   extra_arguments.getNamedVal("minHT_jets", minHT_jets);
 
   if (muon_id_name!=""){
@@ -298,7 +310,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   std::unordered_map<BaseTree*, double> tin_normScale_map;
   for (auto const& dset_proc_pair:dset_proc_pairs){
     TString strinput = SampleHelpers::getInputDirectory() + "/" + strinputdpdir + "/" + dset_proc_pair.second.data();
-    TString cinput = (input_files=="" ? strinput + "/*.root" : strinput + "/" + input_files.data());
+    TString cinput = (input_files=="" ? strinput + "/DY_2l_M_50_1.root" : strinput + "/" + input_files.data());
     IVYout << "Accessing input files " << cinput << "..." << endl;
     TString const sid = SampleHelpers::getSampleIdentifier(dset_proc_pair.first);
     bool const isData = SampleHelpers::checkSampleIsData(sid);
@@ -729,6 +741,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       int nQ = 0;
       for (auto const& part:leptons_tight) nQ += (part->pdgId()>0 ? -1 : 1);
       bool const pass_trileptonSameCharge = (std::abs(nQ)<(6-static_cast<int>(nleptons_tight)));
+			bool has_3_ss = !pass_trileptonSameCharge;
       if (!pass_trileptonSameCharge) continue;
       seltracker.accumulate("Pass 3-lepton same charge veto", wgt);
 
@@ -743,32 +756,62 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       DileptonObject* dilepton_SS_tight = nullptr;
       DileptonObject* dilepton_OS_ZCand_tight = nullptr;
       DileptonObject* dilepton_SS_ZCand_tight = nullptr;
-      for (auto const& dilepton:dileptons){
+			bool flag_ss = false;
+			bool has_mass_resonance = false;
+			
+			vector<DileptonObject*> filtered_zcand = {}; 
+			vector<float> trailing_pt = {};			
+			vector<float> leading_pt = {};			
+			
+			for (auto const& dilepton:dileptons){
         bool isSS = !dilepton->isOS();
+				if (isSS) flag_ss = true;
         bool isTight = dilepton->nTightDaughters()==2;
         bool isSF = dilepton->isSF();
         bool is_LowMass = dilepton->m()<12.;
         bool is_ZClose = std::abs(dilepton->m()-91.2)<15.;
         bool is_DYClose = is_ZClose || is_LowMass;
+				
+				if (is_ZClose || (!isSS && isSF && is_LowMass) || (is_LowMass && isTight && std::abs((dilepton->getDaughter(0)->pdgId() == 11)))) has_mass_resonance=true;
+				
         if (isSS && isSF && is_LowMass && std::abs(dilepton->getDaughter(0)->pdgId())==11){
           fail_vetos = true;
           break; // No need to look further, selection failed
         }
         if (isSS && isTight && !dilepton_SS_tight) dilepton_SS_tight = dilepton;
+
         if (!isSS && isSF && is_DYClose){
-          if (isTight && is_ZClose && !dilepton_OS_ZCand_tight) dilepton_OS_ZCand_tight = dilepton;
+          if (isTight && is_ZClose && !dilepton_OS_ZCand_tight){
+						dilepton_OS_ZCand_tight = dilepton;
+						int charge_daughter_1 = dilepton_OS_ZCand_tight->getDaughter(0)->pdgId();
+						int charge_daughter_2 = dilepton_OS_ZCand_tight->getDaughter(1)->pdgId();				
+						bool electron_pair = (std::abs(charge_daughter_1) == 11) && (std::abs(charge_daughter_2) == 11);
+						if (electron_pair) {
+							filtered_zcand.push_back(dilepton_OS_ZCand_tight);
+							float pt_trailing = dilepton_OS_ZCand_tight->getDaughter(1)->pt();
+							float pt_leading = dilepton_OS_ZCand_tight->getDaughter(0)->pt();
+							trailing_pt.push_back(pt_trailing);
+							leading_pt.push_back(pt_leading);				
+}
+																																
+}
           else{
             fail_vetos = true;
             break; // No need to look further, selection failed
           }
         }
+			
         if (isSS && isTight && is_ZClose && !dilepton_SS_ZCand_tight) dilepton_SS_ZCand_tight = dilepton;
-      }
+				
+
+} 
+			
+			if (dilepton_OS_ZCand_tight == nullptr) fail_vetos=true;
       if (fail_vetos) continue;
       seltracker.accumulate("Pass dilepton vetos", wgt);
 
       bool const has_dilepton_SS_tight = (dilepton_SS_tight!=nullptr);
-      if (!has_dilepton_SS_tight) continue;
+      //if (!has_dilepton_SS_tight) continue;
       seltracker.accumulate("Has at least one tight SS dilepton", wgt);
 
       // Do not skip the event if there is an OS Z cand.
@@ -835,17 +878,23 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
       rcd_output.setNamedVal("EventNumber", *ptr_EventNumber);
       if (!isData){
+
         rcd_output.setNamedVal("GenMET_pt", *ptr_genmet_pt);
         rcd_output.setNamedVal("GenMET_phi", *ptr_genmet_phi);
       }
       else{
+				
         rcd_output.setNamedVal("RunNumber", *ptr_RunNumber);
         rcd_output.setNamedVal("LuminosityBlock", *ptr_LuminosityBlock);
       }
+			
+			output_csv <<  *ptr_EventNumber  << ',' << electrons_tight.size() << ',' << muons_tight.size() << ',' << flag_ss << ',' << has_3_ss << ','  << nak4jets_tight_selected << ',' << nak4jets_tight_selected_btagged  << ',' << has_mass_resonance <<'\n'; 
+
 
       rcd_output.setNamedVal<float>("HT_ak4jets", HT_ak4jets);
       rcd_output.setNamedVal<float>("pTmiss", pTmiss);
       rcd_output.setNamedVal<float>("phimiss", phimiss);
+		
 
       // Record leptons
       {
@@ -886,7 +935,35 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
 #undef BRANCH_VECTOR_COMMANDS
       }
+//Record dileptons
+ {
+#define BRANCH_VECTOR_COMMANDS \
+        BRANCH_VECTOR_COMMAND(float, mass) \
+				BRANCH_VECTOR_COMMAND(float,lpt) \
+				BRANCH_VECTOR_COMMAND(float,tpt) 
+#define BRANCH_VECTOR_COMMAND(TYPE, NAME) std::vector<TYPE> dileptons_##NAME;
+        BRANCH_VECTOR_COMMANDS;
+#undef BRANCH_VECTOR_COMMAND
 
+        for (auto const& dilepton:filtered_zcand){
+
+					float mass = dilepton->mass();	
+						
+				for (int j=0; j<leading_pt.size(); j++){
+					lpt = leading_pt[j];
+					tpt = trailing_pt[j];
+}	
+#define BRANCH_VECTOR_COMMAND(TYPE, NAME) dileptons_##NAME.push_back(NAME);
+          BRANCH_VECTOR_COMMANDS;
+#undef BRANCH_VECTOR_COMMAND
+        }
+
+#define BRANCH_VECTOR_COMMAND(TYPE, NAME) rcd_output.setNamedVal(Form("dileptons_%s", #NAME), dileptons_##NAME);
+        BRANCH_VECTOR_COMMANDS;
+#undef BRANCH_VECTOR_COMMAND
+
+#undef BRANCH_VECTOR_COMMANDS
+}
       // Record ak4jets
       {
 #define BRANCH_VECTOR_COMMANDS \
@@ -965,10 +1042,11 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   // Does nothing if you are running the program locally because your output is already in the desired location.
   SampleHelpers::splitFileAndAddForTransfer(stroutput);
 
+  SampleHelpers::splitFileAndAddForTransfer(stroutput_csv);
   // Close the output and error log files
   IVYout.close();
   IVYerr.close();
-
+	output_csv.close();	
   return 0;
 }
 
@@ -983,6 +1061,17 @@ The rest of the arguments here are up to the user to decide or add more onto.
 Any unknown argument causes the script to return a non-zero return value in the current implementation.
 */
 int main(int argc, char** argv){
+
+
+//	ofstream file;
+	//file.open("../yash_test.csv");
+
+	//file << "run,lumi,event,# tight electrons,# tight muons,has_ss_pair,has_3_ss\n";
+//	IVYerr << "running but prrevious line did not idk" << endl;
+//	ofstream file2;
+	//file2.open("../yash_test_2.csv");
+	//file2 << "yayaya";
+	//file2.close();
   // argv[0]==[Executable name]
   constexpr int iarg_offset=1;
 
@@ -1049,7 +1138,7 @@ int main(int argc, char** argv){
     else if (wish=="minpt_jets" || wish=="minpt_bjets" || wish=="minpt_l3" || wish=="minpt_miss" || wish=="minHT_jets"){
       double tmpval;
       HelperFunctions::castStringToValue(value, tmpval);
-      extra_arguments.setNamedVal(wish, tmpval);
+extra_arguments.setNamedVal(wish, tmpval);
     }
     else{
       IVYerr << "ERROR: Unknown argument " << wish << "=" << value << endl;
@@ -1115,5 +1204,10 @@ int main(int argc, char** argv){
   SampleHelpers::configure(str_period, Form("skims:%s", str_tag.data()), HostHelpers::kUCSDT2);
 
   // Run the actual program
-  return ScanChain(str_outtag, str_dset, str_proc, xsec, ichunk, nchunks, extra_arguments);
+  // defining new variable to return and call Scanchain to close file conveniently
+  int final_result = ScanChain(str_outtag, str_dset, str_proc, xsec, ichunk, nchunks, extra_arguments);
+	IVYerr << "the function ran" << endl;
+	return final_result;
+//	return 0;  
+//return ScanChain(str_outtag, str_dset, str_proc, xsec, ichunk, nchunks, extra_arguments);
 }
