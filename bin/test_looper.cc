@@ -944,13 +944,14 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 				BRANCH_VECTOR_COMMAND(float,leading_eta) \
 				BRANCH_VECTOR_COMMAND(float,trailing_eta) \
 				BRANCH_VECTOR_COMMAND(float,leading_phi) \
-				BRANCH_VECTOR_COMMAND(float,trailing_phi)
+				BRANCH_VECTOR_COMMAND(float,trailing_phi) \
+				BRANCH_VECTOR_COMMAND(float,pt_sum)
 #define BRANCH_VECTOR_COMMAND(TYPE, NAME) std::vector<TYPE> dileptons_##NAME;
         BRANCH_VECTOR_COMMANDS;
 #undef BRANCH_VECTOR_COMMAND
 
         for (auto const& dilepton:filtered_zcand){
-
+					
 					float mass = dilepton->mass();
 					float lpt = dilepton->getDaughter(0)->pt();
 					float tpt = dilepton->getDaughter(1)->pt(); 	
@@ -958,6 +959,8 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 					float trailing_eta = dilepton->getDaughter(1)->eta();
 					float leading_phi = dilepton->getDaughter(0)->phi();
 					float trailing_phi = dilepton->getDaughter(1)->phi();
+					float pt_sum = sqrt((pow(lpt*cos(leading_phi)+tpt*cos(trailing_phi),2)+pow(lpt*sin(leading_phi)+tpt*sin(trailing_phi),2)));
+					cout << pt_sum << endl;	
 #define BRANCH_VECTOR_COMMAND(TYPE, NAME) dileptons_##NAME.push_back(NAME);
           BRANCH_VECTOR_COMMANDS;
 #undef BRANCH_VECTOR_COMMAND
