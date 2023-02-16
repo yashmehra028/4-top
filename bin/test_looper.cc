@@ -731,16 +731,21 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       bool const pass_pTmiss = pTmiss>=minpt_miss;
       if (!pass_pTmiss) {//continue;
 				pTmiss_requirement++;
+
+
 }
+
+      bool const pass_Nleptons = (nleptons_tight==2);
+      if (!pass_Nleptons) continue;
+      seltracker.accumulate("Has 2 leptons", wgt);
+
+			bool const pass_electronpair = (abs(leptons_tight.front()->pdgId())==11);
+			if (!pass_electronpair) continue;
       seltracker.accumulate("Pass pTmiss", wgt);
 
       bool const pass_HTjets = HT_ak4jets>=minHT_jets;
       if (!pass_HTjets) continue;
       seltracker.accumulate("Pass HT", wgt);
-
-      bool const pass_Nleptons = (nleptons_tight>=2 && nleptons_tight<5);
-      if (!pass_Nleptons) continue;
-      seltracker.accumulate("Has >=2 and <=4 tight leptons", wgt);
 
       bool const pass_pTl1 = leptons_tight.front()->pt()>=25.;
       bool const pass_pTl2 = leptons_tight.at(1)->pt()>=20.;
