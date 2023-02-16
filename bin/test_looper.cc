@@ -165,9 +165,9 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   std::string muon_id_name;
   std::string electron_id_name;
   std::string btag_WPname;
-  double minpt_jets = 40;
-  double minpt_bjets = 25;
-  double minpt_l3 = 20;
+  double minpt_jets = 30;//was 40 
+  double minpt_bjets = 30;//was 25
+  double minpt_l3 = 0;//was 10
   if (use_shorthand_Run2_UL_proposal_config){
     muon_id_name = electron_id_name = "TopMVA_Run2";
     btag_WPname = "loose";
@@ -310,8 +310,8 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   std::unordered_map<BaseTree*, double> tin_normScale_map;
   for (auto const& dset_proc_pair:dset_proc_pairs){
     TString strinput = SampleHelpers::getInputDirectory() + "/" + strinputdpdir + "/" + dset_proc_pair.second.data();
-    //TString cinput = (input_files=="" ? strinput + ("/DY_2l_M_50_1.root","/DY_2l_M_50_2.root") : strinput + "/" + input_files.data());
-    TString cinput = (input_files=="" ? strinput + "/DY_2l_M_50_1.root" : strinput + "/" + input_files.data());
+    //TString cinput = (input_files=="" ? strinput + "/DY_2l_M_50_1.root" : strinput + "/" + input_files.data());
+    TString cinput = (input_files=="" ? strinput + ("/DY_2l_M_50_1.root","/DY_2l_M_50_2.root") : strinput + "/" + input_files.data());
     IVYout << "Accessing input files " << cinput << "..." << endl;
     TString const sid = SampleHelpers::getSampleIdentifier(dset_proc_pair.first);
     bool const isData = SampleHelpers::checkSampleIsData(sid);
@@ -408,7 +408,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   int eventIndex_end = -1;
   int eventIndex_tracker = 0;
   splitInputEventsIntoChunks((is_sim_data_flag==1), nevents_total, ichunk, nchunks, eventIndex_begin, eventIndex_end);
-
+	int n_dileptons = 0;
   for (auto const& tin:tinlist){
     if (SampleHelpers::doSignalInterrupt==1) break;
 
@@ -450,14 +450,21 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
     /********************/
     /* BEGIN EVENT LOOP */
     /********************/
-
     unsigned int n_traversed = 0;
     unsigned int n_recorded = 0;
     int nEntries = tin->getNEvents();
     IVYout << "Looping over " << nEntries << " events from " << tin->sampleIdentifier << "..." << endl;
+		int passed_dileptons = 0;
+		int n_events = 0;
+		int n_cut_events = 0;
+		cout << "number of entries " << nEntries << endl;
+		int jet_requirement = 0; int pTmiss_requirement = 0;
+		int total_my_code_dileptons = 0;
+		int total_dilepton_size = 0;
     for (int ev=0; ev<nEntries; ev++){
       if (SampleHelpers::doSignalInterrupt==1) break;
-
+			//n_events++;
+			//cout << "currently on event " << n_events << endl;
       // Event accumulation in chunks:
       // In simulation, events are accumlated if the entry index falls into the range for the requested chunk (if nchunks<=0, all events are included).
       // In data, max(nchunks) = Number of run numbers. Events are split into chunks based on the ordered list of run numbers in the specified data era.
@@ -534,7 +541,8 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       // That is required in TopLeptonMVA computations! That is why disambiguation comes before setting selection bits!
       // ParticleDisambiguator then cleans all geometrically overlapping jets by moving them to the ak4jets_masked collection of JetMETHandler.
       particleDisambiguator.disambiguateParticles(&muonHandler, &electronHandler, nullptr, &jetHandler);
-
+			n_cut_events++;
+			//cout << "cut events are " << n_cut_events << endl;	
       /***********/
       /* LEPTONS */
       /***********/
@@ -712,16 +720,18 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
       // BEGIN PRESELECTION
       seltracker.accumulate("Full sample", wgt);
-
       bool const pass_Nj_geq_2 = nak4jets_tight_selected>=2;
       bool const pass_Nb_geq_2 = nak4jets_tight_selected_btagged>=2;
-      if (!(pass_Nj_geq_2 && pass_Nb_geq_2)) continue;
+      if (!(pass_Nj_geq_2 && pass_Nb_geq_2)) {//continue; 
+				jet_requirement++;}
       seltracker.accumulate("Pass Nj>=2 and Nb>=2", wgt);
 
       double const pTmiss = eventmet->pt();
       double const phimiss = eventmet->phi();
       bool const pass_pTmiss = pTmiss>=minpt_miss;
-      if (!pass_pTmiss) continue;
+      if (!pass_pTmiss) {//continue;
+				pTmiss_requirement++;
+}
       seltracker.accumulate("Pass pTmiss", wgt);
 
       bool const pass_HTjets = HT_ak4jets>=minHT_jets;
@@ -753,7 +763,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       // so that dilepton vetos can be done easily next.
       dileptonHandler.constructDileptons(&muons_selected, &electrons_selected);
       auto const& dileptons = dileptonHandler.getProducts();
-
+			//cout << "Dileptons passed have size " << dileptons.size() << endl;
       // Dilepton vetos
       bool fail_vetos = false;
       DileptonObject* dilepton_SS_tight = nullptr;
@@ -763,11 +773,10 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 			bool has_mass_resonance = false;
 			
 			vector<DileptonObject*> filtered_zcand = {}; 
-			vector<float> trailing_pt = {};			
-			vector<float> leading_pt = {};			
-			
+			total_dilepton_size += dileptons.size();			
 			for (auto const& dilepton:dileptons){
-        bool isSS = !dilepton->isOS();
+        n_dileptons++;
+				bool isSS = !dilepton->isOS();
 				if (isSS) flag_ss = true;
         bool isTight = dilepton->nTightDaughters()==2;
         bool isSF = dilepton->isSF();
@@ -791,6 +800,8 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 						bool electron_pair = (std::abs(charge_daughter_1) == 11) && (std::abs(charge_daughter_2) == 11);
 						if (electron_pair) {
 							filtered_zcand.push_back(dilepton_OS_ZCand_tight);
+							//passed_dileptons += filtered_zcand.size();
+							total_my_code_dileptons++;
 						/*	float pt_trailing = dilepton_OS_ZCand_tight->getDaughter(1)->pt();
 							float pt_leading = dilepton_OS_ZCand_tight->getDaughter(0)->pt();
 							trailing_pt.push_back(pt_trailing);
@@ -808,7 +819,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 				
 
 } 
-			
+//			cout  << "Passed dileptons per event " << passed_dileptons << endl; 			
 			if (dilepton_OS_ZCand_tight == nullptr) fail_vetos=true;
       if (fail_vetos) continue;
       seltracker.accumulate("Pass dilepton vetos", wgt);
@@ -958,7 +969,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 #undef BRANCH_VECTOR_COMMAND
 
         for (auto const& dilepton:filtered_zcand){
-					
+				
 					float mass = dilepton->mass();
 					float lpt = dilepton->getDaughter_leadingPt()->pt();
 					float tpt = dilepton->getDaughter_subleadingPt()->pt(); 	
@@ -1056,7 +1067,11 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
       if (firstOutputEvent) firstOutputEvent = false;
     }
-
+		cout << "total dileptons vectors size " << total_dilepton_size << endl;
+		cout << "after adding my code " << total_my_code_dileptons << endl;
+		cout << "cut with jet requirement " << jet_requirement << endl;
+		cout << "cut with miss pT requirement " << pTmiss_requirement << endl; 
+		cout << "number of dileptons is " << n_dileptons << endl;
     IVYout << "Number of events recorded: " << n_recorded << " / " << n_traversed << " / " << nEntries << endl;
     nevents_total_traversed += n_traversed;
   }
