@@ -152,7 +152,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 	output_csv.open(stroutput_csv);
 
 	
-	output_csv << "event,# tight electrons,# tight muons,has_ss_pair,has_3_ss,#jets,#bjets,has_mass_resonance\n";
+	output_csv << "event,# tight electrons,# tight muons,has_OS_pair,has_Z_cand" << endl;
   // In case the user wants to run on particular files
   std::string input_files;
   extra_arguments.getNamedVal("input_files", input_files);
@@ -742,7 +742,8 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 			bool const pass_electronpair = (abs(leptons_tight.front()->pdgId())==11);
 			if (!pass_electronpair) continue;
 //      seltracker.accumulate("Pass pTmiss", wgt);
-
+			bool OS = (leptons_tight.front()->pdgId() / leptons_tight.back()->pdgId()) == -1;
+			
       bool const pass_HTjets = HT_ak4jets>=minHT_jets;
       if (!pass_HTjets) continue;
       seltracker.accumulate("Pass HT", wgt);
@@ -782,7 +783,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 			for (auto const& dilepton:dileptons){
         n_dileptons++;
 				bool isSS = !dilepton->isOS();
-				if (isSS) flag_ss = true;
+				bool isOS = !isSS;
         bool isTight = dilepton->nTightDaughters()==2;
         bool isSF = dilepton->isSF();
         bool is_LowMass = dilepton->m()<12.;
@@ -800,18 +801,17 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         if (!isSS && isSF && is_DYClose){
           if (isTight && is_ZClose && !dilepton_OS_ZCand_tight){
 						dilepton_OS_ZCand_tight = dilepton;
-						int charge_daughter_1 = dilepton_OS_ZCand_tight->getDaughter(0)->pdgId();
-						int charge_daughter_2 = dilepton_OS_ZCand_tight->getDaughter(1)->pdgId();				
-						bool electron_pair = (std::abs(charge_daughter_1) == 11) && (std::abs(charge_daughter_2) == 11);
-						if (electron_pair) {
-							filtered_zcand.push_back(dilepton_OS_ZCand_tight);
+						//int charge_daughter_1 = dilepton_OS_ZCand_tight->getDaughter(0)->pdgId();
+						//int charge_daughter_2 = dilepton_OS_ZCand_tight->getDaughter(1)->pdgId();				
+						//bool electron_pair = (std::abs(charge_daughter_1) == 11) && (std::abs(charge_daughter_2) == 11) && ((charge_daughter_1/charge_daughter_2)==-1);
+					
+						filtered_zcand.push_back(dilepton_OS_ZCand_tight);
 							//passed_dileptons += filtered_zcand.size();
-							total_my_code_dileptons++;
+						
 						/*	float pt_trailing = dilepton_OS_ZCand_tight->getDaughter(1)->pt();
 							float pt_leading = dilepton_OS_ZCand_tight->getDaughter(0)->pt();
 							trailing_pt.push_back(pt_trailing);
-							leading_pt.push_back(pt_leading); */				
-}
+							leading_pt.push_back(pt_leading); */			
 																																
 }
           else{
@@ -907,7 +907,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         rcd_output.setNamedVal("LuminosityBlock", *ptr_LuminosityBlock);
       }
 			
-			output_csv <<  *ptr_EventNumber  << ',' << electrons_tight.size() << ',' << muons_tight.size() << ',' << flag_ss << ',' << has_3_ss << ','  << nak4jets_tight_selected << ',' << nak4jets_tight_selected_btagged  << ',' << has_mass_resonance <<'\n'; 
+			output_csv <<  *ptr_EventNumber  << ',' << electrons_tight.size() << ',' << muons_tight.size() << ',' << OS << ',' << has_dilepton_OS_ZCand_tight <<'\n'; 
 
 
       rcd_output.setNamedVal<float>("HT_ak4jets", HT_ak4jets);
