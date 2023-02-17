@@ -741,7 +741,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
 			bool const pass_electronpair = (abs(leptons_tight.front()->pdgId())==11);
 			if (!pass_electronpair) continue;
-      seltracker.accumulate("Pass pTmiss", wgt);
+//      seltracker.accumulate("Pass pTmiss", wgt);
 
       bool const pass_HTjets = HT_ak4jets>=minHT_jets;
       if (!pass_HTjets) continue;
