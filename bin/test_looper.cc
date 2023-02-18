@@ -719,6 +719,9 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       auto const& eventmet = jetHandler.getPFMET();
 
       // BEGIN PRESELECTION
+      
+			int numJets = ak4jets_tight_recordable.size();
+
       seltracker.accumulate("Full sample", wgt);
       bool const pass_Nj_geq_2 = nak4jets_tight_selected>=2;
       bool const pass_Nb_geq_2 = nak4jets_tight_selected_btagged>=2;
@@ -968,7 +971,8 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 				BRANCH_VECTOR_COMMAND(float,pdgId_1)\
 				BRANCH_VECTOR_COMMAND(float,match_pdgId_1) \
 				BRANCH_VECTOR_COMMAND(float,pdgId_2) \
-				BRANCH_VECTOR_COMMAND(float,match_pdgId_2)
+				BRANCH_VECTOR_COMMAND(float,match_pdgId_2) \ 
+				BRANCH_VECTOR_COMMAND(int, nJets)				
 #define BRANCH_VECTOR_COMMAND(TYPE, NAME) std::vector<TYPE> dileptons_##NAME;
         BRANCH_VECTOR_COMMANDS;
 #undef BRANCH_VECTOR_COMMAND
@@ -999,7 +1003,9 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 						pdgId_2 = it_genmatch_2->first->pdgId(); match_pdgId_2 = it_genmatch_2->second->pdgId();
 						//cout << pdgId_2 << ',' << match_pdgId_2 << ',' << pdgId_1 << ',' << match_pdgId_1 << endl;
 					}
-	
+					
+					int nJets = numJets;
+						
 #define BRANCH_VECTOR_COMMAND(TYPE, NAME) dileptons_##NAME.push_back(NAME);
           BRANCH_VECTOR_COMMANDS;
 #undef BRANCH_VECTOR_COMMAND
