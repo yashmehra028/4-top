@@ -152,7 +152,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 	output_csv.open(stroutput_csv);
 
 	
-	output_csv << "event,# tight electrons,# tight muons,has_OS_pair,has_Z_cand" << endl;
+	output_csv << "event,# tight electrons,# tight muons,has_OS_pair,has_OS_Z_cand,has_SS_ZCand" << endl;
   // In case the user wants to run on particular files
   std::string input_files;
   extra_arguments.getNamedVal("input_files", input_files);
@@ -782,7 +782,8 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 			bool has_mass_resonance = false;
 			
 			vector<DileptonObject*> filtered_zcand = {}; 
-			total_dilepton_size += dileptons.size();			
+			total_dilepton_size += dileptons.size();
+			DileptonObject* SS_dilepton = nullptr;			
 			for (auto const& dilepton:dileptons){
         n_dileptons++;
 				bool isSS = !dilepton->isOS();
@@ -800,6 +801,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
           break; // No need to look further, selection failed
         }
         if (isSS && isTight && !dilepton_SS_tight) dilepton_SS_tight = dilepton;
+
 
         if (!isSS && isSF && is_DYClose){
           if (isTight && is_ZClose && !dilepton_OS_ZCand_tight){
@@ -823,7 +825,10 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
           }
         }
 			
-        if (isSS && isTight && is_ZClose && !dilepton_SS_ZCand_tight) dilepton_SS_ZCand_tight = dilepton;
+        if (isSS && isTight && is_ZClose && !dilepton_SS_ZCand_tight) {dilepton_SS_ZCand_tight = dilepton;
+					
+					filtered_zcand.push_back(dilepton_SS_ZCand_tight);
+}
 				
 
 } 
@@ -910,7 +915,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         rcd_output.setNamedVal("LuminosityBlock", *ptr_LuminosityBlock);
       }
 			
-			output_csv <<  *ptr_EventNumber  << ',' << electrons_tight.size() << ',' << muons_tight.size() << ',' << OS << ',' << has_dilepton_OS_ZCand_tight <<'\n'; 
+			output_csv <<  *ptr_EventNumber  << ',' << electrons_tight.size() << ',' << muons_tight.size() << ',' << OS << ',' << has_dilepton_OS_ZCand_tight <<has_dilepton_SS_ZCand_tight << '\n'; 
 
 
       rcd_output.setNamedVal<float>("HT_ak4jets", HT_ak4jets);
@@ -957,7 +962,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
 #undef BRANCH_VECTOR_COMMANDS
       }
-//Record dileptons
+//Record OS dileptons
  {
 #define BRANCH_VECTOR_COMMANDS \
         BRANCH_VECTOR_COMMAND(float, mass) \
@@ -973,12 +978,12 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 				BRANCH_VECTOR_COMMAND(float,pdgId_2) \
 				BRANCH_VECTOR_COMMAND(float,match_pdgId_2) \ 
 				BRANCH_VECTOR_COMMAND(int, nJets)				
-#define BRANCH_VECTOR_COMMAND(TYPE, NAME) std::vector<TYPE> dileptons_##NAME;
+#define BRANCH_VECTOR_COMMAND(TYPE, NAME) std::vector<TYPE> dileptons_OS_##NAME;
         BRANCH_VECTOR_COMMANDS;
 #undef BRANCH_VECTOR_COMMAND
 
         for (auto const& dilepton:filtered_zcand){
-				
+					if (OS) {	
 					float mass = dilepton->mass();
 					float lpt = dilepton->getDaughter_leadingPt()->pt();
 					float tpt = dilepton->getDaughter_subleadingPt()->pt(); 	
@@ -1004,19 +1009,84 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 						//cout << pdgId_2 << ',' << match_pdgId_2 << ',' << pdgId_1 << ',' << match_pdgId_1 << endl;
 					}
 					
-					int nJets = numJets;
+					int nJets = numJets;}
 						
-#define BRANCH_VECTOR_COMMAND(TYPE, NAME) dileptons_##NAME.push_back(NAME);
+#define BRANCH_VECTOR_COMMAND(TYPE, NAME) dileptons_OS_##NAME.push_back(NAME);
           BRANCH_VECTOR_COMMANDS;
 #undef BRANCH_VECTOR_COMMAND
-        }
+        
+}
 
-#define BRANCH_VECTOR_COMMAND(TYPE, NAME) rcd_output.setNamedVal(Form("dileptons_%s", #NAME), dileptons_##NAME);
+#define BRANCH_VECTOR_COMMAND(TYPE, NAME) rcd_output.setNamedVal(Form("dileptons_%s", #NAME), dileptons_OS_##NAME);
         BRANCH_VECTOR_COMMANDS;
 #undef BRANCH_VECTOR_COMMAND
 
 #undef BRANCH_VECTOR_COMMANDS
 }
+
+
+//Record SS dileptons
+ {
+#define BRANCH_VECTOR_COMMANDS \
+        BRANCH_VECTOR_COMMAND(float, mass) \
+				BRANCH_VECTOR_COMMAND(float,lpt) \
+				BRANCH_VECTOR_COMMAND(float,tpt) \
+				BRANCH_VECTOR_COMMAND(float,leading_eta) \
+				BRANCH_VECTOR_COMMAND(float,trailing_eta) \
+				BRANCH_VECTOR_COMMAND(float,leading_phi) \
+				BRANCH_VECTOR_COMMAND(float,trailing_phi) \
+				BRANCH_VECTOR_COMMAND(float,pt_sum) \
+				BRANCH_VECTOR_COMMAND(float,pdgId_1)\
+				BRANCH_VECTOR_COMMAND(float,match_pdgId_1) \
+				BRANCH_VECTOR_COMMAND(float,pdgId_2) \
+				BRANCH_VECTOR_COMMAND(float,match_pdgId_2) \ 
+				BRANCH_VECTOR_COMMAND(int, nJets)				
+#define BRANCH_VECTOR_COMMAND(TYPE, NAME) std::vector<TYPE> dileptons_SS_##NAME;
+        BRANCH_VECTOR_COMMANDS;
+#undef BRANCH_VECTOR_COMMAND
+
+        for (auto const& dilepton:filtered_zcand){
+					if (!OS) {				
+					float mass = dilepton->mass();
+					float lpt = dilepton->getDaughter_leadingPt()->pt();
+					float tpt = dilepton->getDaughter_subleadingPt()->pt(); 	
+					float leading_eta = dilepton->getDaughter_leadingPt()->eta();
+					float trailing_eta = dilepton->getDaughter_subleadingPt()->eta();
+					float leading_phi = dilepton->getDaughter_leadingPt()->phi();
+					float trailing_phi = dilepton->getDaughter_subleadingPt()->phi();
+					float pt_sum = sqrt((pow(lpt*cos(leading_phi)+tpt*cos(trailing_phi),2)+pow(lpt*sin(leading_phi)+tpt*sin(trailing_phi),2)));
+					
+					auto part1 = (ParticleObject*)dilepton->getDaughter_leadingPt(); auto part2 = (ParticleObject*)dilepton->getDaughter_subleadingPt();
+					
+          auto it_genmatch_1 = lepton_genmatchpart_map.find(part1);
+          bool is_genmatched_prompt_1 = it_genmatch_1!=lepton_genmatchpart_map.end() && it_genmatch_1->second!=nullptr;
+
+          auto it_genmatch_2 = lepton_genmatchpart_map.find(part2);
+          bool is_genmatched_prompt_2 = it_genmatch_2!=lepton_genmatchpart_map.end() && it_genmatch_2->second!=nullptr;
+				
+					float pdgId_1 = -99, match_pdgId_1 = -99, pdgId_2=-99, match_pdgId_2=-99;
+					//float pdgId_1, match_pdgId_1, pdgId_2, match_pdgId_2;
+					if (is_genmatched_prompt_1 && is_genmatched_prompt_2){
+						pdgId_1 = it_genmatch_1->first->pdgId(); match_pdgId_1 = it_genmatch_1->second->pdgId();
+						pdgId_2 = it_genmatch_2->first->pdgId(); match_pdgId_2 = it_genmatch_2->second->pdgId();
+						//cout << pdgId_2 << ',' << match_pdgId_2 << ',' << pdgId_1 << ',' << match_pdgId_1 << endl;
+					}
+					
+					int nJets = numJets;}
+						
+#define BRANCH_VECTOR_COMMAND(TYPE, NAME) dileptons_SS_##NAME.push_back(NAME);
+          BRANCH_VECTOR_COMMANDS;
+#undef BRANCH_VECTOR_COMMAND
+        }
+
+#define BRANCH_VECTOR_COMMAND(TYPE, NAME) rcd_output.setNamedVal(Form("dileptons_%s", #NAME), dileptons_SS_##NAME);
+        BRANCH_VECTOR_COMMANDS;
+#undef BRANCH_VECTOR_COMMAND
+
+#undef BRANCH_VECTOR_COMMANDS
+}
+
+
       // Record ak4jets
       {
 #define BRANCH_VECTOR_COMMANDS \
