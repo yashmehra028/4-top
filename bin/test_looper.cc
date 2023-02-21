@@ -742,7 +742,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       if (!pass_Nleptons) continue;
       seltracker.accumulate("Has 2 leptons", wgt);
 
-			bool const pass_electronpair = (abs(leptons_tight.front()->pdgId())==11);
+			bool const pass_electronpair = (abs(leptons_tight.front()->pdgId())==11 && abs(leptons_tight.back()->pdgId())==11);
 			if (!pass_electronpair) continue;
 //      seltracker.accumulate("Pass pTmiss", wgt);
 			bool OS = (leptons_tight.front()->pdgId() / leptons_tight.back()->pdgId()) == -1;
