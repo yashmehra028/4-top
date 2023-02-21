@@ -311,7 +311,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   for (auto const& dset_proc_pair:dset_proc_pairs){
     TString strinput = SampleHelpers::getInputDirectory() + "/" + strinputdpdir + "/" + dset_proc_pair.second.data();
     //TString cinput = (input_files=="" ? strinput + "/DY_2l_M_50_1.root" : strinput + "/" + input_files.data());
-    TString cinput = (input_files=="" ? strinput + ("/DY_2l_M_50_1.root","/DY_2l_M_50_2.root") : strinput + "/" + input_files.data());
+    TString cinput = (input_files=="" ? strinput + ("/DY_2l_M_50_1.root","/DY_2l_M_50_2.root","/DY_2l_M_50_3.root","/DY_2l_M_50_4.root") : strinput + "/" + input_files.data());
     IVYout << "Accessing input files " << cinput << "..." << endl;
     TString const sid = SampleHelpers::getSampleIdentifier(dset_proc_pair.first);
     bool const isData = SampleHelpers::checkSampleIsData(sid);
@@ -833,12 +833,12 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
 } 
 //			cout  << "Passed dileptons per event " << passed_dileptons << endl; 			
-			if (dilepton_OS_ZCand_tight == nullptr) fail_vetos=true;
+			//if (dilepton_OS_ZCand_tight == nullptr) fail_vetos=true;
       if (fail_vetos) continue;
       seltracker.accumulate("Pass dilepton vetos", wgt);
 
       bool const has_dilepton_SS_tight = (dilepton_SS_tight!=nullptr);
-      //if (!has_dilepton_SS_tight) continue;
+			//if (!has_dilepton_SS_tight) continue;
       seltracker.accumulate("Has at least one tight SS dilepton", wgt);
 
       // Do not skip the event if there is an OS Z cand.
@@ -847,12 +847,14 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       rcd_output.setNamedVal<float>("mass_OS_ZCand_tight", (has_dilepton_OS_ZCand_tight ? dilepton_OS_ZCand_tight->mass() : -1.f));
       seltracker.accumulate("Has no OS Z candidate", wgt*static_cast<double>(!has_dilepton_OS_ZCand_tight));
 
+      //cout << "has_dilepton_OS_ZCand_tight " << has_dilepton_OS_ZCand_tight << endl;
       // Do not skip the event if there is an SS Z cand.
       // Instead, record a mass variable (=-1 if it doesn't exist).
       bool const has_dilepton_SS_ZCand_tight = (dilepton_SS_ZCand_tight!=nullptr);
       rcd_output.setNamedVal<float>("mass_SS_ZCand_tight", (has_dilepton_SS_ZCand_tight ? dilepton_SS_ZCand_tight->mass() : -1.f));
       seltracker.accumulate("Has no SS Z candidate", wgt*static_cast<double>(!has_dilepton_SS_ZCand_tight));
 
+      //cout << "has_dilepton_SS_ZCand_tight " << has_dilepton_SS_ZCand_tight << endl;
       // Put event filters to the last because data has unique event tracking enabled.
       // Data event does not get the chance to be tracked until constructFilters is called.
       // Tracking costs time, so it is better to run it on the smallest possible set of events.
@@ -914,8 +916,9 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         rcd_output.setNamedVal("RunNumber", *ptr_RunNumber);
         rcd_output.setNamedVal("LuminosityBlock", *ptr_LuminosityBlock);
       }
-			
-			output_csv <<  *ptr_EventNumber  << ',' << electrons_tight.size() << ',' << muons_tight.size() << ',' << OS << ',' << has_dilepton_OS_ZCand_tight <<has_dilepton_SS_ZCand_tight << '\n'; 
+		
+	
+			output_csv <<  *ptr_EventNumber  << ',' << electrons_tight.size() << ',' << muons_tight.size() << ',' << OS << ',' << has_dilepton_OS_ZCand_tight  << ',' << has_dilepton_SS_ZCand_tight << '\n'; 
 
 
       rcd_output.setNamedVal<float>("HT_ak4jets", HT_ak4jets);
@@ -964,6 +967,8 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       }
 //Record OS dileptons
  {
+
+
 #define BRANCH_VECTOR_COMMANDS \
         BRANCH_VECTOR_COMMAND(float, mass) \
 				BRANCH_VECTOR_COMMAND(float,lpt) \
@@ -983,7 +988,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 #undef BRANCH_VECTOR_COMMAND
 
         for (auto const& dilepton:filtered_zcand){
-					if (OS) {	
+					if (OS){ 	
 					float mass = dilepton->mass();
 					float lpt = dilepton->getDaughter_leadingPt()->pt();
 					float tpt = dilepton->getDaughter_subleadingPt()->pt(); 	
@@ -1009,11 +1014,17 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 						//cout << pdgId_2 << ',' << match_pdgId_2 << ',' << pdgId_1 << ',' << match_pdgId_1 << endl;
 					}
 					
-					int nJets = numJets;}
-						
+					int nJets = numJets;
+
+
 #define BRANCH_VECTOR_COMMAND(TYPE, NAME) dileptons_OS_##NAME.push_back(NAME);
           BRANCH_VECTOR_COMMANDS;
 #undef BRANCH_VECTOR_COMMAND
+
+
+
+}
+						
         
 }
 
@@ -1072,11 +1083,15 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 						//cout << pdgId_2 << ',' << match_pdgId_2 << ',' << pdgId_1 << ',' << match_pdgId_1 << endl;
 					}
 					
-					int nJets = numJets;}
-						
+					int nJets = numJets;
+
 #define BRANCH_VECTOR_COMMAND(TYPE, NAME) dileptons_SS_##NAME.push_back(NAME);
           BRANCH_VECTOR_COMMANDS;
 #undef BRANCH_VECTOR_COMMAND
+
+
+}
+						
         }
 
 #define BRANCH_VECTOR_COMMAND(TYPE, NAME) rcd_output.setNamedVal(Form("dileptons_%s", #NAME), dileptons_SS_##NAME);
