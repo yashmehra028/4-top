@@ -311,7 +311,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   for (auto const& dset_proc_pair:dset_proc_pairs){
     TString strinput = SampleHelpers::getInputDirectory() + "/" + strinputdpdir + "/" + dset_proc_pair.second.data();
     //TString cinput = (input_files=="" ? strinput + "/DY_2l_M_50_1.root" : strinput + "/" + input_files.data());
-    TString cinput = (input_files=="" ? strinput + ("/DY_2l_M_50_1.root","/DY_2l_M_50_2.root","/DY_2l_M_50_3.root","/DY_2l_M_50_4.root") : strinput + "/" + input_files.data());
+    TString cinput = (input_files=="" ? strinput + ("/DY_2l_M_50_1.root","/DY_2l_M_50_2.root") : strinput + "/" + input_files.data());
     IVYout << "Accessing input files " << cinput << "..." << endl;
     TString const sid = SampleHelpers::getSampleIdentifier(dset_proc_pair.first);
     bool const isData = SampleHelpers::checkSampleIsData(sid);
@@ -1028,7 +1028,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
         
 }
 
-#define BRANCH_VECTOR_COMMAND(TYPE, NAME) rcd_output.setNamedVal(Form("dileptons_%s", #NAME), dileptons_OS_##NAME);
+#define BRANCH_VECTOR_COMMAND(TYPE, NAME) rcd_output.setNamedVal(Form("dileptons_OS_%s", #NAME), dileptons_OS_##NAME);
         BRANCH_VECTOR_COMMANDS;
 #undef BRANCH_VECTOR_COMMAND
 
@@ -1094,7 +1094,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 						
         }
 
-#define BRANCH_VECTOR_COMMAND(TYPE, NAME) rcd_output.setNamedVal(Form("dileptons_%s", #NAME), dileptons_SS_##NAME);
+#define BRANCH_VECTOR_COMMAND(TYPE, NAME) rcd_output.setNamedVal(Form("dileptons_SS_%s", #NAME), dileptons_SS_##NAME);
         BRANCH_VECTOR_COMMANDS;
 #undef BRANCH_VECTOR_COMMAND
 
