@@ -311,7 +311,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
   for (auto const& dset_proc_pair:dset_proc_pairs){
     TString strinput = SampleHelpers::getInputDirectory() + "/" + strinputdpdir + "/" + dset_proc_pair.second.data();
     //TString cinput = (input_files=="" ? strinput + "/DY_2l_M_50_1.root" : strinput + "/" + input_files.data());
-    TString cinput = (input_files=="" ? strinput + ("/DY_2l_M_50_1.root","/DY_2l_M_50_2.root") : strinput + "/" + input_files.data());
+    TString cinput = (input_files=="" ? strinput + ("/DY_2l_M_50_1.root","/DY_2l_M_50_2.root","/DY_2l_M_50_3.root","/DY_2l_M_50_4.root") : strinput + "/" + input_files.data());
     IVYout << "Accessing input files " << cinput << "..." << endl;
     TString const sid = SampleHelpers::getSampleIdentifier(dset_proc_pair.first);
     bool const isData = SampleHelpers::checkSampleIsData(sid);
@@ -1005,7 +1005,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 
           auto it_genmatch_2 = lepton_genmatchpart_map.find(part2);
           bool is_genmatched_prompt_2 = it_genmatch_2!=lepton_genmatchpart_map.end() && it_genmatch_2->second!=nullptr;
-				
+					
 					float pdgId_1 = -99, match_pdgId_1 = -99, pdgId_2=-99, match_pdgId_2=-99;
 					//float pdgId_1, match_pdgId_1, pdgId_2, match_pdgId_2;
 					if (is_genmatched_prompt_1 && is_genmatched_prompt_2){
@@ -1013,6 +1013,12 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 						pdgId_2 = it_genmatch_2->first->pdgId(); match_pdgId_2 = it_genmatch_2->second->pdgId();
 						//cout << pdgId_2 << ',' << match_pdgId_2 << ',' << pdgId_1 << ',' << match_pdgId_1 << endl;
 					}
+					else {
+							
+						pdgId_1 = part1->pdgId(); match_pdgId_1 = 33;
+						pdgId_2 = part2->pdgId(); match_pdgId_2 = 33;
+
+					}		
 					
 					int nJets = numJets;
 
