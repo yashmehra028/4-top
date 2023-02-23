@@ -152,7 +152,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 	output_csv.open(stroutput_csv);
 
 	
-	output_csv << "event,# tight electrons,# tight muons,has_OS_pair,has_OS_Z_cand,has_SS_ZCand" << endl;
+	output_csv << "event,# tight electrons,# tight muons,has_OS_pair,has_OS_Z_cand,has_SS_ZCand,n_leptons_matched" << endl;
   // In case the user wants to run on particular files
   std::string input_files;
   extra_arguments.getNamedVal("input_files", input_files);
@@ -918,8 +918,8 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       }
 		
 	
-			output_csv <<  *ptr_EventNumber  << ',' << electrons_tight.size() << ',' << muons_tight.size() << ',' << OS << ',' << has_dilepton_OS_ZCand_tight  << ',' << has_dilepton_SS_ZCand_tight << '\n'; 
-
+//			output_csv <<  *ptr_EventNumber  << ',' << electrons_tight.size() << ',' << muons_tight.size() << ',' << OS << ',' << has_dilepton_OS_ZCand_tight  << ',' << has_dilepton_SS_ZCand_tight << '\n'; 
+			int n_matched = 0;	
 
       rcd_output.setNamedVal<float>("HT_ak4jets", HT_ak4jets);
       rcd_output.setNamedVal<float>("pTmiss", pTmiss);
@@ -988,7 +988,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 #undef BRANCH_VECTOR_COMMAND
 
         for (auto const& dilepton:filtered_zcand){
-					if (OS){ 	
+					if (has_dilepton_OS_ZCand_tight){ 	
 					float mass = dilepton->mass();
 					float lpt = dilepton->getDaughter_leadingPt()->pt();
 					float tpt = dilepton->getDaughter_subleadingPt()->pt(); 	
@@ -1011,8 +1011,22 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 					if (is_genmatched_prompt_1 && is_genmatched_prompt_2){
 						pdgId_1 = it_genmatch_1->first->pdgId(); match_pdgId_1 = it_genmatch_1->second->pdgId();
 						pdgId_2 = it_genmatch_2->first->pdgId(); match_pdgId_2 = it_genmatch_2->second->pdgId();
+						n_matched += 2;
 						//cout << pdgId_2 << ',' << match_pdgId_2 << ',' << pdgId_1 << ',' << match_pdgId_1 << endl;
 					}
+					
+					else if (is_genmatched_prompt_1){
+						 pdgId_1 = it_genmatch_1->first->pdgId(); match_pdgId_1 = it_genmatch_1->second->pdgId();
+						 pdgId_2 = part2->pdgId(); match_pdgId_2 = 33;
+						 n_matched++;
+					}
+
+					else if (is_genmatched_prompt_2){
+						 pdgId_2 = it_genmatch_2->first->pdgId(); match_pdgId_2 = it_genmatch_2->second->pdgId();
+						 pdgId_1 = part1->pdgId(); match_pdgId_1 = 33;
+						 n_matched++;
+					}
+
 					else {
 							
 						pdgId_1 = part1->pdgId(); match_pdgId_1 = 33;
@@ -1063,7 +1077,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 #undef BRANCH_VECTOR_COMMAND
 
         for (auto const& dilepton:filtered_zcand){
-					if (!OS) {				
+					if (has_dilepton_SS_ZCand_tight) {				
 					float mass = dilepton->mass();
 					float lpt = dilepton->getDaughter_leadingPt()->pt();
 					float tpt = dilepton->getDaughter_subleadingPt()->pt(); 	
@@ -1086,10 +1100,32 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 					if (is_genmatched_prompt_1 && is_genmatched_prompt_2){
 						pdgId_1 = it_genmatch_1->first->pdgId(); match_pdgId_1 = it_genmatch_1->second->pdgId();
 						pdgId_2 = it_genmatch_2->first->pdgId(); match_pdgId_2 = it_genmatch_2->second->pdgId();
+						n_matched += 2;
 						//cout << pdgId_2 << ',' << match_pdgId_2 << ',' << pdgId_1 << ',' << match_pdgId_1 << endl;
 					}
+				
+					
+					else if (is_genmatched_prompt_1){
+						 pdgId_1 = it_genmatch_1->first->pdgId(); match_pdgId_1 = it_genmatch_1->second->pdgId();
+						 pdgId_2 = part2->pdgId(); match_pdgId_2 = 33;
+						 n_matched++;
+					}
+
+					else if (is_genmatched_prompt_2){
+						 pdgId_2 = it_genmatch_2->first->pdgId(); match_pdgId_2 = it_genmatch_2->second->pdgId();
+						 pdgId_1 = part1->pdgId(); match_pdgId_1 = 33;
+						 n_matched++;
+					}
+
+					else {
+							
+						pdgId_1 = part1->pdgId(); match_pdgId_1 = 33;
+						pdgId_2 = part2->pdgId(); match_pdgId_2 = 33;
+
+					}		
 					
 					int nJets = numJets;
+					
 
 #define BRANCH_VECTOR_COMMAND(TYPE, NAME) dileptons_SS_##NAME.push_back(NAME);
           BRANCH_VECTOR_COMMANDS;
@@ -1167,6 +1203,14 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
       tout->fill();
       n_recorded++;
 
+			output_csv <<  *ptr_EventNumber << ','; 
+			output_csv << electrons_tight.size() << ',';
+			output_csv << muons_tight.size() << ',';
+			output_csv << OS << ',';
+			output_csv << has_dilepton_OS_ZCand_tight << ',';
+			output_csv << has_dilepton_SS_ZCand_tight << ',';
+			output_csv << n_matched << endl;
+ 
       if (firstOutputEvent) firstOutputEvent = false;
     }
 		cout << "total dileptons vectors size " << total_dilepton_size << endl;
