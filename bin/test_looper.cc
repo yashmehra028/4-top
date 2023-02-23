@@ -1014,10 +1014,8 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 						n_matched += 2;
 						
 						int product_1 = pdgId_1*match_pdgId_1, product_2 = pdgId_2*match_pdgId_2;
-						
-						if (product_1<0) n_matched_correct++;
-						if (product_2<0) n_matched_correct++; 
-						
+						if (product_1>0) n_matched_correct++;
+						if (product_2>0) n_matched_correct++; 
 						//cout << pdgId_2 << ',' << match_pdgId_2 << ',' << pdgId_1 << ',' << match_pdgId_1 << endl;
 					}
 					
@@ -1026,7 +1024,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 						pdgId_2 = part2->pdgId(); match_pdgId_2 = 33;
 						n_matched++;
 						int product_1 = pdgId_1*match_pdgId_1;
-						if (product_1<0) n_matched_correct++;
+						if (product_1>0) n_matched_correct++;
 							
 					
 					}
@@ -1037,7 +1035,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 						n_matched++;
 
 						int product_2 = pdgId_2*match_pdgId_2;
-						if (product_2<0) n_matched_correct++;
+						if (product_2>0) n_matched_correct++;
 					}
 
 					else {
