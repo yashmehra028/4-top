@@ -152,7 +152,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 	output_csv.open(stroutput_csv);
 
 	
-	output_csv << "event,# tight electrons,# tight muons,has_OS_pair,has_OS_Z_cand,has_SS_ZCand,n_leptons_matched" << endl;
+	output_csv << "event,# tight electrons,# tight muons,has_OS_pair,has_OS_Z_cand,has_SS_ZCand,n_leptons_matched,matched_correct" << endl;
   // In case the user wants to run on particular files
   std::string input_files;
   extra_arguments.getNamedVal("input_files", input_files);
@@ -920,7 +920,7 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 	
 //			output_csv <<  *ptr_EventNumber  << ',' << electrons_tight.size() << ',' << muons_tight.size() << ',' << OS << ',' << has_dilepton_OS_ZCand_tight  << ',' << has_dilepton_SS_ZCand_tight << '\n'; 
 			int n_matched = 0;	
-
+			int n_matched_correct = 0;
       rcd_output.setNamedVal<float>("HT_ak4jets", HT_ak4jets);
       rcd_output.setNamedVal<float>("pTmiss", pTmiss);
       rcd_output.setNamedVal<float>("phimiss", phimiss);
@@ -1012,19 +1012,32 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 						pdgId_1 = it_genmatch_1->first->pdgId(); match_pdgId_1 = it_genmatch_1->second->pdgId();
 						pdgId_2 = it_genmatch_2->first->pdgId(); match_pdgId_2 = it_genmatch_2->second->pdgId();
 						n_matched += 2;
+						
+						int product_1 = pdgId_1*match_pdgId_1, product_2 = pdgId_2*match_pdgId_2;
+						
+						if (product_1<0) n_matched_correct++;
+						if (product_2<0) n_matched_correct++; 
+						
 						//cout << pdgId_2 << ',' << match_pdgId_2 << ',' << pdgId_1 << ',' << match_pdgId_1 << endl;
 					}
 					
 					else if (is_genmatched_prompt_1){
-						 pdgId_1 = it_genmatch_1->first->pdgId(); match_pdgId_1 = it_genmatch_1->second->pdgId();
-						 pdgId_2 = part2->pdgId(); match_pdgId_2 = 33;
-						 n_matched++;
+						pdgId_1 = it_genmatch_1->first->pdgId(); match_pdgId_1 = it_genmatch_1->second->pdgId();
+						pdgId_2 = part2->pdgId(); match_pdgId_2 = 33;
+						n_matched++;
+						int product_1 = pdgId_1*match_pdgId_1;
+						if (product_1<0) n_matched_correct++;
+							
+					
 					}
 
 					else if (is_genmatched_prompt_2){
-						 pdgId_2 = it_genmatch_2->first->pdgId(); match_pdgId_2 = it_genmatch_2->second->pdgId();
-						 pdgId_1 = part1->pdgId(); match_pdgId_1 = 33;
-						 n_matched++;
+						pdgId_2 = it_genmatch_2->first->pdgId(); match_pdgId_2 = it_genmatch_2->second->pdgId();
+						pdgId_1 = part1->pdgId(); match_pdgId_1 = 33;
+						n_matched++;
+
+						int product_2 = pdgId_2*match_pdgId_2;
+						if (product_2<0) n_matched_correct++;
 					}
 
 					else {
@@ -1102,19 +1115,33 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 						pdgId_2 = it_genmatch_2->first->pdgId(); match_pdgId_2 = it_genmatch_2->second->pdgId();
 						n_matched += 2;
 						//cout << pdgId_2 << ',' << match_pdgId_2 << ',' << pdgId_1 << ',' << match_pdgId_1 << endl;
+						
+						int product_1 = pdgId_1*match_pdgId_1, product_2 = pdgId_2*match_pdgId_2;
+						
+						if (product_1>0) n_matched_correct++;
+						if (product_2>0) n_matched_correct++; 
+
 					}
 				
 					
 					else if (is_genmatched_prompt_1){
-						 pdgId_1 = it_genmatch_1->first->pdgId(); match_pdgId_1 = it_genmatch_1->second->pdgId();
-						 pdgId_2 = part2->pdgId(); match_pdgId_2 = 33;
-						 n_matched++;
+						pdgId_1 = it_genmatch_1->first->pdgId(); match_pdgId_1 = it_genmatch_1->second->pdgId();
+						pdgId_2 = part2->pdgId(); match_pdgId_2 = 33;
+						n_matched++;
+					
+						int product_1 = pdgId_1*match_pdgId_1;
+						if (product_1>0) n_matched_correct++;
+
+
 					}
 
 					else if (is_genmatched_prompt_2){
 						 pdgId_2 = it_genmatch_2->first->pdgId(); match_pdgId_2 = it_genmatch_2->second->pdgId();
 						 pdgId_1 = part1->pdgId(); match_pdgId_1 = 33;
 						 n_matched++;
+					
+						int product_2 = pdgId_2*match_pdgId_2;
+						if (product_2>0) n_matched_correct++;
 					}
 
 					else {
@@ -1209,7 +1236,8 @@ int ScanChain(std::string const& strdate, std::string const& dset, std::string c
 			output_csv << OS << ',';
 			output_csv << has_dilepton_OS_ZCand_tight << ',';
 			output_csv << has_dilepton_SS_ZCand_tight << ',';
-			output_csv << n_matched << endl;
+			output_csv << n_matched << ',';
+			output_csv << n_matched_correct << endl;
  
       if (firstOutputEvent) firstOutputEvent = false;
     }
